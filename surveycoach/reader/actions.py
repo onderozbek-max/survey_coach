@@ -14,7 +14,9 @@ def _synthetic_png_payload(upload_dir: Path) -> dict:
 async def answer_groups(page, observation: dict, *, upload_dir: Path, feedback: str = '', skip_upload: bool = False) -> bool:
     text_count = sum(group['kind'] in {'text_short', 'text_long'} for group in observation['groups'])
     staged = False
-    redjade_media = False
+    # The widget can remove/reset its file input after saving. Detect its container,
+    # not just the input branch, or Add Media incorrectly creates an empty slot.
+    redjade_media = await page.locator('[data-testid="media-uploader"]').count() > 0
     for group in observation['groups']:
         selected = {}
         for item in group['items']:
@@ -28,9 +30,9 @@ async def answer_groups(page, observation: dict, *, upload_dir: Path, feedback: 
                 accept = item.get('accept', '').lower()
                 if accept and not any(token.strip() in {'image/*', 'image/png', '.png', '*/*'} for token in accept.split(',')):
                     raise UnmetRequirement('Upload requires a format other than the synthetic PNG.')
-                redjade_media = await locator.evaluate("e => !!e.closest('[data-testid=media-uploader]')")
+                inline_media = await locator.evaluate("e => !!e.closest('[data-testid=media-uploader]')")
                 payload = _synthetic_png_payload(upload_dir)
-                if redjade_media:
+                if inline_media:
                     # This widget saves on upload. Its Add Media button creates a NEW
                     # empty answer; clicking it is not a commit and can require deletes.
                     try:

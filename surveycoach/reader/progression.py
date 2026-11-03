@@ -37,9 +37,17 @@ async def advance(page, observation: dict, *, controls, participate: bool, slow:
         try:
             await page.wait_for_function(
                 'old => { const current=(' + OBSERVE + ')(); return current.text.trim() && '
-                '!/^(loading[. …]*|please wait[. …]*)$/i.test(current.text.trim()) && current.state_key !== old; }',
+                '!/^(loading[. …]*|please wait[. …]*)$/i.test(current.text.trim()) && '
+                '!current.errors.length && '
+                'current.state_key !== old; }',
                 arg=revealed['state_key'], timeout=2000 * slow)
             await page.wait_for_timeout(100)
+            # Validation can arrive after a state-key change (including prompt text).
+            settled = await page.evaluate(OBSERVE)
+            if settled.get('errors'):
+                current = settled
+                feedback = ' '.join(settled.get('errors', []))
+                continue
             return 'advanced'
         except Exception:
             current = await page.evaluate(OBSERVE)
