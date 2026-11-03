@@ -26,7 +26,8 @@ OBSERVE = r"""() => {
     // RedJade groups a question as title + .taker-question-slot-container, without fieldsets.
     const container = e.closest('fieldset,[role=radiogroup],[role=group]') ||
       e.closest('.taker-question-slot-container')?.parentElement || null;
-    const key = container || (e.name && ['radio','checkbox'].includes(e.type) ? e.name : e);
+    const independent = e.tagName==='SELECT';
+    const key = independent ? e : container || (e.name && ['radio','checkbox'].includes(e.type) ? e.name : e);
     if (!grouped.has(key)) grouped.set(key,{container,els:[]});
     grouped.get(key).els.push(e);
   }
@@ -44,9 +45,15 @@ OBSERVE = r"""() => {
     const legend=container?.querySelector(':scope > legend');
     const named=container?.getAttribute('aria-label');
     const ref=container?.getAttribute('aria-labelledby');
-    const prompt=text(legend)||named||(ref ? text(document.getElementById(ref)) : '')||
+    let prompt=text(legend)||named||(ref ? text(document.getElementById(ref)) : '')||
       (table ? text(table.querySelector('caption')) : '')||text(container?.querySelector('.taker-title'))||
       (!['single_choice','multi_choice'].includes(kind) ? label(first) : '');
+    if(first.tagName==='SELECT' && container) {
+      const ownLabel = first.getAttribute('aria-label') ||
+        (first.labels?.length ? [...first.labels[0].childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent).join('').trim() : '');
+      if(ownLabel) prompt = prompt ? prompt+' — '+ownLabel : ownLabel;
+      else if(container.querySelectorAll('select').length>1) unsupported=true;
+    }
     if(!prompt || kind==='unknown') unsupported=true;
     const groupIndex=groups.length;
     const items=els.map((e,i)=>{
@@ -71,6 +78,9 @@ OBSERVE = r"""() => {
   const pageText=text(document.body);
   const sourcePages=[...document.querySelectorAll('[data-page-id]')].filter(visible);
   const source_page_id=sourcePages.length===1 ? sourcePages[0].getAttribute('data-page-id') : null;
-  return {title:document.title,text:pageText,groups,nav,media,unsupported,source_page_id,
-    screenout:/do not qualify|not eligible|screened out|not qualified/i.test(pageText)};
+  const state_key=JSON.stringify([source_page_id, groups.length ? groups.map(g=>
+    [g.source_id,g.prompt,g.kind,g.items.map(i=>[i.label,i.options])]) : pageText]);
+  return {title:document.title,text:pageText,groups,nav,media,unsupported,source_page_id,state_key,
+    screenout:groups.length===0 && !nav.some(b=>/^(next|continue|begin|start|submit|finish|complete|done)\\b/i.test(b.label)) &&
+      /do not qualify|not eligible|screened out|not qualified/i.test(pageText)};
 }"""

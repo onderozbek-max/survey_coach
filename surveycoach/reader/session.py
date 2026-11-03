@@ -36,9 +36,9 @@ def patience(transport) -> int:
     return 5 if transport.proxy else 1
 
 
-def progression_controls(observation: dict, *, participate: bool) -> list[dict]:
+def progression_controls(observation: dict, *, participate: bool, include_disabled: bool = False) -> list[dict]:
     """One unambiguous forward action; test participation includes Submit/Finish."""
-    return [button for button in observation["nav"] if not button["disabled"] and
+    return [button for button in observation["nav"] if (include_disabled or not button["disabled"]) and
             (NEXT.fullmatch(button["label"]) or (participate and FINAL.match(button["label"])))]
 
 
@@ -153,7 +153,13 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                     if observed["unsupported"]:
                         coverage.stop_reason = "unsupported"
                         break
-                    nav = progression_controls(observed, participate=participate)
+                    if not observed["groups"] and not observed["nav"] and re.search(
+                        r"\bthank\s+you\b|\bresponse\s+(?:has\s+been\s+)?(?:received|recorded)|\bsurvey\s+(?:is\s+)?complete\b",
+                        observed["text"], re.I,
+                    ):
+                        coverage.stop_reason = "path_end"
+                        break
+                    nav = progression_controls(observed, participate=participate, include_disabled=True)
                     if len(nav) != 1:
                         coverage.stop_reason = "unsupported"
                         break
@@ -182,7 +188,10 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         break
                     await page.locator(f'[data-surveycoach-id="{nav[0]["id"]}"]').click()
                     try:
-                        await page.wait_for_function(READY, arg=observed["text"], timeout=2000 * slow)
+                        await page.wait_for_function(
+                            "old => { const current=(" + OBSERVE + ")(); return current.text.trim() && "
+                            "!/^(loading[. …]*|please wait[. …]*)$/i.test(current.text.trim()) && current.state_key !== old; }",
+                            arg=observed["state_key"], timeout=2000 * slow)
                     except Exception:
                         coverage.stop_reason = "blocked"
                         break

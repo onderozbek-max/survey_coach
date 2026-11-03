@@ -11,7 +11,9 @@ def stable_id(prefix: str, *parts) -> str:
 
 
 def fingerprint(observation: dict) -> str:
-    return stable_id("page", observation["text"], [
+    if observation.get("state_key"):
+        return stable_id("page", observation["state_key"])
+    return stable_id("page", observation.get("source_page_id"), observation["text"], [
         [group["prompt"], group["kind"], [item["label"] for item in group["items"]]]
         for group in observation["groups"]
     ])

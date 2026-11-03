@@ -21,6 +21,15 @@ else if(stage==='grid') root.innerHTML=`<fieldset><legend>Rate these products.</
 else if(stage==='final') root.innerHTML='<h1>Review your answers.</h1><button onclick="fetch(\'/submitted\')">Submit survey</button>';
 else if(stage==='section-one') root.innerHTML=`<fieldset><legend>Section feedback.</legend><textarea id="section-answer"></textarea></fieldset><button onclick="if(document.getElementById('section-answer').value)location.href='/section-two'">Submit section</button>`;
 else if(stage==='section-two') root.innerHTML=`<h1>Another section after Submit.</h1><button onclick="location.href='/thanks'">Finish</button>`;
+else if(stage==='disabled-next') {
+ root.innerHTML=`<label>Explain your answer.<textarea id="required-answer"></textarea></label><button disabled id="next-button">Next</button>`;
+ document.getElementById('required-answer').oninput=()=>{document.getElementById('next-button').disabled=false;};
+ document.getElementById('next-button').onclick=()=>{location.href='/thanks';};
+}
+else if(stage==='eligibility-wording') root.innerHTML=`<label>If not eligible, explain why.<textarea></textarea></label><button onclick="location.href='/thanks'">Next</button>`;
+else if(stage==='compound-selects') root.innerHTML=`<fieldset><legend>Household</legend><label>Adults<select><option value="1">One adult</option><option value="2">Two adults</option></select></label><label>Children<select><option value="0">No children</option><option value="1">One child</option></select></label></fieldset><button onclick="location.href='/thanks'">Next</button>`;
+else if(['identical-one','identical-two'].includes(stage)) root.innerHTML=`<section data-page-id="${stage}"><fieldset data-question-id="q-${stage}"><legend>Rate this product.</legend><label><input type="radio" name="rating">Good</label></fieldset><button onclick="location.href='${stage==='identical-one'?'/identical-two':'/thanks'}'">Next</button></section>`;
+else if(stage==='validation-only') root.innerHTML=`<section data-page-id="same-page"><fieldset data-question-id="same-question"><legend>Provide a code.</legend><input type="text"></fieldset><p id="error"></p><button onclick="document.getElementById('error').textContent='Please answer the question correctly.'">Next</button></section>`;
 else if(stage==='thanks') root.innerHTML='<h1>Thank you. Test response received.</h1>';
 else if(stage==='screenout') root.innerHTML='<h1>You do not qualify for this survey.</h1>';
 else if(stage==='aria') root.innerHTML=`<div role="radiogroup" aria-label="Pick a color."><div role="radio" tabindex="0" aria-checked="false" onclick="this.setAttribute('aria-checked','true')">Blue</div><div role="radio" tabindex="0" aria-checked="false">Green</div></div><button onclick="location.href='/final'">Next</button>`;

@@ -42,7 +42,15 @@
         result = await api(surveyId ? `/api/surveys/${encodeURIComponent(surveyId)}/recheck` : "/api/surveys", "POST", { snapshot, ai });
       } else {
         if (!$("survey-link").value.trim()) throw new Error("Paste an approved preview link or choose a snapshot file.");
-        result = await api("/api/reader/jobs", "POST", { url: $("survey-link").value.trim(), approval: true, ai, survey_id: surveyId || null });
+        const value = $("survey-link").value.trim();
+        let url;
+        try { url = new URL(value); } catch (_) { /* handled by the shared message below */ }
+        if (!url || url.protocol !== "https:" ||
+            !(url.hostname === "redjade.net" || url.hostname.endsWith(".redjade.net")) ||
+            url.username || url.password || url.search || url.hash || url.port || /[\s\\]/.test(value)) {
+          throw new Error("Use a valid HTTPS RedJade test link without credentials, query parameters, or a fragment.");
+        }
+        result = await api("/api/reader/jobs", "POST", { url: value, approval: true, ai, survey_id: surveyId || null });
       }
       await waitForJob(result.job_id, "import-status");
       const job = await api(`/api/jobs/${encodeURIComponent(result.job_id)}`);
@@ -156,7 +164,7 @@
       h("p", null, `${Math.round(c.score - c.unchecked_points)} of ${100 - c.unchecked_points} checked points earned. ${c.unchecked_points} points not checked.`),
       h("p", null, !r.ai ? "AI checks have not run." : failed.length ? `AI could not check: ${failed.join(", ")}.` : "AI review completed. Its advice still needs your judgment."),
       r.unchecked.length > 0 && h("details", null, h("summary", null, "Checks not completed"), h("ul", null, r.unchecked.map((name) => h("li", null, name)))),
-      coverage && h("details", { open: true }, h("summary", null, `Read coverage: ${coverage.pages_captured} pages captured`), h("ul", null, coverage.warnings.map((warning) => h("li", null, warning))),
+      coverage && h("details", { open: true }, h("summary", null, `Read coverage: ${coverage.pages_captured} pages captured`), h("p", null, `Reader stopped: ${coverage.stop_reason}. This does not establish full branching coverage.`), h("ul", null, coverage.warnings.map((warning) => h("li", null, warning))),
         h("p", null, "Actual captured screens (only the pages the reader visited):"),
         Array.from({ length: coverage.pages_captured }, (_, index) => h("a", { href: `${endpoint()}/captures/${index}`, target: "_blank", rel: "noopener" }, `Open captured screen ${index + 1} `))),
       h("p", null, "You are responsible for the final launch decision. A snapshot preview is not a verified replica of RedJade."));
@@ -173,6 +181,8 @@
       location.href = `review.html?id=${encodeURIComponent(result.id)}`;
     } catch (error) { message("import-status", error.message); $("sample-start").disabled = false; }
   });
+  // One accessible inline error path for both malformed and disallowed URLs.
+  for (const id of ["import-form", "recheck-form"]) if ($(id)) $(id).noValidate = true;
   $("import-form")?.addEventListener("submit", submit);
   $("recheck-form")?.addEventListener("submit", submit);
   (surveyId ? review() : home()).catch((error) => message(surveyId ? "review-status" : "import-status", error.message));
