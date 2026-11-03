@@ -42,10 +42,6 @@
         result = await api(surveyId ? `/api/surveys/${encodeURIComponent(surveyId)}/recheck` : "/api/surveys", "POST", { snapshot, ai });
       } else {
         if (!$("survey-link").value.trim()) throw new Error("Paste an approved preview link or choose a snapshot file.");
-        if (!window.confirm("Is this an approved test/preview link, with test-participant handling agreed with the survey owner? Opening it may create a test record. Choose Cancel if you are unsure. The tool will not submit a completed response.")) {
-          message("import-status", "Review cancelled. No survey link was opened.");
-          return;
-        }
         result = await api("/api/reader/jobs", "POST", { url: $("survey-link").value.trim(), approval: true, ai, survey_id: surveyId || null });
       }
       await waitForJob(result.job_id, "import-status");

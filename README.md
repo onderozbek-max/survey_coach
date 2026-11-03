@@ -31,7 +31,7 @@ After installing dependencies below, install Chromium with `.venv/bin/python -m 
 open http://127.0.0.1:8765/local.html
 ```
 
-Choose **Try the saved-work flow with a sample** to test without technical files or external access. It runs local checks and explicitly leaves AI unchecked. Alternatively import a SurveyCoach JSON snapshot (developer-assisted), or use an approved clean HTTPS RedJade test link. Normal Start review / Check again includes AI through the fixed Wibey model, with a visible notice before submission; never a fake provider in normal usage. The one-click sample remains local-only. Test-link approval is requested at start rather than as a permanent checkbox.
+Choose **Try the saved-work flow with a sample** to test without technical files or external access. It runs local checks and explicitly leaves AI unchecked. Alternatively import a SurveyCoach JSON snapshot (developer-assisted), or use an approved clean HTTPS RedJade test link. Normal Start review / Check again includes AI through the fixed Wibey model, with a visible notice before submission; never a fake provider in normal usage. The one-click sample remains local-only. Start review proceeds directly without a checkbox or confirmation dialog. The inline test-link notice remains; automated response writes and final submission are still blocked.
 
 Choices, keep reasons, and manually marked changes persist on this computer. Copying does not mark a fix resolved. Import an updated snapshot or reread the approved link to compare versions. The summary packet contains survey wording: save/share it only through approved internal channels.
 
