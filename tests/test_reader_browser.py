@@ -111,6 +111,17 @@ def test_aria_choice_controls_are_read_without_guessed_wording(zoo):
     assert [o.label for o in question.options] == ["Blue", "Green"]
 
 
+def test_redjade_button_checkboxes_are_answers_not_navigation(zoo):
+    """RedJade renders options as <button role=checkbox> with a hidden input and a .taker-title prompt."""
+    result = read_survey(zoo[0] + "/redjade", allow_test_local=True)
+    assert result.coverage.stop_reason == "final_control"
+    assert result.coverage.pages_captured == 2
+    question = result.snapshot.all_questions()[0]
+    assert question.text == "Which of these did you do?"
+    assert question.kind == "multi_choice"
+    assert [o.label for o in question.options] == ["Carved a pumpkin", "Watched a movie"]
+
+
 @pytest.mark.parametrize("stage", ["empty", "unlabeled"])
 def test_unknown_or_unlabeled_pages_are_not_claimed_as_read(zoo, stage):
     result = read_survey(zoo[0] + "/" + stage, allow_test_local=True)

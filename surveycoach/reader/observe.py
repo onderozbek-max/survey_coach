@@ -3,8 +3,11 @@ OBSERVE = r"""() => {
   const visible = e => { const r=e.getBoundingClientRect(), s=getComputedStyle(e);
     return r.width>0 && r.height>0 && s.visibility!=='hidden' && s.display!=='none'; };
   const text = e => e ? e.innerText.trim() : '';
-  const controls = [...document.querySelectorAll('input:not([type=hidden]),textarea,select,[role=radio],[role=checkbox]')].filter(visible);
-  const buttons = [...document.querySelectorAll('button,input[type=submit],input[type=button],a[href],[role=button]')].filter(visible);
+  const answerRole = '[role=radio],[role=checkbox]';
+  const controls = [...document.querySelectorAll('input:not([type=hidden]),textarea,select,' + answerRole)].filter(visible);
+  // ARIA answer controls may be <button>s (RedJade); they are answers, never navigation.
+  const buttons = [...document.querySelectorAll('button,input[type=submit],input[type=button],a[href],[role=button]')]
+    .filter(e => visible(e) && !e.matches(answerRole));
   const tag = (e,id) => {e.setAttribute('data-surveycoach-id',id); return id;};
   const label = e => e.getAttribute('aria-label') || (e.labels?.length ? text(e.labels[0]) : text(e));
   const nav = buttons.map((e,i)=>({id:tag(e,'nav-'+i), label:label(e)||e.value||'',
@@ -12,10 +15,12 @@ OBSERVE = r"""() => {
   let unsupported = [...document.querySelectorAll('canvas,iframe,video,[role=slider],[draggable=true],input[type=password],input[type=file],input[type=range]')].some(visible);
   // Only next/final buttons and explicit ARIA options are understood. Guessing is unsafe.
   unsupported ||= buttons.some(e => !/^(next|continue|begin|start|submit\b.*|finish\b.*|complete\b.*|done\b.*)$/i.test(label(e)||e.value||''));
-  const answer = controls.filter(e=>!['submit','button'].includes(e.type));
+  const answer = controls.filter(e=>e.matches(answerRole) || !['submit','button'].includes(e.type));
   const grouped = new Map();
   for (const e of answer) {
-    const container = e.closest('fieldset,[role=radiogroup],[role=group]');
+    // RedJade groups a question as title + .taker-question-slot-container, without fieldsets.
+    const container = e.closest('fieldset,[role=radiogroup],[role=group]') ||
+      e.closest('.taker-question-slot-container')?.parentElement || null;
     const key = container || (e.name && ['radio','checkbox'].includes(e.type) ? e.name : e);
     if (!grouped.has(key)) grouped.set(key,{container,els:[]});
     grouped.get(key).els.push(e);
@@ -35,7 +40,7 @@ OBSERVE = r"""() => {
     const named=container?.getAttribute('aria-label');
     const ref=container?.getAttribute('aria-labelledby');
     const prompt=text(legend)||named||(ref ? text(document.getElementById(ref)) : '')||
-      (table ? text(table.querySelector('caption')) : '')||
+      (table ? text(table.querySelector('caption')) : '')||text(container?.querySelector('.taker-title'))||
       (!['single_choice','multi_choice'].includes(kind) ? label(first) : '');
     if(!prompt || kind==='unknown') unsupported=true;
     const groupIndex=groups.length;
@@ -45,7 +50,7 @@ OBSERVE = r"""() => {
       const header=table && col>=0 ? table.querySelector('tr')?.children[col] : null;
       return {id:tag(e,'answer-'+groupIndex+'-'+i),label:label(e)||text(header),
         row:row ? text(row.querySelector('th')) : '',name:e.name||'',type:e.type||e.getAttribute('role'),
-        checked:!!e.checked||e.getAttribute('aria-checked')==='true',value:e.value||'',disabled:!!e.disabled,
+        checked:!!e.checked||e.getAttribute('aria-checked')==='true'||!!e.querySelector?.('input:checked'),value:e.value||'',disabled:!!e.disabled,
         min:e.min||'',max:e.max||'',required:!!e.required||e.getAttribute('aria-required')==='true',
         options:e.tagName==='SELECT'?[...e.options].map(o=>({label:o.text,value:o.value,disabled:o.disabled})):[]};
     });

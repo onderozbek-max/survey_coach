@@ -21,6 +21,12 @@ else if(stage==='grid') root.innerHTML=`<fieldset><legend>Rate these products.</
 else if(stage==='final') root.innerHTML='<h1>Review your answers.</h1><button onclick="fetch(\'/submitted\')">Submit survey</button>';
 else if(stage==='screenout') root.innerHTML='<h1>You do not qualify for this survey.</h1>';
 else if(stage==='aria') root.innerHTML=`<div role="radiogroup" aria-label="Pick a color."><div role="radio" tabindex="0" aria-checked="false" onclick="this.setAttribute('aria-checked','true')">Blue</div><div role="radio" tabindex="0" aria-checked="false">Green</div></div><button onclick="location.href='/final'">Next</button>`;
+else if(stage==='redjade') root.innerHTML=`<div class="q"><div aria-label="Which of these did you do? *"><div class="taker-question-title-row"><div class="taker-title"><div><p>Which of these did you do?</p></div><span></span></div></div></div>
+<div class="taker-question-slot-container"><div><div class="responsive-answer-grid-container">
+<div class="answer-element-container"><button type="button" role="checkbox" aria-label="Carved a pumpkin" onclick="const i=this.querySelector('input');i.checked=!i.checked"><div><label for=""><span>Carved a pumpkin</span></label></div><div style="display:none"><input type="checkbox" hidden aria-hidden="true"></div></button></div>
+<div class="answer-element-container"><button type="button" role="checkbox" aria-label="Watched a movie" onclick="const i=this.querySelector('input');i.checked=!i.checked"><div><label for=""><span>Watched a movie</span></label></div><div style="display:none"><input type="checkbox" hidden aria-hidden="true"></div></button></div>
+</div></div></div></div>
+<div><button type="button" id="prev-button" aria-hidden="true" style="display:none">Back</button><button type="button" id="next-button" onclick="location.href='/final'">Next</button></div>`;
 else if(stage==='empty') root.innerHTML='<p>Still loading.</p>';
 else if(stage==='unlabeled') root.innerHTML='<input type="radio" name="x"><input type="radio" name="x"><button>Next</button>';
 else if(stage==='disabled') root.innerHTML='<label>Pick a size.<select><option value="">Choose</option><option disabled value="x">Unavailable</option></select></label><button>Next</button>';
