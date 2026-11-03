@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from threading import Lock
 import http.client
 import json
+import logging
 import re
 import socket
 import time
@@ -12,6 +13,8 @@ from urllib.parse import unquote, urlsplit
 from .policy import SIGNIN_PATH, UnsafeSurveyURL, origin, public_addresses, request_url, validate_url
 from .definition import adapt_definition, find_definition
 from .proxy import corporate_proxy
+
+logger = logging.getLogger(__name__)
 
 FINAL_ENDPOINT = re.compile(r"submit|finish|complet|finaliz|terminate", re.I)
 PARTICIPANT_WRITES = {"POST", "PUT", "PATCH"}
@@ -114,7 +117,6 @@ class GuardedTransport:
         request = route.request
         with self.lock:
             self.requests += 1
-        connection = None
         try:
             request_url(request.url, self.start_url, local=self.local, approval=self.approval,
                         any_query=self.participate)
@@ -127,20 +129,53 @@ class GuardedTransport:
                     or self.bytes > 20 * 1024 * 1024 or time.monotonic() > self.deadline
                     or (write and not self.write_allowed(request))):
                 return self.block(route)
-            port = parts.port or (80 if self.local else 443)
-            if self.local:
-                connection = http.client.HTTPConnection(self.address, port, timeout=3)
-            elif self.proxy:
-                # HTTPSConnection verifies the target certificate/SNI after CONNECT.
-                # The approved corporate proxy, not local DNS, resolves the upstream.
-                connection = http.client.HTTPSConnection(self.proxy.hostname, self.proxy.port, timeout=3)
-                connection.set_tunnel(parts.hostname, port)
-            else:
-                connection = http.client.HTTPSConnection(parts.hostname, port, timeout=3)
-                # Keep TLS certificate/SNI validation against the original hostname,
-                # but connect only to the vetted address. No DNS rebinding window.
-                connection._create_connection = lambda address, timeout, source_address: socket.create_connection(
-                    (self.address, port), timeout, source_address)
+            # Downloads are idempotent: one retry absorbs proxy stalls. Writes never repeat.
+            for attempt in range(1 if write else 2):
+                try:
+                    status, raw_headers, body = self._exchange(request, parts, write)
+                    break
+                except (OSError, http.client.HTTPException) as error:
+                    logger.warning("Reader request failed (attempt %d): %s", attempt + 1, type(error).__name__)
+                    if write or attempt:
+                        return self.block(route)
+            if status is None:
+                return self.block(route)
+            with self.lock:
+                self.bytes += len(body)
+            if 200 <= status < 300 and request.method == "GET":
+                # Do not parse normal HTML/assets (or emit JSON errors for them).
+                if body.lstrip().startswith(b"{"):
+                    with self.lock:
+                        self.observe_response(body)
+            response_headers = {key.lower(): value for key, value in raw_headers
+                                if key.lower() not in {"transfer-encoding", "connection", "content-length", "location"}}
+            response_headers["referrer-policy"] = "no-referrer"
+            cookies = [value for key, value in raw_headers if key.lower() == "set-cookie"]
+            if cookies:
+                response_headers["set-cookie"] = "\n".join(cookies)  # Playwright's multi-cookie form
+            route.fulfill(status=status, headers=response_headers, body=body)
+        except Exception:
+            # Network/browser errors may contain the original token-bearing URL.
+            self.block(route)
+
+    def _exchange(self, request, parts, write):
+        """One HTTP round trip. Returns (None, [], b"") for redirects or oversized bodies."""
+        port = parts.port or (80 if self.local else 443)
+        timeout = 20 if self.proxy else 3  # corporate proxy stalls mid-download on large chunks
+        if self.local:
+            connection = http.client.HTTPConnection(self.address, port, timeout=timeout)
+        elif self.proxy:
+            # HTTPSConnection verifies the target certificate/SNI after CONNECT.
+            # The approved corporate proxy, not local DNS, resolves the upstream.
+            connection = http.client.HTTPSConnection(self.proxy.hostname, self.proxy.port, timeout=timeout)
+            connection.set_tunnel(parts.hostname, port)
+        else:
+            connection = http.client.HTTPSConnection(parts.hostname, port, timeout=timeout)
+            # Keep TLS certificate/SNI validation against the original hostname,
+            # but connect only to the vetted address. No DNS rebinding window.
+            connection._create_connection = lambda address, timeout, source_address: socket.create_connection(
+                (self.address, port), timeout, source_address)
+        try:
             headers = {key: value for key, value in request.headers.items()
                        if key.lower() not in {"proxy-authorization", "referer", "host", "content-length"}}
             # Authorization/cookies here are the survey app's own same-origin session
@@ -150,29 +185,13 @@ class GuardedTransport:
             response = connection.getresponse()
             # All redirects are unsupported, even same-origin. Never follow one.
             if 300 <= response.status < 400:
-                return self.block(route)
-            content_type = dict((key.lower(), value) for key, value in response.getheaders()).get("content-type", "")
+                return None, [], b""
+            raw_headers = response.getheaders()
+            content_type = dict((key.lower(), value) for key, value in raw_headers).get("content-type", "")
             limit = (8 if "javascript" in content_type or "text/css" in content_type else 2) * 1024 * 1024
             body = response.read(limit + 1)
             if len(body) > limit:
-                return self.block(route)
-            with self.lock:
-                self.bytes += len(body)
-            if 200 <= response.status < 300 and request.method == "GET":
-                # Do not parse normal HTML/assets (or emit JSON errors for them).
-                if body.lstrip().startswith(b"{"):
-                    with self.lock:
-                        self.observe_response(body)
-            response_headers = {key.lower(): value for key, value in response.getheaders()
-                                if key.lower() not in {"transfer-encoding", "connection", "content-length", "location"}}
-            response_headers["referrer-policy"] = "no-referrer"
-            cookies = [value for key, value in response.getheaders() if key.lower() == "set-cookie"]
-            if cookies:
-                response_headers["set-cookie"] = "\n".join(cookies)  # Playwright's multi-cookie form
-            route.fulfill(status=response.status, headers=response_headers, body=body)
-        except Exception:
-            # Network/browser errors may contain the original token-bearing URL.
-            self.block(route)
+                return None, [], b""
+            return response.status, raw_headers, body
         finally:
-            if connection:
-                connection.close()
+            connection.close()

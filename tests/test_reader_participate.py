@@ -106,3 +106,31 @@ def test_multiple_session_cookies_survive_fulfill(monkeypatch):
     route = _route("GET", START)
     guard(route)
     assert route.fulfill.call_args.kwargs["headers"]["set-cookie"] == "a=1; Secure\nb=2; Secure"
+
+
+def test_flaky_download_is_retried_once_and_logged_without_link(monkeypatch, caplog):
+    import socket
+    guard, connection = _transport(monkeypatch, participate=True)
+    good = connection.getresponse.return_value
+    connection.getresponse.side_effect = [socket.timeout("timed out"), good]
+    route = _route("GET", START + "chunk.js")
+    guard(route)
+    route.fulfill.assert_called_once()
+    assert "timeout" in caplog.text.lower() and "redjade" not in caplog.text
+
+
+def test_failed_write_is_never_retried(monkeypatch):
+    import socket
+    guard, connection = _transport(monkeypatch, participate=True)
+    connection.getresponse.side_effect = [socket.timeout("timed out"), connection.getresponse.return_value]
+    route = _route("POST", API + "/questionnaire_submit_events", b"{}")
+    guard(route)
+    route.fulfill.assert_not_called()
+    assert connection.request.call_count == 1
+
+
+def test_corporate_route_tolerates_slow_downloads(monkeypatch):
+    import http.client
+    guard, _ = _transport(monkeypatch, participate=True)
+    guard(_route("GET", START))
+    assert http.client.HTTPSConnection.call_args.kwargs["timeout"] >= 15

@@ -28,7 +28,7 @@ def test_approved_proxy_resolves_target_at_proxy_and_keeps_tls_hostname(monkeypa
     route.request.method = "GET"
     route.request.headers = {}
     guard(route)
-    factory.assert_called_once_with("proxy-intlho.wal-mart.com", 8080, timeout=3)
+    factory.assert_called_once_with("proxy-intlho.wal-mart.com", 8080, timeout=20)
     connection.set_tunnel.assert_called_once_with("app.redjade.net", 443)
     route.fulfill.assert_called_once()
 
