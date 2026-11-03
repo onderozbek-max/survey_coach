@@ -123,6 +123,14 @@
       ? `${plural(n, "thing")} to look at ${item.page ? "on this screen" : "across the whole survey"}.`
       : ctx.review.ai ? "Nothing flagged on this screen."
         : "No issues found here. The AI step has not run yet, so tone and leading wording are not checked.";
+    if (SC.workspaceDetail) {
+      return [h('div', {class:'section-kicker'}, h('span', null, '03 / REFINE'),
+        h('h2', {id:'coach-h',tabindex:'-1'}, 'Make this screen better.'), h('p', null, sub)),
+        n ? item.entries.map(e => card(e, ctx)) : h('div', {class:'screen-clear'},
+          h('span', {class:'clear-symbol', 'aria-hidden':'true'}, ''), h('h3', null, 'A clear moment.'),
+          h('p', null, 'Nothing flagged here in the checks run. Keep walking through the survey; unvisited paths remain unverified.')),
+        h('p', {class:'coach-footnote'}, 'Your choices update this preview only. Copy the wording you choose into RedJade, then check again.')];
+    }
     return [h("h2", { id: "coach-h" }, "Coach"), h("p", { class: "sub" }, sub), item.entries.map((e) => card(e, ctx)), report(ctx)];
   };
 })();

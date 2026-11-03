@@ -2,7 +2,7 @@
   "use strict";
   const SC = window.SC;
   const { h } = SC;
-  const KIND = { intro: "Welcome", question: "Question", thank_you: "Thank you", screen_out: "Screen-out" };
+  const KIND = { intro: "Welcome", info: "Information", question: "Question", thank_you: "Thank you", screen_out: "Screen-out" };
   const SCALE_CRITERIA = ["4.4", "6.3"];
 
   const fixedText = (text, ctx) => (ctx.plan ? SC.applyFixes(text, ctx.plan, null, { page_id: ctx.pageId, question_id: ctx.questionId }) : text);
@@ -84,12 +84,20 @@
     switch (q.kind) {
       case "dropdown": return h("div", { class: "dropdown" }, h("span", null, "Select one"), h("span", null, `${q.options.length} choices`));
       case "text_short": case "text_long": return h("div", { class: "textbox" }, "Type your answer here");
-      case "rating": case "slider": return [h("div", { class: "scale" }, scalePoints(scale).map((n) => h("span", null, String(n)))), scaleEnds(scale, ctx), scalePins];
-      case "grid_single": case "grid_multi": return [h("table", null,
+      case "rating": case "slider":
+        if (!scale) return h('p', {class:'help'}, 'Rating control not captured. Check the original survey.');
+        return [h("div", { class: "scale" }, scalePoints(scale).map((n) => h("span", null, String(n)))), scaleEnds(scale, ctx), scalePins];
+      case "grid_single": case "grid_multi":
+        if (!scale) return h('div', {class:'textbox'}, 'Response grid · layout not captured');
+        return [h("table", null,
         h("caption", null, `${scale.low_label || ""} to ${scale.high_label || ""}`),
         h("thead", null, h("tr", null, h("td", null), scalePoints(scale).map((n) => h("th", { scope: "col" }, String(n))))),
         h("tbody", null, q.rows.map((r) => h("tr", null, h("th", { scope: "row" }, r), scalePoints(scale).map(() => h("td", null, h("span", { class: "dot" }))))))), scalePins];
-      default: return optionList(q, by, mine, ctx);
+      default:
+        if (!q.options.length && q.kind === 'unknown') return h('div', {class:'unsupported-widget'},
+          h('span', {'aria-hidden':'true'}, '＋'), h('strong', null, 'Response control not reconstructed'),
+          h('p', null, 'This may include a photo upload or another unsupported control. See the captured screen for the original interaction.'));
+        return optionList(q, by, mine, ctx);
     }
   }
 
@@ -122,9 +130,11 @@
         h('p', null, 'The earlier reader captured an upload or answer-validation error here. This is not evidence of the next survey screen. Run a fresh review to retry with the updated reader; later screens remain unverified.'));
     }
     if (page.kind === "intro") {
-      return [h("h3", null, "Welcome"), h("p", { class: "intro" }, marked(fixedText(page.intro_text, ctx), own, ctx)), h("div", { class: "next" }, "Start")];
+      return [h("h3", null, "Welcome"), h("p", { class: "intro" }, marked(fixedText(page.intro_text || page.text || '', ctx), own, ctx)), h("div", { class: "next" }, "Start")];
     }
-    if (page.kind !== "question") return h("div", { class: "centered" }, h("p", null, marked(fixedText(page.text || "", ctx), own, ctx)));
+    if (page.kind !== "question") return h("div", { class: "survey-copy" },
+      h('p', null, marked(fixedText(page.text || page.intro_text || '', ctx), own, ctx)));
+
     return [page.questions.map((q) => renderQuestion(q, entries, ctx)), pageNotes(own, ctx), h("div", { class: "next" }, "Next")];
   }
 

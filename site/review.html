@@ -1,21 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="design-system.css"></head>
-<body>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="review-studio.css"></head>
+<body class="review-studio">
 <a class="skip" href="#workspace">Skip to review</a>
-<header class="app-header"><a href="local.html" class="app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a><nav aria-label="Workspace"><a href="local.html">My surveys</a><span class="pill">Private local workspace</span></nav></header>
+<header class="app-header"><a href="local.html" class="app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a><nav aria-label="Workspace"><a href="local.html">← My surveys</a><span class="pill">Private workspace</span></nav></header>
 <main id="workspace" class="workspace-shell">
-  <div class="workspace-heading"><div><h1 id="review-title">Loading your review…</h1><p id="review-status" role="status" aria-live="polite"></p></div></div>
-  <div id="review-toolbar" class="actions"></div>
-  <header id="topbar" class="topbar" aria-label="Review overview"></header>
+  <div class="workspace-heading"><div><p class="studio-eyebrow">THE MEMBER EXPERIENCE</p><h1 id="review-title">Opening your survey…</h1><p id="review-status" role="status" aria-live="polite"></p></div>
+    <details class="studio-tools"><summary>Review tools <span aria-hidden="true">↗</span></summary><div id="review-toolbar" class="actions"></div></details>
+  </div>
+  <header id="topbar" class="topbar" aria-label="Review overview"><p>Loading review details…</p></header>
   <div class="workspace-tabs" role="tablist" aria-label="Review views">
     <button id="tab-survey" role="tab" aria-selected="true" aria-controls="survey-view" tabindex="0">Survey &amp; recommendations</button>
     <button id="tab-issues" role="tab" aria-selected="false" aria-controls="issues-view" tabindex="-1">All issues</button>
   </div>
   <section id="survey-view" role="tabpanel" aria-labelledby="tab-survey">
-    <p class="reconstruction-note">Reconstructed preview—not exact RedJade rendering. Image placeholders preserve measured proportions. Check the actual survey on a phone before launch.</p>
+    <div class="studio">
+      <div class="screen-navigator"><div class="section-kicker"><span>01 / EXPLORE</span><h2>Survey screens</h2><p>Walk through it like a member.</p></div><nav id="rail" class="rail" aria-label="Survey screens"></nav></div>
+      <section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"><p>Preparing the phone preview…</p></section>
+      <aside id="coach" class="coach" aria-labelledby="coach-h"><p>Opening your recommendations…</p></aside>
+    </div>
+    <p class="reconstruction-note">Preview, not a live survey. Layout is reconstructed; imagery uses labelled placeholders. Verify the actual survey on a mobile device.</p>
     <p id="strip" class="strip"></p>
-    <div class="studio"><nav id="rail" class="rail" aria-label="Survey screens"></nav><section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"></section><aside id="coach" class="coach" aria-labelledby="coach-h"></aside></div>
   </section>
   <section id="issues-view" role="tabpanel" aria-labelledby="tab-issues" hidden>
     <h2 id="fixes-h">Your fix checklist</h2><p>Copy usable fixes into RedJade. Findings without a rewrite explain the action needed.</p><div id="fix-list"></div>

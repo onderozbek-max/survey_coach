@@ -14,6 +14,7 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.locator('.fix-card').first.wait_for()
     page.get_by_role('tab', name='Survey & recommendations', exact=True).click()
     page.locator('.phone-screen').wait_for(state='visible')
+    page.locator('.studio-tools > summary').click()
     assert page.get_by_role('link', name='Export review report', exact=True).count() == 1
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.close()

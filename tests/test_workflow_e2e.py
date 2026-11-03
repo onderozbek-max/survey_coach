@@ -53,6 +53,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     first.get_by_label("Reason for keeping", exact=False).blur()
     first.get_by_text("Saved on this computer.", exact=True).wait_for()
     page.reload()
+    page.get_by_role('tab', name='All issues', exact=True).click()
     first = page.locator(".fix-card").filter(has=page.get_by_role("button", name="Copy chosen fix", exact=True)).first
     assert first.locator("select").input_value() == "original"
     assert first.get_by_label("Reason for keeping", exact=False).input_value() == "Required for comparability"
@@ -69,6 +70,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     page.get_by_role("button", name="Check again").click()
     page.wait_for_url(lambda url: str(url) != before, timeout=30000)
     page.get_by_text("Since the previous version", exact=True).wait_for()
+    page.locator('.studio-tools > summary').click()
     assert page.get_by_label("Review version").input_value() == "2"
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors

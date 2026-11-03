@@ -1,0 +1,30 @@
+"""The member experience, not report chrome, is the first-screen centrepiece."""
+from tests.test_site_e2e import browser
+from tests.test_workflow_e2e import studio
+
+
+def test_phone_is_visible_above_fold_on_saved_review(browser, studio):
+    page = browser.new_page(viewport={'width':1440,'height':900})
+    page.goto(studio + '/local.html')
+    page.locator('#sample-start').click()
+    page.wait_for_url('**/review.html?**')
+    page.locator('.phone-screen').wait_for()
+    phone = page.locator('.phone').bounding_box()
+    assert phone['y'] < 300
+    assert page.locator('.phone-screen').bounding_box()['height'] >= 450
+    assert page.locator('#coach .report').count() == 0
+    assert page.locator('#stage').evaluate('e => getComputedStyle(e).backgroundColor') == 'rgba(0, 0, 0, 0)'
+    page.close()
+
+
+def test_return_to_review_always_opens_member_experience(browser, studio):
+    page = browser.new_page(viewport={'width':390,'height':844})
+    page.goto(studio + '/local.html')
+    page.locator('#sample-start').click()
+    page.wait_for_url('**/review.html?**')
+    page.get_by_role('tab', name='All issues', exact=True).click()
+    page.reload()
+    page.locator('.phone-screen').wait_for(state='visible')
+    assert page.locator('.phone').bounding_box()['y'] < 430
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.close()

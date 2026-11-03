@@ -156,6 +156,7 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
         page.wait_for_timeout(200)
         assert select.input_value() == "original"
         page.reload()
+        page.get_by_role('tab', name='All issues', exact=True).click()
         card = page.locator(".fix-card").filter(has=page.locator("select option[value='0']")).first
         assert card.locator("select").input_value() == "original", "Reload restores stale suggestion despite last choice being original"
     finally:

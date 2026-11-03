@@ -157,6 +157,17 @@
       : [`AI checked ${ai.checked.length} of ${ai.checked.length + failed.length} parts`,
         failed.length && `could not check ${failed.map((id) => DATA.ai_batches[id]).join(", ")}`,
         card.unchecked_points && `${card.unchecked_points} points still unchecked (${review.unchecked.join(", ")})`].filter(Boolean).join("; ");
+    if (SC.workspaceDetail) {
+      mount($('topbar'),
+        h('div', {class:'verdict-line'}, h('span', {class:`readiness-dot ${card.readiness}`, 'aria-hidden':'true'}),
+          h('strong', null, SC.READINESS[card.readiness] || 'Review incomplete'),
+          h('span', {class:'verdict-limit'}, card.unchecked_points ? `${card.unchecked_points} points unchecked` : 'Checked scope only · not launch approval')),
+        h('div', {class:'review-metrics'},
+          h('span', {class:'metric-score'}, h('strong', null, earned.toFixed(0)), ` / ${checked} checked`),
+          h('span', {class:'metric-issues'}, h('strong', null, String(must)), ' must fix'),
+          h('span', null, `${review.est_minutes} min for members`)));
+      return;
+    }
     const aiBrief = !ai ? "AI check pending" : `${failed.length ? "AI partly checked" : "AI checked"}${card.unchecked_points ? `, ${card.unchecked_points} pts unchecked` : ""}`;
     // The ring shows all 100 points: earned, lost, and not checked yet. Unchecked points are never drawn as earned.
     mount($("topbar"),
@@ -210,8 +221,9 @@
   }
 
   function renderStage() {
-    const item = pageItem(), s = survey(), seconds = s.timeline[item.index].seconds;
+    const item = pageItem(), s = survey(), seconds = s.timeline[item.index]?.seconds || 0;
     mount($("stage"),
+      SC.workspaceDetail && h('div', {class:'preview-caption'}, h('span', null, '02 / EXPERIENCE'), h('h2', null, 'See what members see.'), h('p', null, `${item.name} · Screen ${item.index + 1} of ${model.items.length}`)),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
       h("div", { class: "toolbar" },
         seg("View", [["current", "Current"], ["fixes", "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? "Showing the survey with your chosen fixes." : "Showing the survey as it is now."); }, "mode"),
@@ -219,6 +231,8 @@
         h("button", { type: "button", class: "toggle", "aria-pressed": String(state.large), "data-fk": "large", onclick: () => { state.large = !state.large; renderAll(); } }, "Large text")),
       leadLine(),
       SC.renderPhone(item, context()),
+      SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
+        current().entries.length ? `Review ${plural(current().entries.length, 'finding')} on this screen ↓` : 'Read the coach notes ↓'),
       h("div", { class: "pager" },
         h("button", { type: "button", "data-fk": "prev", disabled: item.index === 0, onclick: () => goToPage(item.index - 1) }, "Previous screen"),
         h("button", { type: "button", "data-fk": "next", disabled: item.index === model.items.length - 1, onclick: () => goToPage(item.index + 1) }, "Next screen")),
@@ -266,8 +280,9 @@
     state.survey = i;
     model = SC.buildModel(survey());
     state.mode = "current";
-    state.screen = model.order.indexOf(model.start);
-    state.selected = model.start.entries.length ? model.start.entries[0].key : null;
+    const start = SC.workspaceDetail ? model.items.find(item => item.page.kind === 'question') || model.items[0] || model.start : model.start;
+    state.screen = model.order.indexOf(start);
+    state.selected = start.entries.length ? start.entries[0].key : null;
     renderAll();
     say(`Showing the sample survey: ${survey().title}. ${SC.READINESS[survey().review.scorecard.readiness]}.`);
   }
@@ -275,6 +290,16 @@
   if (!localDetail && window.SURVEYCOACH_LOCAL) {
     document.body.insertBefore(h("nav", { class: "local-nav", "aria-label": "Private workspace" }, h("a", { href: "local.html" }, "Open My surveys — requires the local SurveyCoach server")), $("topbar"));
   }
+  window.addEventListener('surveycoach-focus-finding', event => {
+    const key = survey().review.findings.findIndex(f => f.fingerprint === event.detail);
+    const item = model.order.find(item => item.entries.some(entry => entry.key === key));
+    if (!item) return;
+    state.screen = model.order.indexOf(item);
+    state.selected = key;
+    SC.activateReviewTab?.('tab-survey');
+    renderAll();
+    $('stage').scrollIntoView({block:'start',behavior:'smooth'});
+  });
   window.addEventListener('surveycoach-decisions', event => {
     if (!localDetail) return;
     localDetail.decisions = event.detail.decisions;

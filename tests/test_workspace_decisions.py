@@ -19,6 +19,7 @@ def test_open_is_not_applied_and_action_only_keeps_reason(browser, studio):
     reason.blur()
     action_only.get_by_text('Saved on this computer.', exact=True).wait_for()
     page.reload()
+    page.get_by_role('tab', name='All issues', exact=True).click()
     action_only = page.locator('.fix-card').filter(has_text='Action required · No ready-to-use rewrite.').first
     assert action_only.locator('select').input_value() == 'original'
     assert 'Intentional research stimulus' in action_only.locator('textarea').first.input_value()
@@ -44,11 +45,7 @@ def test_delayed_checklist_save_cannot_overwrite_newer_coach_choice(browser, stu
     card.locator('select').select_option('0')
     page.wait_for_timeout(100)
     assert pending
-    page.get_by_role('tab', name='Survey & recommendations', exact=True).click()
-    # Navigate to the issue's screen via the rail button whose text cites it.
-    rail = page.locator('.rail-item').filter(has_text=headline)
-    if rail.count():
-        rail.first.click()
+    card.get_by_role('button', name='See on the phone', exact=False).click()
     coach = page.locator('.card').filter(has=page.get_by_role('button', name=headline, exact=True))
     coach.get_by_text('Your original', exact=True).click()
     page.wait_for_timeout(200)

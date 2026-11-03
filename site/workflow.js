@@ -136,7 +136,9 @@
     const question = detail.snapshot.pages.flatMap((p) => p.questions).find((q) => q.id === finding.question_id);
     return h("article", { class: "fix-card" },
       h("p", { class: "meta" }, `${finding.severity === "must_fix" ? "Must fix" : "Worth improving"} · ${finding.source === "ai" ? "AI—check before use" : "Local check"} · ${finding.criterion_id}`),
-      h("h3", null, finding.headline), h("blockquote", null, finding.evidence),
+      h("h3", null, finding.headline),
+      h('button', {type:'button',class:'finding-context',onclick:()=>window.dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:finding.fingerprint}))}, 'See on the phone →'),
+      h("blockquote", null, finding.evidence),
       h("p", null, finding.explanation), h("p", null, finding.member_impact),
       question && h("details", null, h("summary", null, "See the original question and answer choices"), h("p", null, question.text), h("ul", null, question.options.map((o) => h("li", null, o.label)))),
       h("label", null, choices.length ? "Which version do you want?" : "Decision on this finding", select),

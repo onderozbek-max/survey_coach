@@ -9,7 +9,6 @@
       item.tabIndex = active ? 0 : -1;
       document.getElementById(item.getAttribute('aria-controls')).hidden = !active;
     });
-    sessionStorage.setItem('surveycoach-review-view', tab.id);
     if (focus) tab.focus();
   }
   tabs.forEach((tab, index) => {
@@ -19,8 +18,8 @@
       if (next !== undefined) { event.preventDefault(); activate(tabs[next], true); }
     };
   });
-  const saved = tabs.find(tab => tab.id === sessionStorage.getItem('surveycoach-review-view'));
-  if (saved) activate(saved);
+  // Always enter through the member experience; a previous admin view must not hide it.
+  activate(tabs[0]);
   window.SC.activateReviewTab = id => activate(document.getElementById(id));
   window.SC.loadWorkspace = async detail => {
     window.SC.workspaceDetail = detail;
