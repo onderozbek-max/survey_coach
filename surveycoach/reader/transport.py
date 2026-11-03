@@ -13,8 +13,7 @@ from .policy import SIGNIN_PATH, UnsafeSurveyURL, origin, public_addresses, requ
 from .definition import adapt_definition, find_definition
 from .proxy import corporate_proxy
 
-# RedJade's per-answer save is "answer_submit_events"; that is not survey completion.
-FINAL_ENDPOINT = re.compile(r"(?<!answer_)submit|finish|complet|finaliz|terminate", re.I)
+FINAL_ENDPOINT = re.compile(r"submit|finish|complet|finaliz|terminate", re.I)
 PARTICIPANT_WRITES = {"POST", "PUT", "PATCH"}
 MAX_WRITE_BYTES = 256 * 1024
 
@@ -22,9 +21,12 @@ MAX_WRITE_BYTES = 256 * 1024
 class GuardedTransport:
     """Same-origin only, pinned public DNS (or approved proxy), no redirects, bounded.
 
-    Default: GET/HEAD only. ``participate`` (owner-approved) lets the survey's own
-    page act as a respondent: same-origin writes to save answers and progress.
-    Completion-looking endpoints, deletes and cross-origin traffic stay blocked.
+    Default: GET/HEAD only, completion-looking endpoints blocked. ``participate``
+    (owner-approved) lets the survey's own page act as a respondent: same-origin
+    writes, including RedJade's per-answer and per-questionnaire "submit" events.
+    Endpoint names cannot tell a section save from completion, so in that mode the
+    session's rule (never click a Submit/Finish control) is the completion guard.
+    Deletes and cross-origin traffic stay blocked in every mode.
     """
 
     def __init__(self, url, *, local, approval, coverage, participate=False):
@@ -120,7 +122,8 @@ class GuardedTransport:
             write = request.method not in {"GET", "HEAD"}
             # Origin/completion checks below run before any write is forwarded.
             if (origin(request.url) != self.origin
-                    or FINAL_ENDPOINT.search(unquote(parts.path)) or self.requests > 150
+                    or (FINAL_ENDPOINT.search(unquote(parts.path)) and not self.participate)
+                    or self.requests > 150
                     or self.bytes > 20 * 1024 * 1024 or time.monotonic() > self.deadline
                     or (write and not self.write_allowed(request))):
                 return self.block(route)

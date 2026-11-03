@@ -36,6 +36,8 @@ def _transport(monkeypatch, *, participate):
     # Observed RedJade per-answer save: "submit" here is not survey completion.
     ("PUT", "https://app.redjade.net/api/v1/answer_submit_events/1347073403"),
     ("POST", "https://app.redjade.net/api/v1/page_start_events"),
+    # Observed on Next. Owner approved submitting answers; the reader still never clicks Submit/Finish.
+    ("POST", "/questionnaire_submit_events"),
 ])
 def test_participant_requests_are_forwarded(monkeypatch, method, path):
     guard, connection = _transport(monkeypatch, participate=True)
@@ -49,14 +51,20 @@ def test_participant_requests_are_forwarded(monkeypatch, method, path):
 
 
 @pytest.mark.parametrize("method,url", [
-    ("POST", API + "/complete"), ("POST", API + "/responses/submit"), ("PUT", API + "/finalize"),
-    ("POST", API + "/survey_submit_events"), ("POST", API + "/survey_complete_events"),
     ("POST", "https://other.redjade.net/api/v1/surveys/responses"),
     ("POST", "https://evil.example/collect"), ("DELETE", API + "/responses/42"),
 ])
-def test_completion_cross_origin_and_deletes_stay_blocked(monkeypatch, method, url):
+def test_cross_origin_and_deletes_stay_blocked(monkeypatch, method, url):
     guard, _ = _transport(monkeypatch, participate=True)
     route = _route(method, url, b"{}")
+    guard(route)
+    route.fulfill.assert_not_called()
+
+
+@pytest.mark.parametrize("path", ["/complete", "/questionnaire_submit_events", "/answer_submit_events/1"])
+def test_without_participant_mode_completion_endpoints_stay_blocked_even_for_reads(monkeypatch, path):
+    guard, _ = _transport(monkeypatch, participate=False)
+    route = _route("GET", API + path)
     guard(route)
     route.fulfill.assert_not_called()
 
