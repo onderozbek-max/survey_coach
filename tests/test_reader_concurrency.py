@@ -14,7 +14,8 @@ def test_async_routes_do_not_serialize_blocking_http_work(monkeypatch):
         time.sleep(0.15)
         route.fulfill(status=200, headers={}, body=b"synthetic")
     monkeypatch.setattr(GuardedTransport, "__call__", slow)
-    routes = [SimpleNamespace(request=SimpleNamespace(url="http://127.0.0.1:9000/test", method="GET", headers={}),
+    routes = [SimpleNamespace(request=SimpleNamespace(url="http://127.0.0.1:9000/test", method="GET",
+                                                      all_headers=AsyncMock(return_value={}), post_data_buffer=None),
                               fulfill=AsyncMock(), abort=AsyncMock()) for _ in range(4)]
     async def run():
         await asyncio.gather(*(guard.handle_async(route) for route in routes))

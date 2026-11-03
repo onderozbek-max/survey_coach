@@ -1,6 +1,7 @@
 """Bounded link-read jobs. Production never enables the controlled-local-fixture bypass."""
 import json
 import logging
+import os
 from uuid import uuid4
 from pathlib import Path
 from fastapi.responses import FileResponse
@@ -46,7 +47,8 @@ def router(repository, app):
         update(job_id, "running", body.survey_id)
         try:
             reader = getattr(app.state, "reader", read_survey)
-            captured = reader(body.url, approval=True)
+            captured = reader(body.url, approval=True,
+                              test_session=os.environ.get("SURVEYCOACH_ALLOW_TEST_SESSION") == "1")
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
                 update(job_id, "failed", body.survey_id,
                        error="No reviewable pages captured. The link may need authentication or an unsupported reader.")

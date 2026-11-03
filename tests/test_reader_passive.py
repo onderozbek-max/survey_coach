@@ -94,7 +94,7 @@ def test_transport_captures_only_existing_permitted_get(monkeypatch):
         def __init__(self, *args, **kwargs):
             pass
 
-        def request(self, method, path, headers):
+        def request(self, method, path, headers, body=None):
             calls.append((method, path))
 
         def getresponse(self):

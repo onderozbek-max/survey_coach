@@ -9,7 +9,8 @@ import socket
 import time
 from urllib.parse import unquote, urlsplit
 
-from .policy import UnsafeSurveyURL, origin, public_addresses, request_url, validate_url
+from .policy import (SIGNIN_PATH, UnsafeSurveyURL, origin, public_addresses, request_url,
+                     validate_signin, validate_url)
 from .definition import adapt_definition, find_definition
 from .proxy import corporate_proxy
 
@@ -19,11 +20,12 @@ FINAL_ENDPOINT = re.compile(r"submit|finish|complet|finaliz|terminate", re.I)
 class GuardedTransport:
     """Same-origin GET/HEAD only, pinned public DNS, no redirects or response writes.
 
-    Disallowing all POSTs is intentional: unsupported RedJade initialization or
-    progression must stop rather than risk completing a participant response.
+    The single exception is one owner-approved anonymous test-participant sign-in
+    (``test_session``). Answer saves, progression and completion stay blocked.
     """
 
-    def __init__(self, url, *, local, approval, coverage):
+    def __init__(self, url, *, local, approval, coverage, test_session=False):
+        self.test_session = test_session and not local
         self.start_url = url
         self.lock = Lock()
         self.origin = origin(url)
@@ -49,7 +51,9 @@ class GuardedTransport:
     async def handle_async(self, route):
         """Run only HTTP in a worker, never Playwright route objects across threads."""
         request = route.request
-        proxy = SimpleNamespace(request=SimpleNamespace(url=request.url, method=request.method, headers=dict(request.headers)))
+        proxy = SimpleNamespace(request=SimpleNamespace(
+            url=request.url, method=request.method, headers=await request.all_headers(),
+            post_data=request.post_data_buffer))
         outcome = {}
         proxy.abort = lambda *args: outcome.update(abort=args)
         proxy.fulfill = lambda **kwargs: outcome.update(fulfill=kwargs)
@@ -83,10 +87,21 @@ class GuardedTransport:
             if warning not in self.coverage.warnings:
                 self.coverage.warnings.append(warning)
 
+    def signin_allowed(self, request) -> bool:
+        """Claim the one approved sign-in slot. Never more than one per read."""
+        if not self.test_session or request.method != "POST":
+            return False
+        validate_signin(request.url, request.post_data or b"", self.start_url)
+        with self.lock:
+            if self.coverage.test_session_started:
+                return False
+            self.coverage.test_session_started = True
+        return True
+
     def block(self, route):
         with self.lock:
             self.coverage.blocked_requests += 1
-            if route.request.method == "POST" and urlsplit(route.request.url).path == "/api/v1/surveys/online_sign_in_events":
+            if route.request.method == "POST" and urlsplit(route.request.url).path == SIGNIN_PATH:
                 warning = "Survey requires participant sign-in; participant creation was blocked."
                 if warning not in self.coverage.warnings:
                     self.coverage.warnings.append(warning)
@@ -100,7 +115,10 @@ class GuardedTransport:
         try:
             request_url(request.url, self.start_url, local=self.local, approval=self.approval)
             parts = urlsplit(request.url)
-            if (origin(request.url) != self.origin or request.method not in {"GET", "HEAD"}
+            write = request.method not in {"GET", "HEAD"}
+            if write and not self.signin_allowed(request):
+                return self.block(route)
+            if (origin(request.url) != self.origin
                     or FINAL_ENDPOINT.search(unquote(parts.path)) or self.requests > 150
                     or self.bytes > 20 * 1024 * 1024 or time.monotonic() > self.deadline):
                 return self.block(route)
@@ -119,8 +137,11 @@ class GuardedTransport:
                 connection._create_connection = lambda address, timeout, source_address: socket.create_connection(
                     (self.address, port), timeout, source_address)
             headers = {key: value for key, value in request.headers.items()
-                       if key.lower() not in {"authorization", "proxy-authorization", "referer", "host"}}
-            connection.request(request.method, (parts.path or "/") + ("?" + parts.query if parts.query else ""), headers=headers)
+                       if key.lower() not in {"proxy-authorization", "referer", "host", "content-length"}}
+            # Authorization/cookies here are the survey app's own same-origin session
+            # (fresh browser context: no user credentials exist to leak).
+            connection.request(request.method, (parts.path or "/") + ("?" + parts.query if parts.query else ""),
+                               body=request.post_data if write else None, headers=headers)
             response = connection.getresponse()
             # All redirects are unsupported, even same-origin. Never follow one.
             if 300 <= response.status < 400:
@@ -140,6 +161,9 @@ class GuardedTransport:
             response_headers = {key.lower(): value for key, value in response.getheaders()
                                 if key.lower() not in {"transfer-encoding", "connection", "content-length", "location"}}
             response_headers["referrer-policy"] = "no-referrer"
+            cookies = [value for key, value in response.getheaders() if key.lower() == "set-cookie"]
+            if cookies:
+                response_headers["set-cookie"] = "\n".join(cookies)  # Playwright's multi-cookie form
             route.fulfill(status=response.status, headers=response_headers, body=body)
         except Exception:
             # Network/browser errors may contain the original token-bearing URL.

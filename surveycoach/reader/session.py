@@ -25,14 +25,17 @@ def external_progression_stop(*, allow_test_local: bool) -> bool:
 
 
 def read_survey(url: str, *, allow_test_local: bool = False, approval: bool = False,
-                max_pages: int = 30) -> ReadResult:
-    """Synchronous entry point; run browser interception on its own event loop."""
-    return asyncio.run(_read_survey(url, allow_test_local=allow_test_local,
-                                    approval=approval, max_pages=max_pages))
+                max_pages: int = 30, test_session: bool = False) -> ReadResult:
+    """Synchronous entry point; run browser interception on its own event loop.
+
+    ``test_session`` permits one owner-approved anonymous participant sign-in.
+    """
+    return asyncio.run(_read_survey(url, allow_test_local=allow_test_local, approval=approval,
+                                    max_pages=max_pages, test_session=test_session))
 
 
 async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
-                       max_pages: int) -> ReadResult:
+                       max_pages: int, test_session: bool = False) -> ReadResult:
     """Read one visible path into the existing SurveySnapshot.
 
     URL-policy errors raise UnsafeSurveyURL; invalid budgets raise ValueError.
@@ -43,7 +46,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     if type(max_pages) is not int or not 1 <= max_pages <= 30:
         raise ValueError("max_pages must be an integer between 1 and 30")
     coverage = Coverage()
-    transport = GuardedTransport(url, local=allow_test_local, approval=approval, coverage=coverage)
+    transport = GuardedTransport(url, local=allow_test_local, approval=approval, coverage=coverage,
+                                 test_session=test_session)
     directory = Path(tempfile.mkdtemp(prefix="surveycoach-reader-"))
     result = ReadResult(snapshot=SurveySnapshot(title="", source_url=url, pages=[]),
                         coverage=coverage, capture_dir=directory)
