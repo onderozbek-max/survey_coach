@@ -14,9 +14,9 @@
     <p>Make changes in RedJade first. Then reread the same approved test link or import an updated snapshot. Nothing is marked verified just because you copied a fix.</p>
     <form id="recheck-form">
       <label for="survey-link">Updated RedJade preview link</label><input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
-      <label class="check"><input id="approval" type="checkbox"> Approved test link and test-participant handling confirmed. Stop before final submission.</label>
+      <p>Use an approved test link, not a member invitation. Opening it may create a test-participant record; final submission stays blocked.</p>
       <label for="snapshot">Or updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json">
-      <label class="check"><input id="use-ai" type="checkbox"> Include AI review through Wibey.</label>
+      <p>Includes AI review through Wibey. Survey wording is sent to the approved AI service.</p>
       <button class="btn" type="submit">Check again</button>
     </form><p id="import-status" role="status" aria-live="polite"></p>
   </section>

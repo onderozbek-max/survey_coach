@@ -16,13 +16,12 @@
       <form id="import-form">
         <label for="survey-link">RedJade preview link</label>
         <input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
-        <label class="check"><input id="approval" type="checkbox"> This is an approved test link. Test-participant handling is agreed with the survey owner/vendor. Do not submit a completed response.</label>
-        <p>The reader follows one test path, not every possible answer. It stops before final submission. You must check the captured questions before relying on the review.</p>
+        <p>Use an approved test/preview link, not a member invitation. Opening a link may create a test-participant record. The reader stops rather than risk submitting a response and tells you what it could read.</p>
         <details><summary>Import a captured survey instead</summary>
           <label for="snapshot">Survey snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json">
           <p>For developer-assisted imports. This must use the SurveyCoach snapshot format. No member responses or personal information.</p>
         </details>
-        <label class="check"><input id="use-ai" type="checkbox"> Include AI review through the approved Wibey connection. Survey wording will be sent to that service.</label>
+        <p>Includes AI review through Wibey. Survey wording is sent to the approved AI service. Do not include member responses or personal information.</p>
         <button class="btn" type="submit">Start review</button>
       </form>
       <div class="actions"><button type="button" class="btn" id="sample-start">Try the saved-work flow with a sample</button></div>

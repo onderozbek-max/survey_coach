@@ -35,14 +35,17 @@
     button.disabled = true;
     try {
       let result;
-      const file = $("snapshot").files[0], ai = $("use-ai").checked;
+      const file = $("snapshot").files[0], ai = true;
       if (file) {
         if (file.size > 950000) throw new Error("Snapshot must be smaller than 950 KB.");
         const snapshot = JSON.parse(await file.text());
         result = await api(surveyId ? `/api/surveys/${encodeURIComponent(surveyId)}/recheck` : "/api/surveys", "POST", { snapshot, ai });
       } else {
         if (!$("survey-link").value.trim()) throw new Error("Paste an approved preview link or choose a snapshot file.");
-        if (!$("approval").checked) throw new Error("Confirm that this is an approved test link with agreed test-participant handling.");
+        if (!window.confirm("Is this an approved test/preview link, with test-participant handling agreed with the survey owner? Opening it may create a test record. Choose Cancel if you are unsure. The tool will not submit a completed response.")) {
+          message("import-status", "Review cancelled. No survey link was opened.");
+          return;
+        }
         result = await api("/api/reader/jobs", "POST", { url: $("survey-link").value.trim(), approval: true, ai, survey_id: surveyId || null });
       }
       await waitForJob(result.job_id, "import-status");

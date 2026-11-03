@@ -1,5 +1,6 @@
 """Bounded link-read jobs. Production never enables the controlled-local-fixture bypass."""
 import json
+import logging
 from uuid import uuid4
 from pathlib import Path
 from fastapi.responses import FileResponse
@@ -8,7 +9,9 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
 from surveycoach.reader import read_survey
-from surveycoach.reader.policy import validate_url
+from surveycoach.reader.policy import UnsafeSurveyURL, validate_url
+
+logger = logging.getLogger(__name__)
 from surveycoach.server.service import run_job
 
 
@@ -64,9 +67,18 @@ def router(repository, app):
                 run_job(repository, created["job_id"], app.state.provider)
             checked = repository.job(created["job_id"])
             update(job_id, checked["status"], created["id"], created["version"], checked.get("error"))
-        except Exception:
+        except UnsafeSurveyURL as error:
+            # Policy errors are deliberately URL-free; never echo an arbitrary exception.
+            if "resolved" in str(error):
+                message = "Could not connect to the survey website. Check your network/VPN and make sure the preview link opens in your browser, then try again."
+            else:
+                message = "This preview link could not be opened safely. Use an approved RedJade test link; do not use a member invitation link."
+            update(job_id, "failed", body.survey_id, error=message)
+        except Exception as error:
+            reference = job_id[:8]
+            logger.error("Reader failure reference=%s type=%s", reference, type(error).__name__)
             update(job_id, "failed", body.survey_id,
-                   error="Survey read could not finish. No unavailable questions were inferred. Your previous review is unchanged.")
+                   error=f"The survey could not be read because of an app error. Please report reference {reference}. No completed review was created.")
 
     @routes.get("/api/surveys/{survey_id}/versions/{version}/captures/{position}")
     def capture(survey_id: str, version: int, position: int):

@@ -15,7 +15,9 @@ ROOT = Path(__file__).parent.parent
 
 @pytest.fixture
 def studio(tmp_path):
-    app = create_app(tmp_path / "studio.sqlite3")
+    from surveycoach.llm import FakeProvider
+    from tests.test_judge_run import all_clear
+    app = create_app(tmp_path / "studio.sqlite3", provider=FakeProvider({"BatchOutput": all_clear}))
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
