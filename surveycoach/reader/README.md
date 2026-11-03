@@ -19,6 +19,10 @@ content and a generic `reader_error`. No unavailable question is inferred.
 
 On the owner's Mac, the configured corporate PAC routes this survey host through `proxy-intlho.wal-mart.com:8080`. Start the local server with `SURVEYCOACH_CORPORATE_PROXY=http://proxy-intlho.wal-mart.com:8080` to use that approved route. The opt-in supports only `app.redjade.net`; arbitrary proxy URLs/credentials are rejected. The corporate proxy owns upstream DNS/network policy on this route; direct mode still validates/pins public DNS. TLS verification against the survey hostname remains enabled. GET/HEAD, same-origin, response-size, deadline, no-redirect, no-final-endpoint and no-answer-write guards remain in force.
 
+## Approved test-participant start (off by default)
+
+Some RedJade links show questions only after an anonymous participant sign-in. With the survey owner's approval, start the server with `SURVEYCOACH_ALLOW_TEST_SESSION=1`. Each read may then send **one** `POST /api/v1/surveys/online_sign_in_events`, accepted only when the JSON has exactly the observed keys, `company_token`/`static_url` match the input link, and `participant_code`, `verification_code`, `external_id` and `enc` are all null. **Every read creates one test-participant record in RedJade.** All other writes (answers, progression, completion) remain blocked. Read-only startup GETs with query strings are limited to the `READONLY_QUERIES` table in `policy.py`. The survey app's own same-origin session token and cookies are forwarded (fresh browser context, so no personal credentials exist); proxy credentials never are.
+
 ## Supported, intentionally narrow
 
 - Visible native radio/checkbox groups with fieldset legends; explicit ARIA

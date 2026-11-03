@@ -42,6 +42,17 @@ def validate_url(url: str, *, allow_test_local: bool = False, approval: bool = F
         raise UnsafeSurveyURL("Survey URL is not permitted by the reader safety policy.") from None
 
 
+# Observed read-only RedJade startup GETs -> the single query key each may carry.
+READONLY_QUERIES = {
+    "/static/locales/languages.json": "cache",
+    "/static/locales/localized_languages.json": "cache",
+    "/static/locales/client.en_US.json": "cache",
+    "/api/v1/surveys/station_status_check": "cache",
+    "/api/v1/surveys/current_participant": "lite",
+}
+SAFE_VALUE = re.compile(r"[A-Za-z0-9_.-]{1,100}")
+
+
 def request_url(url: str, start: str, *, local=False, approval=True) -> str:
     """Internal GET schema only; input URLs still prohibit every query string."""
     parts, source = urlsplit(url), urlsplit(start)
@@ -54,8 +65,8 @@ def request_url(url: str, start: str, *, local=False, approval=True) -> str:
     params = dict(pairs)
     if len(params) != len(pairs):
         raise UnsafeSurveyURL("Duplicate startup parameters are not supported.")
-    locale = parts.path in {"/static/locales/languages.json", "/static/locales/localized_languages.json", "/static/locales/client.en_US.json"}
-    if locale and set(params) == {"cache"} and re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", params["cache"]):
+    key = READONLY_QUERIES.get(parts.path)
+    if key and set(params) == {key} and SAFE_VALUE.fullmatch(params[key]):
         return url
     segments = source.path.strip("/").split("/")
     if (parts.path == "/api/v1/surveys/event_meta" and len(segments) == 3
