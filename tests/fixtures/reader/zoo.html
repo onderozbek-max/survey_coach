@@ -27,6 +27,7 @@ else if(stage==='redjade') root.innerHTML=`<div class="q"><div aria-label="Which
 <div class="answer-element-container"><button type="button" role="checkbox" aria-label="Watched a movie" onclick="const i=this.querySelector('input');i.checked=!i.checked"><div><label for=""><span>Watched a movie</span></label></div><div style="display:none"><input type="checkbox" hidden aria-hidden="true"></div></button></div>
 </div></div></div></div>
 <div><button type="button" id="prev-button" aria-hidden="true" style="display:none">Back</button><button type="button" id="next-button" onclick="location.href='/final'">Next</button></div>`;
+else if(stage==='flash') root.innerHTML=`<h1>Transition fixture.</h1><button onclick="root.innerHTML='';setTimeout(()=>{root.innerHTML='<p>Loading...</p>'},150);setTimeout(()=>{location.href='/final'},500)">Next</button>`;
 else if(stage==='empty') root.innerHTML='<p>Still loading.</p>';
 else if(stage==='unlabeled') root.innerHTML='<input type="radio" name="x"><input type="radio" name="x"><button>Next</button>';
 else if(stage==='disabled') root.innerHTML='<label>Pick a size.<select><option value="">Choose</option><option disabled value="x">Unavailable</option></select></label><button>Next</button>';

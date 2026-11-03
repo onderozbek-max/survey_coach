@@ -19,6 +19,9 @@ from .transport import GuardedTransport
 FINAL = re.compile(r"\b(submit|finish|complete|done)\b", re.I)
 NEXT = re.compile(r"^(next|continue|begin|start)$", re.I)
 LINK = re.compile(r"\w+://\S+")
+# Real content, not a blank or "Loading..." transition screen (RedJade shows both between pages).
+READY = "(old) => { const t = document.body.innerText.trim(); " \
+        "return !!t && t !== old && !/^(loading[. …]*|please wait[. …]*)$/i.test(t); }"
 logger = logging.getLogger(__name__)
 
 
@@ -116,7 +119,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                 await page.wait_for_timeout(200)
                 if transport.proxy:
                     try:
-                        await page.wait_for_function("() => document.body.innerText.trim() && !/^(loading[. …]*|please wait[. …]*)$/i.test(document.body.innerText.trim())", timeout=15000)
+                        await page.wait_for_function(READY, arg=None, timeout=15000)
                     except Exception:
                         pass
                 previous = set()
@@ -164,8 +167,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         break
                     await page.locator(f'[data-surveycoach-id="{nav[0]["id"]}"]').click()
                     try:
-                        await page.wait_for_function(
-                            "old => document.body.innerText.trim() !== old", arg=observed["text"], timeout=2000 * slow)
+                        await page.wait_for_function(READY, arg=observed["text"], timeout=2000 * slow)
                     except Exception:
                         coverage.stop_reason = "blocked"
                         break

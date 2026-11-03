@@ -122,6 +122,13 @@ def test_redjade_button_checkboxes_are_answers_not_navigation(zoo):
     assert [o.label for o in question.options] == ["Carved a pumpkin", "Watched a movie"]
 
 
+def test_blank_or_loading_transition_is_not_captured_as_the_next_page(zoo):
+    """RedJade clears the screen and shows Loading between pages; wait for real content."""
+    result = read_survey(zoo[0] + "/flash", allow_test_local=True)
+    assert result.coverage.stop_reason == "final_control"
+    assert result.coverage.pages_captured == 2
+
+
 @pytest.mark.parametrize("stage", ["empty", "unlabeled"])
 def test_unknown_or_unlabeled_pages_are_not_claimed_as_read(zoo, stage):
     result = read_survey(zoo[0] + "/" + stage, allow_test_local=True)
