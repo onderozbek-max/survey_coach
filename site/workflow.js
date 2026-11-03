@@ -163,6 +163,7 @@
       h("p", null, `${r.findings.filter((f) => f.severity === "must_fix").length} must fix · ${r.findings.filter((f) => f.severity !== "must_fix").length} worth improving · about ${r.est_minutes} minutes for members`),
       h("p", null, `${Math.round(c.score - c.unchecked_points)} of ${100 - c.unchecked_points} checked points earned. ${c.unchecked_points} points not checked.`),
       h("p", null, !r.ai ? "AI checks have not run." : failed.length ? `AI could not check: ${failed.join(", ")}.` : "AI review completed. Its advice still needs your judgment."),
+      failed.length > 0 && h("ul", { role: "status" }, [...new Set(Object.values(r.ai.failed))].map((reason) => h("li", null, reason))),
       r.unchecked.length > 0 && h("details", null, h("summary", null, "Checks not completed"), h("ul", null, r.unchecked.map((name) => h("li", null, name)))),
       coverage && h("details", { open: true }, h("summary", null, `Read coverage: ${coverage.pages_captured} pages captured`), h("p", null, `Reader stopped: ${coverage.stop_reason}. This does not establish full branching coverage.`), h("ul", null, coverage.warnings.map((warning) => h("li", null, warning))),
         h("p", null, "Actual captured screens (only the pages the reader visited):"),

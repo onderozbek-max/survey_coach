@@ -5,6 +5,8 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from surveycoach.llm.recovery import WibeyRecoveryError
+
 from .observe import OBSERVE
 from .rules import LIMITS
 from .strategies import RuleStore, Strategy, catalog, signature
@@ -72,6 +74,9 @@ class AdaptiveReader:
             plan = await asyncio.wait_for(asyncio.to_thread(
                 self.planner.complete_json, SYSTEM, evidence, Strategy), timeout=LIMITS['model_seconds'])
             plan = Strategy.model_validate(plan)
+        except WibeyRecoveryError as error:
+            self.coverage.warnings.append(str(error))
+            return False
         except Exception:
             self.coverage.warnings.append('Strategy planning was unavailable, timed out, or returned an invalid plan.')
             return False

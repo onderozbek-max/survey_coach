@@ -12,6 +12,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from surveycoach.llm.base import ASSESSMENT_MODEL, LlmError, LlmUnavailable
+from surveycoach.llm.recovery import failure_error
 
 SETUP_HINT = "Wibey is not installed or not on PATH. Install it, run `wibey --auth`, then try again."
 
@@ -61,4 +62,6 @@ class WibeyProvider:
             raise LlmUnavailable(SETUP_HINT) from error
         except subprocess.TimeoutExpired as error:
             raise LlmError(f"Wibey timed out after {self.timeout} s") from error
-        return f"(wibey exited {done.returncode}: {done.stderr[-300:].strip()})" if done.returncode else ""
+        if done.returncode:
+            raise failure_error(done.stderr, self.binary)
+        return ""

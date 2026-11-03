@@ -75,6 +75,24 @@ def test_two_bad_answers_raise_instead_of_guessing(tmp_path):
         WibeyProvider(binary).complete_json("S", "D", Probe)
 
 
+def test_auth_error_starts_background_recovery_without_output_retry(tmp_path, monkeypatch):
+    import surveycoach.llm.recovery as recovery
+    calls = []
+    monkeypatch.setattr(recovery, 'start_authentication', lambda binary: calls.append(binary) or True)
+    binary = fake_wibey(tmp_path, 'echo "HTTP 401 unauthorized" >&2\nexit 1\n')
+    with pytest.raises(LlmError, match='background'):
+        WibeyProvider(binary).complete_json('S', 'D', Probe)
+    assert calls == [binary]
+
+
+def test_network_error_shows_vpn_guidance_without_auth(tmp_path, monkeypatch):
+    import surveycoach.llm.recovery as recovery
+    monkeypatch.setattr(recovery, 'start_authentication', lambda binary: pytest.fail('unexpected auth'))
+    binary = fake_wibey(tmp_path, 'echo "getaddrinfo ENOTFOUND" >&2\nexit 1\n')
+    with pytest.raises(LlmError, match='VPN'):
+        WibeyProvider(binary).complete_json('S', 'D', Probe)
+
+
 def test_a_missing_binary_says_how_to_set_up_wibey(tmp_path):
     with pytest.raises(LlmUnavailable, match="wibey"):
         WibeyProvider(str(tmp_path / "no-such-wibey")).complete_json("S", "D", Probe)

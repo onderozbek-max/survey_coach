@@ -39,6 +39,12 @@ Successful strategies are stored privately in `~/Library/Application Support/Sur
 
 Limits: three deterministic repair attempts, at most two planning calls at 45 seconds each, 16 actions per strategy, 35 seconds per strategy execution. Actual bounded planning time extends the transport deadline; other network protections stay in force. Unsupported capabilities still stop honestly rather than letting the model rewrite code or policy.
 
+## Wibey connection and sign-in recovery
+
+Confirmed network diagnostics show Walmart VPN/Eagle WiFi guidance without starting sign-in. Confirmed authentication diagnostics start one background `wibey --auth` process; Wibey owns opening the browser and completing SSO. The user then retries manually. Authentication output is discarded, duplicate active launches are suppressed, completed launches have a 60-second cooldown, and the helper terminates after five minutes. If the browser does not open, the UI offers `wibey --auth` in a terminal. No credentials or tokens are entered into SurveyCoach.
+
+Failures without confirmed network/auth evidence (including generic timeouts and 403 responses) remain unknown failures and do not trigger authentication. Both the adaptive planner and review CLI use this recovery. Review failure reasons and reader coverage warnings expose sanitized guidance, not raw CLI diagnostics. Tests simulate failures and launches; they never expire a real session or perform real sign-in.
+
 ## Supported, intentionally narrow
 
 - Visible native radio/checkbox groups with fieldset legends; explicit ARIA

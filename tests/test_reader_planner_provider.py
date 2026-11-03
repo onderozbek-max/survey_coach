@@ -31,6 +31,23 @@ def test_planner_adapter_denies_tools_and_parses_stream(monkeypatch, tmp_path):
     assert 'maxTurns: 1' in adapter
 
 
+def test_planner_stream_auth_error_uses_safe_recovery(monkeypatch, tmp_path):
+    import surveycoach.llm.planner as module
+    import surveycoach.llm.recovery as recovery
+    planner = object.__new__(WibeyPlanner)
+    planner.binary = '/trusted/wibey'
+    planner.runtime = '/bin/bun'
+    planner.service = tmp_path / 'service.js'
+    planner.timeout = 40
+    calls = []
+    monkeypatch.setattr(recovery, 'start_authentication', lambda binary: calls.append(binary) or True)
+    event = json.dumps({'type': 'error', 'data': {'message': 'HTTP 401 unauthorized'}})
+    monkeypatch.setattr(module.subprocess, 'run', lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout=event, stderr=''))
+    with pytest.raises(LlmError, match='background'):
+        planner.complete_json('system', 'data', Strategy)
+    assert calls == ['/trusted/wibey']
+
+
 def test_planner_rejects_local_image_transmission(monkeypatch):
     planner = object.__new__(WibeyPlanner)
     with pytest.raises(LlmError):

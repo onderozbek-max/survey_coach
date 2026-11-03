@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 from .base import ASSESSMENT_MODEL, LlmError, LlmUnavailable
+from .recovery import failure_error
 
 
 class WibeyPlanner:
@@ -14,6 +15,7 @@ class WibeyPlanner:
         executable = shutil.which(binary or 'wibey')
         if not executable:
             raise LlmUnavailable('Wibey is unavailable for strategy planning.')
+        self.binary = executable
         self.service = Path(executable).resolve().parent / 'services/headlessModeService.js'
         self.runtime = shutil.which('bun')
         self.timeout = timeout
@@ -41,18 +43,22 @@ class WibeyPlanner:
                     capture_output=True, text=True, timeout=self.timeout, check=False)
             except subprocess.TimeoutExpired as error:
                 raise LlmError('Tool-denied strategy planning timed out.') from error
-            if result.returncode:
-                raise LlmError('Tool-denied strategy planning failed.')
+            # Only process diagnostics/error events, never assistant content, as failure evidence.
+            failures = []
             content = ''
             for line in result.stdout.splitlines():
                 try:
                     event = json.loads(line)
                 except ValueError:
                     continue
+                if event.get('type') == 'error':
+                    failures.append(json.dumps(event.get('data', {})))
                 if 'tool' in event.get('type', ''):
                     raise LlmError('Planner emitted an unexpected tool event.')
                 if event.get('type') == 'content_delta':
                     content += event.get('data', {}).get('content', '')
+            if result.returncode or failures:
+                raise failure_error(' '.join(failures) + ' ' + getattr(result, 'stderr', ''), self.binary)
             try:
                 return schema.model_validate_json(content)
             except ValueError as error:
