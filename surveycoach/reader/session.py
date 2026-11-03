@@ -88,6 +88,11 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                 page.on("dialog", dismiss_dialog)
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000 if transport.proxy else 10000)
                 await page.wait_for_timeout(200)
+                if transport.proxy:
+                    try:
+                        await page.wait_for_function("() => document.body.innerText.trim() && !/^(loading[. …]*|please wait[. …]*)$/i.test(document.body.innerText.trim())", timeout=15000)
+                    except Exception:
+                        pass
                 previous = set()
                 for _ in range(max_pages):
                     if time.monotonic() >= transport.deadline:

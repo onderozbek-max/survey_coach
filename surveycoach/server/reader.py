@@ -51,6 +51,12 @@ def router(repository, app):
                 update(job_id, "failed", body.survey_id,
                        error="No reviewable pages captured. The link may need authentication or an unsupported reader.")
                 return
+            if not captured.snapshot.all_questions() and any(
+                "participant sign-in" in warning for warning in captured.coverage.warnings
+            ):
+                update(job_id, "failed", body.survey_id,
+                       error="Connected to RedJade, but this link requires starting a participant session before questions are available. SurveyCoach has not created that session. Use a researcher preview/export, or arrange a test-participant session with the survey owner.")
+                return
             if not captured.snapshot.all_questions() and all(
                 page.text.strip().lower().rstrip(". …") in {"", "loading", "please wait"}
                 for page in captured.snapshot.pages

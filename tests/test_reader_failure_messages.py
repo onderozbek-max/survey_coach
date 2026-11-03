@@ -24,7 +24,7 @@ def test_dns_failure_is_actionable_and_does_not_leak_link(tmp_path):
 
 def test_loading_only_page_is_not_a_completed_review(tmp_path):
     app = create_app(tmp_path / "db")
-    app.state.reader = lambda *a, **k: SimpleNamespace(snapshot=SurveySnapshot(title="Survey", pages=[Page(id="loading", position=0, kind="info", text="Loading")]))
+    app.state.reader = lambda *a, **k: SimpleNamespace(coverage=SimpleNamespace(warnings=[]), snapshot=SurveySnapshot(title="Survey", pages=[Page(id="loading", position=0, kind="info", text="Loading")]))
     with TestClient(app, base_url="http://localhost") as client:
         started = client.post("/api/reader/jobs", json={"url": "https://sample.redjade.net/test", "approval": True}).json()
         job = client.get(f"/api/jobs/{started['job_id']}").json()

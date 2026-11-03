@@ -1,6 +1,7 @@
 """Fail-closed URL policy. Validation is pure; DNS is checked separately at launch."""
 from ipaddress import ip_address
-from urllib.parse import urlsplit
+import re
+from urllib.parse import parse_qsl, urlsplit
 
 
 class UnsafeSurveyURL(ValueError):
@@ -38,6 +39,28 @@ def validate_url(url: str, *, allow_test_local: bool = False, approval: bool = F
         if isinstance(exc, UnsafeSurveyURL):
             raise
         raise UnsafeSurveyURL("Survey URL is not permitted by the reader safety policy.") from None
+
+
+def request_url(url: str, start: str, *, local=False, approval=True) -> str:
+    """Internal GET schema only; input URLs still prohibit every query string."""
+    parts, source = urlsplit(url), urlsplit(start)
+    if not parts.query:
+        return validate_url(url, allow_test_local=local, approval=approval)
+    validate_url(parts._replace(query="").geturl(), allow_test_local=local, approval=approval)
+    if local or parts.hostname != "app.redjade.net" or origin(url) != origin(start) or parts.fragment:
+        raise UnsafeSurveyURL("Startup query is not supported.")
+    pairs = parse_qsl(parts.query, keep_blank_values=True)
+    params = dict(pairs)
+    if len(params) != len(pairs):
+        raise UnsafeSurveyURL("Duplicate startup parameters are not supported.")
+    locale = parts.path in {"/static/locales/languages.json", "/static/locales/localized_languages.json", "/static/locales/client.en_US.json"}
+    if locale and set(params) == {"cache"} and re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", params["cache"]):
+        return url
+    segments = source.path.strip("/").split("/")
+    if (parts.path == "/api/v1/surveys/event_meta" and len(segments) == 3
+            and segments[0] == "surveys" and params == {"company_token": segments[1], "static_url": segments[2]}):
+        return url
+    raise UnsafeSurveyURL("Startup query is not supported.")
 
 
 def origin(url: str) -> str:

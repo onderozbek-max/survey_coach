@@ -9,7 +9,7 @@ import socket
 import time
 from urllib.parse import unquote, urlsplit
 
-from .policy import UnsafeSurveyURL, origin, public_addresses, validate_url
+from .policy import UnsafeSurveyURL, origin, public_addresses, request_url, validate_url
 from .definition import adapt_definition, find_definition
 from .proxy import corporate_proxy
 
@@ -24,6 +24,7 @@ class GuardedTransport:
     """
 
     def __init__(self, url, *, local, approval, coverage):
+        self.start_url = url
         self.lock = Lock()
         self.origin = origin(url)
         self.parts = urlsplit(url)
@@ -85,6 +86,10 @@ class GuardedTransport:
     def block(self, route):
         with self.lock:
             self.coverage.blocked_requests += 1
+            if route.request.method == "POST" and urlsplit(route.request.url).path == "/api/v1/surveys/online_sign_in_events":
+                warning = "Survey requires participant sign-in; participant creation was blocked."
+                if warning not in self.coverage.warnings:
+                    self.coverage.warnings.append(warning)
         route.abort("blockedbyclient")
 
     def __call__(self, route):
@@ -93,7 +98,7 @@ class GuardedTransport:
             self.requests += 1
         connection = None
         try:
-            validate_url(request.url, allow_test_local=self.local, approval=self.approval)
+            request_url(request.url, self.start_url, local=self.local, approval=self.approval)
             parts = urlsplit(request.url)
             if (origin(request.url) != self.origin or request.method not in {"GET", "HEAD"}
                     or FINAL_ENDPOINT.search(unquote(parts.path)) or self.requests > 150
@@ -115,7 +120,7 @@ class GuardedTransport:
                     (self.address, port), timeout, source_address)
             headers = {key: value for key, value in request.headers.items()
                        if key.lower() not in {"authorization", "proxy-authorization", "referer", "host"}}
-            connection.request(request.method, parts.path or "/", headers=headers)
+            connection.request(request.method, (parts.path or "/") + ("?" + parts.query if parts.query else ""), headers=headers)
             response = connection.getresponse()
             # All redirects are unsupported, even same-origin. Never follow one.
             if 300 <= response.status < 400:
