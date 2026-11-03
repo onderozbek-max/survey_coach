@@ -36,10 +36,16 @@ def patience(transport) -> int:
     return 5 if transport.proxy else 1
 
 
+def progression_controls(observation: dict, *, participate: bool) -> list[dict]:
+    """One unambiguous forward action; test participation includes Submit/Finish."""
+    return [button for button in observation["nav"] if not button["disabled"] and
+            (NEXT.fullmatch(button["label"]) or (participate and FINAL.match(button["label"])))]
+
+
 def external_progression_stop(*, allow_test_local: bool, participate: bool = False) -> bool:
     """An external Next may write; only owner-approved participant mode permits it.
 
-    Final controls (Submit/Finish) always stop the read, in every mode.
+    Participant mode also permits submitting/completing approved test responses.
     """
     return not (allow_test_local or participate)
 
@@ -74,8 +80,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         coverage=coverage, capture_dir=directory)
     if participate and not allow_test_local:
         coverage.warnings.append("Participant mode permits synthetic answer saves and advancement "
-                                 "(text answers say 'SurveyCoach test'). Explicit Submit/Finish controls "
-                                 "are not clicked, but Next or app-generated requests may complete responses.")
+                                 "(text answers say 'SurveyCoach test'), including Submit/Finish and "
+                                 "completed test responses. Only the captured path is reviewed.")
     elif not allow_test_local:
         coverage.warnings.append("Approved external read: page loads can create partial participant data. All writes are blocked.")
     from playwright.async_api import async_playwright
@@ -141,13 +147,13 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                     if observed["screenout"]:
                         coverage.stop_reason = "screen_out"
                         break
-                    if any(FINAL.search(button["label"]) for button in observed["nav"]):
+                    if not participate and any(FINAL.search(button["label"]) for button in observed["nav"]):
                         coverage.stop_reason = "final_control"
                         break
                     if observed["unsupported"]:
                         coverage.stop_reason = "unsupported"
                         break
-                    nav = [button for button in observed["nav"] if NEXT.fullmatch(button["label"]) and not button["disabled"]]
+                    nav = progression_controls(observed, participate=participate)
                     if len(nav) != 1:
                         coverage.stop_reason = "unsupported"
                         break
@@ -167,11 +173,10 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         break
                     # OBSERVE reassigns DOM IDs. Typing can reveal Clear buttons before
                     # Next, so the pre-answer nav ID may now point at a different action.
-                    if any(FINAL.search(button["label"]) for button in revealed["nav"]):
+                    if not participate and any(FINAL.search(button["label"]) for button in revealed["nav"]):
                         coverage.stop_reason = "final_control"
                         break
-                    nav = [button for button in revealed["nav"]
-                           if NEXT.fullmatch(button["label"]) and not button["disabled"]]
+                    nav = progression_controls(revealed, participate=participate)
                     if len(nav) != 1:
                         coverage.stop_reason = "unsupported"
                         break

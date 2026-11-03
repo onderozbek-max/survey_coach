@@ -27,8 +27,8 @@ class GuardedTransport:
     Default: GET/HEAD only, completion-looking endpoints blocked. ``participate``
     (owner-approved) lets the survey's own page act as a respondent: same-origin
     writes, including RedJade's per-answer and per-questionnaire "submit" events.
-    Endpoint names cannot tell a section save from completion, so in that mode the
-    session's rule (never click a Submit/Finish control) is the completion guard.
+    Participant mode is for approved test surveys: answer saves and completed
+    test responses are both permitted, including Submit/Finish controls.
     Deletes and cross-origin traffic stay blocked in every mode.
     """
 

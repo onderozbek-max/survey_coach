@@ -173,6 +173,24 @@ def test_text_answer_debounce_finishes_before_clicking_next(zoo):
     assert result.coverage.pages_captured == 2
 
 
+def test_participant_mode_answers_and_follows_submit_finish_to_confirmation(zoo):
+    base, requests = zoo
+    result = read_survey(base + "/section-one", allow_test_local=True, participate=True)
+    assert ("GET", "/section-two") in requests
+    assert ("GET", "/thanks") in requests
+    assert result.coverage.pages_captured == 3
+    assert result.snapshot.all_questions()[0].text == "Section feedback."
+    assert result.snapshot.pages[-1].text == "Thank you. Test response received."
+    assert result.coverage.full_branching_coverage is False
+
+
+def test_passive_mode_still_stops_at_submit(zoo):
+    base, requests = zoo
+    result = read_survey(base + "/section-one", allow_test_local=True)
+    assert result.coverage.stop_reason == "final_control"
+    assert ("GET", "/section-two") not in requests
+
+
 def test_text_answers_are_typed_like_a_person(zoo):
     """RedJade keeps text answers in its own state from key events; a programmatic fill is ignored."""
     result = read_survey(zoo[0] + "/keyup", allow_test_local=True)

@@ -25,7 +25,7 @@ With the survey owner's permission to submit synthetic answers, start the local 
 
 Participant mode forwards same-origin POST/PUT/PATCH bodies up to 256 KiB, including RedJade startup, answer saves and questionnaire submissions. It accepts app-generated same-origin queries and advances through one deterministic path. Each read may create participant records and synthetic responses. Text answers say `SurveyCoach test`; choice-only responses are not separately tagged. Exclude these test responses from research results.
 
-The reader never clicks explicitly labeled Submit/Finish/Complete/Done controls, but **Next and app-generated requests may complete responses**. There is no transport-level completion guarantee in participant mode. Unknown controls, uploads, photos and unsupported widgets stop the read. Fresh browser contexts contain no personal profile; app-issued session cookies/tokens are forwarded only to the same origin. Proxy credentials and cross-origin traffic remain blocked.
+For approved test surveys, participant mode **answers questions and clicks Submit/Finish/Complete/Done**, permitting completed test responses and continuing to any subsequent sections or confirmation pages. Default passive mode still stops at final controls. One enabled forward control must be unambiguous. Unknown controls, uploads, photos and unsupported widgets stop the read. Fresh browser contexts contain no personal profile; app-issued session cookies/tokens are forwarded only to the same origin. Proxy credentials and cross-origin traffic remain blocked.
 
 ## Supported, intentionally narrow
 
@@ -37,8 +37,9 @@ The reader never clicks explicitly labeled Submit/Finish/Complete/Done controls,
 - Original rendered wording, viewport screenshot and structured observation JSON.
 - One deterministic path: first usable choice per group/row, synthetic text
   `SurveyCoach test`, numeric midpoint. No random or AI-generated answers.
-- Next/Continue/Begin/Start with transition verification; final-label stop before
-  answering/clicking Submit/Finish/Complete/Done; screen-out wording detection.
+- Next/Continue/Begin/Start with transition verification. Participant mode also
+  answers and clicks Submit/Finish/Complete/Done; passive mode stops at those labels.
+  Screen-out wording detection remains enabled.
 - Revealed questions are captured, then reading stops rather than guessing their
   conditional dependencies. Repeated pages, unsupported widgets, missing labels,
   failed transitions and ambiguous navigation stop honestly.

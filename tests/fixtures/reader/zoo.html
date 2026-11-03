@@ -19,6 +19,9 @@ else if(stage==='grid') root.innerHTML=`<fieldset><legend>Rate these products.</
 <tr><th>Flavor</th><td><input type="radio" name="flavor" value="1"></td><td><input type="radio" name="flavor" value="2"></td></tr>
 </tbody></table></fieldset><button onclick="location.href='/final'">Next</button>`;
 else if(stage==='final') root.innerHTML='<h1>Review your answers.</h1><button onclick="fetch(\'/submitted\')">Submit survey</button>';
+else if(stage==='section-one') root.innerHTML=`<fieldset><legend>Section feedback.</legend><textarea id="section-answer"></textarea></fieldset><button onclick="if(document.getElementById('section-answer').value)location.href='/section-two'">Submit section</button>`;
+else if(stage==='section-two') root.innerHTML=`<h1>Another section after Submit.</h1><button onclick="location.href='/thanks'">Finish</button>`;
+else if(stage==='thanks') root.innerHTML='<h1>Thank you. Test response received.</h1>';
 else if(stage==='screenout') root.innerHTML='<h1>You do not qualify for this survey.</h1>';
 else if(stage==='aria') root.innerHTML=`<div role="radiogroup" aria-label="Pick a color."><div role="radio" tabindex="0" aria-checked="false" onclick="this.setAttribute('aria-checked','true')">Blue</div><div role="radio" tabindex="0" aria-checked="false">Green</div></div><button onclick="location.href='/final'">Next</button>`;
 else if(stage==='redjade') root.innerHTML=`<div class="q"><div aria-label="Which of these did you do? *"><div class="taker-question-title-row"><div class="taker-title"><div><p>Which of these did you do?</p></div><span></span></div></div></div>
