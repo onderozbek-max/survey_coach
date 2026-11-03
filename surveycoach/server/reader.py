@@ -47,8 +47,21 @@ def router(repository, app):
         update(job_id, "running", body.survey_id)
         try:
             reader = getattr(app.state, "reader", read_survey)
-            captured = reader(body.url, approval=True,
-                              participate=os.environ.get("SURVEYCOACH_PARTICIPANT_MODE") == "1")
+            options = {"approval": True,
+                       "participate": os.environ.get("SURVEYCOACH_PARTICIPANT_MODE") == "1"}
+            if options["participate"] and reader.__module__ == "surveycoach.reader.session":
+                from surveycoach.llm import WibeyProvider
+                provider = app.state.provider if app.state.provider is not None else WibeyProvider()
+                from surveycoach.llm.planner import WibeyPlanner
+                from surveycoach.llm.base import LlmUnavailable
+                try:
+                    options["planner"] = (WibeyPlanner(provider.binary)
+                                          if isinstance(provider, WibeyProvider) else provider)
+                except LlmUnavailable:
+                    options["planner"] = None
+                options["rules_path"] = Path(os.environ.get("SURVEYCOACH_RULES_PATH",
+                    str(Path.home() / "Library/Application Support/SurveyCoach/reader-rules.sqlite3")))
+            captured = reader(body.url, **options)
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
                 update(job_id, "failed", body.survey_id,
                        error="No reviewable pages captured. The link may need authentication or an unsupported reader.")

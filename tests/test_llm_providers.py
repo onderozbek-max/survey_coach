@@ -62,6 +62,13 @@ def test_one_bad_answer_is_retried_once_with_the_error_and_then_accepted(tmp_pat
     assert "invalid" in (tmp_path / "last_prompt.txt").read_text().lower()
 
 
+def test_planning_provider_can_disable_output_retry(tmp_path):
+    binary = fake_wibey(tmp_path, 'echo run >> "' + str(tmp_path / 'calls') + '"\nprintf %s invalid > "$out"\n')
+    with pytest.raises(LlmError):
+        WibeyProvider(binary, timeout=40, attempts=1).complete_json('S', 'D', Probe)
+    assert (tmp_path / 'calls').read_text().splitlines() == ['run']
+
+
 def test_two_bad_answers_raise_instead_of_guessing(tmp_path):
     binary = fake_wibey(tmp_path, 'printf %s \'{"label": 1}\' > "$out"\n')
     with pytest.raises(LlmError):

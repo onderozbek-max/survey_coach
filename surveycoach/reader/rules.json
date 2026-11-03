@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "rules": [
+    {"id": "native-answers", "match": "supported native or ARIA answer groups", "handler": "answer_groups", "verify": "answer state observed before forward action"},
+    {"id": "staged-png", "match": "file input accepting PNG and optional Add Media control", "handler": "answer_groups", "verify": "media commit then verified next-page transition"},
+    {"id": "validation-repair", "match": "field-local length errors or explicit selection counts", "handler": "advance", "verify": "verified next-page transition"}
+  ],
+  "limits": {"repair_attempts": 3, "model_calls": 2, "model_seconds": 45, "strategy_actions": 16},
+  "learning": {"status": "provisional", "on_failure": "quarantine", "scope": "origin plus control signature"}
+}

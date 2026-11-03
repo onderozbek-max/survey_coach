@@ -52,6 +52,13 @@ else if(stage==='field-specific-rule') {
  else document.getElementById('long-error').textContent='Please enter at least 35 characters.';
  };
 }
+else if(stage==='ai-length-rule') {
+ root.innerHTML=`<section data-page-id="ai-rule"><label>Explain briefly.<textarea id="explanation"></textarea></label><p id="problem" role="alert"></p><button id="advance">Next</button></section>`;
+ document.getElementById('advance').onclick=()=>{
+ if(document.getElementById('explanation').value.length===50)location.href='/thanks';
+ else document.getElementById('problem').textContent='Use exactly fifty characters to continue.';
+ };
+}
 else if(stage==='server-text-rule') {
  root.innerHTML=`<label>Explain briefly.<textarea id="explanation"></textarea></label><p role="alert" id="problem"></p><button id="advance">Next</button>`;
  document.getElementById('advance').onclick=()=>{

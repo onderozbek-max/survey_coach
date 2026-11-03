@@ -19,6 +19,8 @@ class Coverage(BaseModel):
     stop_reason: str = "not_started"
     full_branching_coverage: bool = False
     blocked_requests: int = 0
+    ai_strategies: int = 0
+    learned_rule_hits: int = 0
     participated: bool = False  # a write reached the vendor: a partial test response exists
     warnings: list[str] = Field(default_factory=lambda: [
         "Partial read: only one deterministic path; branching coverage is never complete.",

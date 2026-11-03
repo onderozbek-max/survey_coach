@@ -81,6 +81,8 @@ OBSERVE = r"""() => {
     groups.push({prompt,kind,items,source_id:sourceId,required:items.some(i=>i.required)});
   }
   const uploads=uploadButtons.map((e,i)=>({id:tag(e,'upload-'+i),label:e.getAttribute('aria-label')||text(e)}));
+  const auxiliary=[...document.querySelectorAll('button')].filter(e=>visible(e)&&mediaCommit(e))
+    .map((e,i)=>({id:tag(e,'aux-'+i),label:text(e),disabled:e.disabled}));
   const errors=[...document.querySelectorAll('[role=alert],[aria-live=assertive],.error,.invalid-feedback')]
     .filter(visible).map(text).filter(Boolean);
   const media=[...document.images].filter(visible).map((e,i)=>{
@@ -94,7 +96,7 @@ OBSERVE = r"""() => {
   const source_page_id=sourcePages.length===1 ? sourcePages[0].getAttribute('data-page-id') : null;
   const state_key=JSON.stringify([source_page_id, groups.length ? groups.map(g=>
     [g.source_id,g.prompt,g.kind,g.items.map(i=>[i.label,i.options])]) : pageText]);
-  return {title:document.title,text:pageText,groups,nav,uploads,errors,media,unsupported,source_page_id,state_key,
+  return {dialog:[...document.querySelectorAll('[role=dialog],dialog[open]')].some(visible),title:document.title,text:pageText,groups,nav,uploads,auxiliary,errors,media,unsupported,source_page_id,state_key,
     screenout:groups.length===0 && !nav.some(b=>/^(next|continue|begin|start|submit|finish|complete|done)\\b/i.test(b.label)) &&
       /do not qualify|not eligible|screened out|not qualified/i.test(pageText)};
 }"""

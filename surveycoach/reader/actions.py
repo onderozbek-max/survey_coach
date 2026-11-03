@@ -5,9 +5,16 @@ from pathlib import Path
 from .requirements import UnmetRequirement, placeholder_png, selection_minimum, synthetic_text
 
 
+def _synthetic_png_payload(upload_dir: Path) -> dict:
+    """Keep file bytes in memory: Chromium interception omits disk-backed parts."""
+    image = placeholder_png(upload_dir)
+    return {'name': image.name, 'mimeType': 'image/png', 'buffer': image.read_bytes()}
+
+
 async def answer_groups(page, observation: dict, *, upload_dir: Path, feedback: str = '', skip_upload: bool = False) -> bool:
     text_count = sum(group['kind'] in {'text_short', 'text_long'} for group in observation['groups'])
     staged = False
+    redjade_media = False
     for group in observation['groups']:
         selected = {}
         for item in group['items']:
@@ -21,7 +28,28 @@ async def answer_groups(page, observation: dict, *, upload_dir: Path, feedback: 
                 accept = item.get('accept', '').lower()
                 if accept and not any(token.strip() in {'image/*', 'image/png', '.png', '*/*'} for token in accept.split(',')):
                     raise UnmetRequirement('Upload requires a format other than the synthetic PNG.')
-                await locator.set_input_files(str(placeholder_png(upload_dir)))
+                redjade_media = await locator.evaluate("e => !!e.closest('[data-testid=media-uploader]')")
+                payload = _synthetic_png_payload(upload_dir)
+                if redjade_media:
+                    # This widget saves on upload. Its Add Media button creates a NEW
+                    # empty answer; clicking it is not a commit and can require deletes.
+                    try:
+                        async with page.expect_response(
+                            lambda response: response.request.method == 'POST' and
+                            response.url.split('?', 1)[0].endswith('/file-proxy/attach-multipart'),
+                            timeout=20000,
+                        ) as pending:
+                            await locator.set_input_files(payload)
+                        response = await pending.value
+                        if not response.ok:
+                            raise UnmetRequirement('Media upload was rejected by the survey.')
+                        await response.finished()
+                    except UnmetRequirement:
+                        raise
+                    except Exception as error:
+                        raise UnmetRequirement('Media upload did not finish within its bounded wait.') from error
+                else:
+                    await locator.set_input_files(payload)
                 staged = True
                 await page.wait_for_timeout(500)
             elif kind in {'single_choice', 'multi_choice', 'grid_single', 'grid_multi'}:
@@ -56,10 +84,10 @@ async def answer_groups(page, observation: dict, *, upload_dir: Path, feedback: 
                 if not usable:
                     raise UnmetRequirement('No usable dropdown option.')
                 await locator.select_option(value=usable[0]['value'])
-    # RedJade stages the file and comment before committing the media response.
-    # Add Media must be saved first, after the comment is entered.
+    # Some generic widgets stage a file and comment before an explicit commit.
+    # RedJade's inline media-uploader is NOT one of those widgets.
     commit = page.get_by_role('button', name='Add Media', exact=True)
-    if not skip_upload and (staged or observation.get('uploads')) and await commit.count() == 1 and await commit.is_visible():
+    if not redjade_media and not skip_upload and (staged or observation.get('uploads')) and await commit.count() == 1 and await commit.is_visible():
         try:
             await page.wait_for_function("() => [...document.querySelectorAll('button')].some(e => e.innerText.trim()==='Add Media' && !e.disabled)", timeout=10000)
         except Exception as error:
@@ -85,7 +113,7 @@ async def upload_from_button(page, observation: dict, upload_dir: Path) -> bool:
         async with page.expect_file_chooser(timeout=2000) as pending:
             await page.locator(f'[data-surveycoach-id="{button["id"]}"]').click()
         chooser = await pending.value
-        await chooser.set_files(str(placeholder_png(upload_dir)))
+        await chooser.set_files(_synthetic_png_payload(upload_dir))
         await page.wait_for_timeout(500)
         return True
     except Exception as error:

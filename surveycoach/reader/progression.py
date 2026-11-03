@@ -4,6 +4,7 @@ from pathlib import Path
 from .actions import answer_groups, upload_from_button
 from .observe import OBSERVE
 from .requirements import UnmetRequirement
+from .rules import LIMITS
 
 
 async def advance(page, observation: dict, *, controls, participate: bool, slow: int, upload_dir: Path) -> str:
@@ -15,7 +16,7 @@ async def advance(page, observation: dict, *, controls, participate: bool, slow:
         raise UnmetRequirement('Synthetic uploads require approved participant mode.')
     feedback = ''
     uploaded = False
-    for attempt in range(3):
+    for attempt in range(LIMITS['repair_attempts']):
         if not uploaded:
             uploaded = await upload_from_button(page, current, upload_dir)
         current = await page.evaluate(OBSERVE)
@@ -26,7 +27,7 @@ async def advance(page, observation: dict, *, controls, participate: bool, slow:
             return 'same_page_change'
         nav = controls(revealed, participate=participate)
         if len(nav) != 1:
-            if attempt == 2:
+            if attempt == LIMITS['repair_attempts'] - 1:
                 return 'blocked'
             current = revealed
             feedback = ' '.join(revealed.get('errors', []))
@@ -46,6 +47,6 @@ async def advance(page, observation: dict, *, controls, participate: bool, slow:
             invalid = [item.get('validation', '') for group in current['groups'] for item in group['items']]
             feedback = ' '.join(errors + invalid)
             # No new actionable evidence: do not submit the same invalid answers again.
-            if not feedback or attempt == 2:
+            if not feedback or attempt == LIMITS['repair_attempts'] - 1:
                 return 'blocked'
     raise UnmetRequirement('Recovery attempt limit reached.')

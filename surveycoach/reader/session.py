@@ -9,6 +9,7 @@ from pathlib import Path
 
 from surveycoach.snapshot import SurveySnapshot
 
+from .adaptive import AdaptiveReader
 from .definition import apply_definition
 from .extract import extract_page, fingerprint
 from .models import Capture, Coverage, ReadResult
@@ -53,17 +54,19 @@ def external_progression_stop(*, allow_test_local: bool, participate: bool = Fal
 
 
 def read_survey(url: str, *, allow_test_local: bool = False, approval: bool = False,
-                max_pages: int = 30, participate: bool = False) -> ReadResult:
+                max_pages: int = 30, participate: bool = False, planner=None,
+                rules_path: Path | None = None) -> ReadResult:
     """Synchronous entry point; run browser interception on its own event loop.
 
     ``participate`` lets the reader answer and advance like a respondent (owner-approved).
     """
     return asyncio.run(_read_survey(url, allow_test_local=allow_test_local, approval=approval,
-                                    max_pages=max_pages, participate=participate))
+                                    max_pages=max_pages, participate=participate, planner=planner, rules_path=rules_path))
 
 
 async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
-                       max_pages: int, participate: bool = False) -> ReadResult:
+                       max_pages: int, participate: bool = False, planner=None,
+                       rules_path: Path | None = None) -> ReadResult:
     """Read one visible path into the existing SurveySnapshot.
 
     URL-policy errors raise UnsafeSurveyURL; invalid budgets raise ValueError.
@@ -76,6 +79,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     coverage = Coverage()
     transport = GuardedTransport(url, local=allow_test_local, approval=approval, coverage=coverage,
                                  participate=participate)
+    adaptive = AdaptiveReader(planner=planner, path=rules_path, url=url, coverage=coverage,
+                              transport=transport) if participate and rules_path is not None else None
     slow = patience(transport)
     directory = Path(tempfile.mkdtemp(prefix="surveycoach-reader-"))
     result = ReadResult(snapshot=SurveySnapshot(title="", source_url=url, pages=[]),
@@ -108,7 +113,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
         await dialog.dismiss()
 
     try:
-        async with asyncio.timeout(max(0, transport.deadline - time.monotonic())), async_playwright() as playwright:
+        async with asyncio.timeout(max(0, transport.deadline - time.monotonic()) + (90 if adaptive else 0)), async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=True, args=[
                 "--disable-background-networking", "--disable-quic", "--no-proxy-server",
                 "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
@@ -136,6 +141,17 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         coverage.stop_reason = "time_limit"
                         break
                     observed = await page.evaluate(OBSERVE)
+                    if not observed['text'].strip() or (not observed['groups'] and not observed['nav'] and re.fullmatch(
+                        r'upload successful[.! …]*', observed['text'].strip(), re.I,
+                    )):
+                        # An upload toast is not a survey page or completion evidence.
+                        try:
+                            await page.wait_for_function("() => { const text=document.body.innerText.trim().toLowerCase(); return text && text !== 'upload successful' && !/^(loading[. …]*|please wait[. …]*)$/i.test(text); }", timeout=15000)
+                        except Exception:
+                            coverage.stop_reason = 'blocked'
+                            coverage.warnings.append('A blank/loading/upload status screen did not resolve into a survey page.')
+                            break
+                        observed = await page.evaluate(OBSERVE)
                     result.snapshot.title = result.snapshot.title or observed["title"]
                     fp = fingerprint(observed)
                     if fp in previous:
@@ -152,7 +168,11 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                     if not participate and any(FINAL.search(button["label"]) for button in observed["nav"]):
                         coverage.stop_reason = "final_control"
                         break
+                    if adaptive and len(result.captures) < max_pages and await adaptive.replay(page, directory):
+                        continue
                     if observed["unsupported"]:
+                        if adaptive and len(result.captures) < max_pages and await adaptive.recover(page, directory, 'unsupported controls'):
+                            continue
                         coverage.stop_reason = "unsupported"
                         break
                     if not observed["groups"] and not observed["nav"] and re.search(
@@ -163,6 +183,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         break
                     nav = progression_controls(observed, participate=participate, include_disabled=True)
                     if len(nav) != 1:
+                        if adaptive and len(result.captures) < max_pages and await adaptive.recover(page, directory, 'missing or ambiguous forward control'):
+                            continue
                         coverage.stop_reason = "unsupported"
                         break
                     if len(result.captures) >= max_pages:
@@ -177,6 +199,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                                                 participate=participate, slow=slow, upload_dir=directory)
                     except UnmetRequirement as error:
                         coverage.warnings.append(str(error))
+                        if adaptive and await adaptive.recover(page, directory, str(error)):
+                            continue
                         coverage.stop_reason = "unmet_requirement"
                         break
                     if outcome == "same_page_change":
@@ -185,6 +209,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         coverage.stop_reason = "same_page_change"
                         break
                     if outcome != "advanced":
+                        if adaptive and await adaptive.recover(page, directory, outcome):
+                            continue
                         coverage.stop_reason = outcome
                         coverage.warnings.append("Progression failed after bounded requirement recovery; later pages were not read.")
                         break
