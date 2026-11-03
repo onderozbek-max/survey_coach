@@ -97,12 +97,43 @@ class Repository:
         return {"id": survey_id, "survey_id": survey_id, "version": version,
                 "job_id": job_id, "deduplicated": duplicate, "scheduled": not bool(active)}
 
+    @staticmethod
+    def _latest_review(db, survey_id: str, version: int):
+        row = db.execute("SELECT reviews.data FROM reviews JOIN jobs ON jobs.id=reviews.job_id "
+                         "WHERE reviews.survey_id=? AND reviews.version=? ORDER BY jobs.rowid DESC LIMIT 1",
+                         (survey_id, version)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    @staticmethod
+    def _coverage(db, survey_id: str, version: int):
+        row = db.execute("SELECT data FROM coverage WHERE survey_id=? AND version=?", (survey_id, version)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    @staticmethod
+    def _qualify(review, coverage) -> None:
+        """Partial reader coverage can never present an unqualified Ready."""
+        if coverage and review and not coverage["full_branching_coverage"]:
+            if review["scorecard"]["readiness"] == "ready":
+                review["scorecard"]["readiness"] = "almost_ready"
+
     def list_surveys(self) -> list[dict]:
         with self.transaction() as db:
             rows = db.execute("SELECT v.survey_id AS id,v.title,v.version,v.content_hash,v.created_at "
                               "FROM versions v WHERE v.version=(SELECT MAX(v2.version) FROM versions v2 "
                               "WHERE v2.survey_id=v.survey_id) ORDER BY v.created_at DESC, v.survey_id").fetchall()
-            return [dict(row) for row in rows]
+            surveys = []
+            for row in rows:
+                item = dict(row) | {"readiness": None, "must_fix": None, "score_checked": None}
+                data = self._latest_review(db, row["id"], row["version"])
+                if data:
+                    review = data["review"]
+                    self._qualify(review, self._coverage(db, row["id"], row["version"]))
+                    card = review["scorecard"]
+                    item.update(readiness=card["readiness"],
+                                must_fix=sum(f["severity"] == "must_fix" for f in review["findings"]),
+                                score_checked=[round(card["score"] - card["unchecked_points"]), 100 - card["unchecked_points"]])
+                surveys.append(item)
+            return surveys
 
     def detail(self, survey_id: str, version: int | None = None) -> dict:
         with self.transaction() as db:
@@ -114,9 +145,7 @@ class Repository:
             row = db.execute("SELECT * FROM versions WHERE survey_id=? AND version=?", (survey_id, version)).fetchone()
             if row is None:
                 raise KeyError("Version not found")
-            review = db.execute("SELECT reviews.data FROM reviews JOIN jobs ON jobs.id=reviews.job_id "
-                                "WHERE reviews.survey_id=? AND reviews.version=? ORDER BY jobs.rowid DESC LIMIT 1",
-                                (survey_id, version)).fetchone()
+            review = self._latest_review(db, survey_id, version)
             decisions = db.execute("SELECT fingerprint,data FROM decisions WHERE survey_id=? AND version=?",
                                    (survey_id, version)).fetchall()
             job = db.execute("SELECT * FROM jobs WHERE survey_id=? AND version=? ORDER BY rowid DESC LIMIT 1",
@@ -129,12 +158,9 @@ class Repository:
                     "decisions": {d["fingerprint"]: json.loads(d["data"]) for d in decisions},
                     "job": self._job(job) if job else None}
             if review:
-                data.update(json.loads(review["data"]))
-            coverage = db.execute("SELECT data FROM coverage WHERE survey_id=? AND version=?", (survey_id, version)).fetchone()
-            data["coverage"] = json.loads(coverage["data"]) if coverage else None
-            if data["coverage"] and data["review"] and not data["coverage"]["full_branching_coverage"]:
-                if data["review"]["scorecard"]["readiness"] == "ready":
-                    data["review"]["scorecard"]["readiness"] = "almost_ready"
+                data.update(review)
+            data["coverage"] = self._coverage(db, survey_id, version)
+            self._qualify(data["review"], data["coverage"])
             return data
 
     @staticmethod

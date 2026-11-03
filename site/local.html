@@ -3,34 +3,80 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SurveyCoach · My surveys</title>
-  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="home.css">
 </head>
-<body>
+<body class="home">
   <a class="skip" href="#workspace">Skip to workspace</a>
-  <header class="workflow-header"><a href="local.html" class="brand">Survey<span>Coach</span></a><span>Private local workspace</span><a href="index.html">Try the sample demo</a></header>
-  <main id="workspace" class="workflow">
-    <h1>Get your survey ready for members.</h1>
-    <p>Review your survey, copy fixes into RedJade, then check it again. Your work is saved on this computer.</p>
-    <section aria-labelledby="import-h" class="workflow-panel">
-      <h2 id="import-h">Review a survey</h2>
-      <form id="import-form">
-        <label for="survey-link">RedJade preview link</label>
-        <input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
-        <p>Use an approved test/preview link, not a member invitation. Opening a link may create a test-participant record. When participant mode is enabled, the reader answers, advances, and clicks Submit/Finish to complete test responses and read subsequent pages. Unsupported controls stop the read; coverage is always partial.</p>
-        <details><summary>Import a captured survey instead</summary>
-          <label for="snapshot">Survey snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json">
-          <p>For developer-assisted imports. This must use the SurveyCoach snapshot format. No member responses or personal information.</p>
-        </details>
-        <p>Includes AI review through Wibey. Survey wording is sent to the approved AI service. Do not include member responses or personal information.</p>
-        <button class="btn" type="submit">Start review</button>
-      </form>
-      <div class="actions"><button type="button" class="btn" id="sample-start">Try the saved-work flow with a sample</button></div>
-      <p>No real link or file needed. Runs local checks only, so AI checks will be labeled not run.</p>
-      <p id="import-status" role="status" aria-live="polite"></p>
+  <header class="home-header">
+    <a href="local.html" class="brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a>
+    <span class="pill"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Private · saved on this computer</span>
+  </header>
+
+  <main id="workspace">
+    <section class="hero" aria-labelledby="hero-h">
+      <div class="hero-copy">
+        <p class="eyebrow">Pre-launch survey review</p>
+        <h1 id="hero-h">Launch surveys members <em>actually finish.</em></h1>
+        <p class="lede">Paste a RedJade test link. SurveyCoach reads it like a member, scores it against the research rubric, and hands you copy-ready fixes.</p>
+
+        <form id="import-form" class="command">
+          <label for="survey-link">RedJade preview link</label>
+          <div class="command-bar">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+            <input id="survey-link" type="url" placeholder="https://app.redjade.net/surveys/…" autocomplete="off" aria-describedby="link-help">
+            <button class="go" type="submit">Start review<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </div>
+          <p id="link-help" class="help">Approved test or preview links only, never a member invitation.</p>
+          <details class="import">
+            <summary>Import a snapshot file instead</summary>
+            <label for="snapshot">Survey snapshot file (.json)</label>
+            <input id="snapshot" type="file" accept=".json,application/json">
+            <p class="help">For developer-assisted imports in the SurveyCoach snapshot format. No member responses or personal information.</p>
+          </details>
+        </form>
+        <p class="alt">No link handy? <button type="button" class="ghost" id="sample-start">Try a sample survey</button> <span class="help">Local checks only; AI checks show as not run.</span></p>
+        <p id="import-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <figure class="example" role="img" aria-label="Example review result: readiness score 72 of 100, almost ready, 2 must-fix issues, a suggested rewrite of a double-barrelled question, and about 6 minutes for members.">
+        <div class="example-tag" aria-hidden="true">Example</div>
+        <div class="example-head" aria-hidden="true">
+          <div class="score"><span>72</span></div>
+          <div><p class="example-title">Holiday Snacks Concept Test</p><span class="chip almost_ready">Almost ready</span></div>
+        </div>
+        <ul class="example-stats" aria-hidden="true"><li><b class="red">2</b>must fix</li><li><b class="amber">5</b>worth improving</li><li><b>~6</b>min for members</li></ul>
+        <div class="example-fix" aria-hidden="true">
+          <p class="fix-label"><i class="dot-red"></i>Must fix · Q4 asks two things at once</p>
+          <p class="before">How satisfied are you with the taste and price?</p>
+          <p class="after">How satisfied are you with the taste?</p>
+        </div>
+      </figure>
     </section>
-    <section aria-labelledby="surveys-h"><h2 id="surveys-h">My surveys</h2><div id="survey-list"></div></section>
-    <p class="workflow-note">This is a local pilot, not an automatic launch approval. Check AI advice before using it. The tool never changes RedJade.</p>
+
+    <section class="steps" aria-labelledby="steps-h">
+      <h2 id="steps-h" class="sr-only">How it works</h2>
+      <ol>
+        <li><span class="step-n" aria-hidden="true">1</span><div><h3>Read like a member</h3><p>Every page is captured on a phone-sized screen, exactly as members see it.</p></div></li>
+        <li><span class="step-n" aria-hidden="true">2</span><div><h3>Score against the rubric</h3><p>Instant rule checks plus an AI review through Wibey flag what hurts completion.</p></div></li>
+        <li><span class="step-n" aria-hidden="true">3</span><div><h3>Copy fixes, check again</h3><p>Paste chosen fixes into RedJade yourself, then re-read to confirm.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="library" aria-labelledby="surveys-h">
+      <div class="section-head"><h2 id="surveys-h">My surveys</h2><span id="survey-count" class="help"></span></div>
+      <div id="survey-list"></div>
+    </section>
+
+    <section class="trust" aria-labelledby="trust-h">
+      <h2 id="trust-h">How your data is handled</h2>
+      <ul>
+        <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><div><h3>Stays on this computer</h3><p>Reviews and your choices are saved locally. SurveyCoach never changes RedJade.</p></div></li>
+        <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg><div><h3>AI sees survey wording only</h3><p>Wording is sent to the approved Wibey service. Never include member responses or personal information.</p></div></li>
+        <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><div><h3>Test responses only</h3><p>Opening a link may create a test participant. The reader may answer and submit synthetic test responses; exclude them from results. Coverage is always partial.</p></div></li>
+      </ul>
+    </section>
   </main>
+  <footer class="home-footer"><p>Local pilot, not an automatic launch approval. Check AI advice before using it.</p><a href="index.html">Explore the static demo</a></footer>
   <script src="dom.js"></script><script src="workflow.js"></script>
 </body>
 </html>

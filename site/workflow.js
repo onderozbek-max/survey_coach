@@ -1,7 +1,7 @@
 /* Private local workflow; never stores real survey content in the public demo or browser storage. */
 (() => {
   "use strict";
-  const { h, mount, $ } = window.SC;
+  const { h, mount, $, plural, READINESS } = window.SC;
   const params = new URLSearchParams(location.search), surveyId = params.get("id");
   let detail;
   const clientId = crypto.randomUUID(), revisions = new Map();
@@ -14,7 +14,8 @@
     }
     return response.json();
   }
-  const message = (id, text) => { if ($(id)) $(id).textContent = text; };
+  // tone: "info" | "progress" | "error"; styled where a page opts in (home.css).
+  const message = (id, text, tone = "info") => { const el = $(id); if (el) { el.textContent = text; el.dataset.tone = tone; } };
   async function copy(text, output) {
     try { await navigator.clipboard.writeText(text); output.textContent = "Copied. Paste into RedJade yourself; this does not mark the issue fixed."; }
     catch (_) { output.textContent = "Clipboard unavailable. Select the text and copy it manually."; }
@@ -22,7 +23,7 @@
   async function waitForJob(jobId, outputId) {
     for (let attempt = 0; attempt < 600; attempt++) {
       const job = await api(`/api/jobs/${encodeURIComponent(jobId)}`);
-      message(outputId, job.status === "running" ? "Review in progress. AI checks can take a few minutes…" : "Review queued…");
+      message(outputId, job.status === "running" ? "Review in progress. AI checks can take a few minutes…" : "Review queued…", "progress");
       if (job.status === "failed") throw new Error(job.error || "Review did not finish. Your previous review is unchanged.");
       if (job.status === "completed") return;
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -55,14 +56,30 @@
       await waitForJob(result.job_id, "import-status");
       const job = await api(`/api/jobs/${encodeURIComponent(result.job_id)}`);
       location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}`;
-    } catch (error) { message("import-status", error.message); }
+    } catch (error) { message("import-status", error.message, "error"); }
     finally { button.disabled = false; }
   }
+  const since = (stamp) => {
+    // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
+    const minutes = Math.round((new Date(stamp.replace(" ", "T") + "Z") - Date.now()) / 60000);
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+    if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
+    if (Math.abs(minutes) < 1440) return rtf.format(Math.round(minutes / 60), "hour");
+    return rtf.format(Math.round(minutes / 1440), "day");
+  };
+  const surveyCard = (s) => h("a", { class: "survey-card", href: `review.html?id=${encodeURIComponent(s.id)}` },
+    h("div", null, h("span", { class: `chip ${s.readiness || ""}` }, READINESS[s.readiness] || "Not reviewed")),
+    h("h3", null, s.title),
+    h("div", { class: "card-meta" },
+      s.must_fix != null && h("span", { class: s.must_fix ? "red" : null }, `${s.must_fix} must fix`),
+      s.score_checked && h("span", null, `${s.score_checked[0]} of ${s.score_checked[1]} checked points`),
+      h("span", null, `Version ${s.version}`), h("span", null, `Updated ${since(s.created_at)}`)),
+    h("span", { class: "card-open", "aria-hidden": "true" }, "Open review →"));
   async function home() {
     const data = await api("/api/surveys");
-    mount($("survey-list"), data.surveys.length ? data.surveys.map((s) => h("div", { class: "survey-row" },
-      h("div", null, h("strong", null, s.title), h("p", { class: "meta" }, `Version ${s.version}`)),
-      h("a", { href: `review.html?id=${encodeURIComponent(s.id)}` }, "Open review"))) : h("p", null, "No surveys yet. Start with an approved preview link or a captured snapshot."));
+    message("survey-count", data.surveys.length ? plural(data.surveys.length, "survey") : "");
+    mount($("survey-list"), data.surveys.length ? data.surveys.map(surveyCard)
+      : h("p", { class: "empty" }, h("strong", null, "Nothing reviewed yet"), "Paste a link above, or try the sample survey to see what a review looks like."));
   }
   async function save(finding, value, output) {
     output.textContent = "Saving…";
@@ -180,11 +197,11 @@
       const result = await api("/api/samples/boxer-briefs", "POST", {});
       await waitForJob(result.job_id, "import-status");
       location.href = `review.html?id=${encodeURIComponent(result.id)}`;
-    } catch (error) { message("import-status", error.message); $("sample-start").disabled = false; }
+    } catch (error) { message("import-status", error.message, "error"); $("sample-start").disabled = false; }
   });
   // One accessible inline error path for both malformed and disallowed URLs.
   for (const id of ["import-form", "recheck-form"]) if ($(id)) $(id).noValidate = true;
   $("import-form")?.addEventListener("submit", submit);
   $("recheck-form")?.addEventListener("submit", submit);
-  (surveyId ? review() : home()).catch((error) => message(surveyId ? "review-status" : "import-status", error.message));
+  (surveyId ? review() : home()).catch((error) => message(surveyId ? "review-status" : "import-status", error.message, "error"));
 })();
