@@ -13,6 +13,8 @@ from .definition import apply_definition
 from .extract import extract_page, fingerprint
 from .models import Capture, Coverage, ReadResult
 from .observe import OBSERVE
+from .progression import advance
+from .requirements import UnmetRequirement
 from .policy import validate_url
 from .transport import GuardedTransport
 
@@ -170,32 +172,22 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         coverage.stop_reason = "external_progression_unverified"
                         coverage.warnings.append("External advancement disabled: Next can write or finalize a response; passive content never authorizes advancement.")
                         break
-                    await _answer_groups(page, observed)
-                    revealed = await page.evaluate(OBSERVE)
-                    if fingerprint(revealed) != fp:
-                        # Capture newly revealed wording, but do not guess dependencies.
-                        await capture(page, revealed)
+                    try:
+                        outcome = await advance(page, observed, controls=progression_controls,
+                                                participate=participate, slow=slow, upload_dir=directory)
+                    except UnmetRequirement as error:
+                        coverage.warnings.append(str(error))
+                        coverage.stop_reason = "unmet_requirement"
+                        break
+                    if outcome == "same_page_change":
+                        # Preserve newly revealed wording; recovery of conditional widgets is bounded.
+                        await capture(page, await page.evaluate(OBSERVE))
                         coverage.stop_reason = "same_page_change"
                         break
-                    # OBSERVE reassigns DOM IDs. Typing can reveal Clear buttons before
-                    # Next, so the pre-answer nav ID may now point at a different action.
-                    if not participate and any(FINAL.search(button["label"]) for button in revealed["nav"]):
-                        coverage.stop_reason = "final_control"
+                    if outcome != "advanced":
+                        coverage.stop_reason = outcome
+                        coverage.warnings.append("Progression failed after bounded requirement recovery; later pages were not read.")
                         break
-                    nav = progression_controls(revealed, participate=participate)
-                    if len(nav) != 1:
-                        coverage.stop_reason = "unsupported"
-                        break
-                    await page.locator(f'[data-surveycoach-id="{nav[0]["id"]}"]').click()
-                    try:
-                        await page.wait_for_function(
-                            "old => { const current=(" + OBSERVE + ")(); return current.text.trim() && "
-                            "!/^(loading[. …]*|please wait[. …]*)$/i.test(current.text.trim()) && current.state_key !== old; }",
-                            arg=observed["state_key"], timeout=2000 * slow)
-                    except Exception:
-                        coverage.stop_reason = "blocked"
-                        break
-                    await page.wait_for_timeout(100)
                 else:
                     coverage.stop_reason = "page_limit"
             finally:
@@ -216,39 +208,3 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     if coverage.blocked_requests:
         coverage.warnings.append("Requests were blocked by safety policy; content or progression may be missing.")
     return result
-
-
-async def _answer_groups(page, observation: dict) -> None:
-    """First usable option per native group/row, and clearly tagged synthetic text."""
-    for group in observation["groups"]:
-        selected = set()
-        for item in group["items"]:
-            if item["disabled"]:
-                continue
-            locator = page.locator(f'[data-surveycoach-id="{item["id"]}"]')
-            kind = group["kind"]
-            if kind in {"single_choice", "multi_choice", "grid_single", "grid_multi"}:
-                key = item["row"] or item["name"] or "group"
-                if key in selected:
-                    continue
-                if not item["checked"]:
-                    if item["type"] in {"radio", "checkbox"} and await locator.evaluate("e => e.tagName === 'INPUT'"):
-                        await locator.check()
-                    else:
-                        await locator.click()
-                selected.add(key)
-            elif kind in {"text_short", "text_long"}:
-                # Type key by key: RedJade tracks answers from key events and ignores a bulk fill.
-                await locator.fill("")
-                await locator.press_sequentially("SurveyCoach test")
-                # RedJade's text component records selected_answers 200ms after
-                # the final input event. Next validates that model, not the DOM value.
-                await page.wait_for_timeout(300)
-            elif kind == "numeric":
-                low, high = float(item["min"] or 1), float(item["max"] or item["min"] or 10)
-                await locator.fill(str(int((low + high) // 2)))
-            elif kind == "dropdown":
-                usable = [o for o in item["options"] if o["value"] and not o["disabled"]]
-                if not usable:
-                    raise ValueError("No usable dropdown option")
-                await locator.select_option(value=usable[0]["value"])

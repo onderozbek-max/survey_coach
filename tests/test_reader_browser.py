@@ -139,7 +139,7 @@ def test_unknown_or_unlabeled_pages_are_not_claimed_as_read(zoo, stage):
 
 def test_no_usable_dropdown_returns_partial_error_not_fabricated_answer(zoo):
     result = read_survey(zoo[0] + "/disabled", allow_test_local=True)
-    assert result.coverage.stop_reason == "reader_error"
+    assert result.coverage.stop_reason == "unmet_requirement"
     assert len(result.captures) == 1
 
 

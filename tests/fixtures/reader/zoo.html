@@ -30,6 +30,35 @@ else if(stage==='eligibility-wording') root.innerHTML=`<label>If not eligible, e
 else if(stage==='compound-selects') root.innerHTML=`<fieldset><legend>Household</legend><label>Adults<select><option value="1">One adult</option><option value="2">Two adults</option></select></label><label>Children<select><option value="0">No children</option><option value="1">One child</option></select></label></fieldset><button onclick="location.href='/thanks'">Next</button>`;
 else if(['identical-one','identical-two'].includes(stage)) root.innerHTML=`<section data-page-id="${stage}"><fieldset data-question-id="q-${stage}"><legend>Rate this product.</legend><label><input type="radio" name="rating">Good</label></fieldset><button onclick="location.href='${stage==='identical-one'?'/identical-two':'/thanks'}'">Next</button></section>`;
 else if(stage==='validation-only') root.innerHTML=`<section data-page-id="same-page"><fieldset data-question-id="same-question"><legend>Provide a code.</legend><input type="text"></fieldset><p id="error"></p><button onclick="document.getElementById('error').textContent='Please answer the question correctly.'">Next</button></section>`;
+else if(stage==='photo-text') {
+ root.innerHTML=`<fieldset><legend>Upload a test photo.</legend><input id="photo" type="file" accept="image/png" hidden required><button type="button" onclick="document.getElementById('photo').click()">Upload photo</button></fieldset><label>Describe it.<textarea id="caption" minlength="3" maxlength="8" required></textarea></label><p role="alert" id="problem"></p><button id="advance">Next</button>`;
+ document.getElementById('advance').onclick=()=>{
+ const file=document.getElementById('photo').files[0], caption=document.getElementById('caption').value;
+ if(file && file.type==='image/png' && caption.length>=3 && caption.length<=8) location.href='/thanks';
+ else document.getElementById('problem').textContent='A photo and a short description are required.';
+ };
+}
+else if(stage==='staged-photo') {
+ let saved=false;
+ root.innerHTML=`<fieldset><legend>Add a photo.</legend><input type="file" accept="image/png" hidden required id="photo"><button class="media-upload-add-button" type="button"></button></fieldset><label>Comments<textarea id="caption" maxlength="8"></textarea></label><button id="save-media" disabled>Add Media</button><button id="advance">Next</button>`;
+ document.getElementById('photo').onchange=()=>setTimeout(()=>{document.getElementById('save-media').disabled=false;},1500);
+ document.getElementById('save-media').onclick=()=>{if(document.getElementById('caption').value){saved=true;document.getElementById('save-media').remove();document.getElementById('photo').closest('fieldset').remove();document.getElementById('caption').closest('label').remove();}};
+ document.getElementById('advance').onclick=()=>{if(saved)location.href='/thanks';};
+}
+else if(stage==='field-specific-rule') {
+ root.innerHTML=`<label>Short code<textarea maxlength="5"></textarea></label><label>Long explanation<textarea id="long-answer" aria-describedby="long-error"></textarea></label><p id="long-error" role="alert"></p><button id="advance">Next</button>`;
+ document.getElementById('advance').onclick=()=>{
+ if(document.getElementById('long-answer').value.length>=35)location.href='/thanks';
+ else document.getElementById('long-error').textContent='Please enter at least 35 characters.';
+ };
+}
+else if(stage==='server-text-rule') {
+ root.innerHTML=`<label>Explain briefly.<textarea id="explanation"></textarea></label><p role="alert" id="problem"></p><button id="advance">Next</button>`;
+ document.getElementById('advance').onclick=()=>{
+ if(document.getElementById('explanation').value.length>=35) location.href='/thanks';
+ else document.getElementById('problem').textContent='Please enter at least 35 characters.';
+ };
+}
 else if(stage==='thanks') root.innerHTML='<h1>Thank you. Test response received.</h1>';
 else if(stage==='screenout') root.innerHTML='<h1>You do not qualify for this survey.</h1>';
 else if(stage==='aria') root.innerHTML=`<div role="radiogroup" aria-label="Pick a color."><div role="radio" tabindex="0" aria-checked="false" onclick="this.setAttribute('aria-checked','true')">Blue</div><div role="radio" tabindex="0" aria-checked="false">Green</div></div><button onclick="location.href='/final'">Next</button>`;
