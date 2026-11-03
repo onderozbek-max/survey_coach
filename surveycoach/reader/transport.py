@@ -9,23 +9,25 @@ import socket
 import time
 from urllib.parse import unquote, urlsplit
 
-from .policy import (SIGNIN_PATH, UnsafeSurveyURL, origin, public_addresses, request_url,
-                     validate_signin, validate_url)
+from .policy import SIGNIN_PATH, UnsafeSurveyURL, origin, public_addresses, request_url, validate_url
 from .definition import adapt_definition, find_definition
 from .proxy import corporate_proxy
 
 FINAL_ENDPOINT = re.compile(r"submit|finish|complet|finaliz|terminate", re.I)
+PARTICIPANT_WRITES = {"POST", "PUT", "PATCH"}
+MAX_WRITE_BYTES = 256 * 1024
 
 
 class GuardedTransport:
-    """Same-origin GET/HEAD only, pinned public DNS, no redirects or response writes.
+    """Same-origin only, pinned public DNS (or approved proxy), no redirects, bounded.
 
-    The single exception is one owner-approved anonymous test-participant sign-in
-    (``test_session``). Answer saves, progression and completion stay blocked.
+    Default: GET/HEAD only. ``participate`` (owner-approved) lets the survey's own
+    page act as a respondent: same-origin writes to save answers and progress.
+    Completion-looking endpoints, deletes and cross-origin traffic stay blocked.
     """
 
-    def __init__(self, url, *, local, approval, coverage, test_session=False):
-        self.test_session = test_session and not local
+    def __init__(self, url, *, local, approval, coverage, participate=False):
+        self.participate = participate and not local
         self.start_url = url
         self.lock = Lock()
         self.origin = origin(url)
@@ -87,22 +89,19 @@ class GuardedTransport:
             if warning not in self.coverage.warnings:
                 self.coverage.warnings.append(warning)
 
-    def signin_allowed(self, request) -> bool:
-        """Claim the one approved sign-in slot. Never more than one per read."""
-        if not self.test_session or request.method != "POST":
+    def write_allowed(self, request) -> bool:
+        if not (self.participate and request.method in PARTICIPANT_WRITES
+                and len(request.post_data or b"") <= MAX_WRITE_BYTES):
             return False
-        validate_signin(request.url, request.post_data or b"", self.start_url)
         with self.lock:
-            if self.coverage.test_session_started:
-                return False
-            self.coverage.test_session_started = True
+            self.coverage.participated = True
         return True
 
     def block(self, route):
         with self.lock:
             self.coverage.blocked_requests += 1
             if route.request.method == "POST" and urlsplit(route.request.url).path == SIGNIN_PATH:
-                warning = "Survey requires participant sign-in; participant creation was blocked."
+                warning = "Survey requires participant sign-in; the reader is not in participant mode."
                 if warning not in self.coverage.warnings:
                     self.coverage.warnings.append(warning)
         route.abort("blockedbyclient")
@@ -113,14 +112,15 @@ class GuardedTransport:
             self.requests += 1
         connection = None
         try:
-            request_url(request.url, self.start_url, local=self.local, approval=self.approval)
+            request_url(request.url, self.start_url, local=self.local, approval=self.approval,
+                        any_query=self.participate)
             parts = urlsplit(request.url)
             write = request.method not in {"GET", "HEAD"}
-            if write and not self.signin_allowed(request):
-                return self.block(route)
+            # Origin/completion checks below run before any write is forwarded.
             if (origin(request.url) != self.origin
                     or FINAL_ENDPOINT.search(unquote(parts.path)) or self.requests > 150
-                    or self.bytes > 20 * 1024 * 1024 or time.monotonic() > self.deadline):
+                    or self.bytes > 20 * 1024 * 1024 or time.monotonic() > self.deadline
+                    or (write and not self.write_allowed(request))):
                 return self.block(route)
             port = parts.port or (80 if self.local else 443)
             if self.local:

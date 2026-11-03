@@ -1,6 +1,5 @@
 """Fail-closed URL policy. Validation is pure; DNS is checked separately at launch."""
 from ipaddress import ip_address
-import json
 import re
 from urllib.parse import parse_qsl, urlsplit
 
@@ -53,14 +52,20 @@ READONLY_QUERIES = {
 SAFE_VALUE = re.compile(r"[A-Za-z0-9_.-]{1,100}")
 
 
-def request_url(url: str, start: str, *, local=False, approval=True) -> str:
-    """Internal GET schema only; input URLs still prohibit every query string."""
+def request_url(url: str, start: str, *, local=False, approval=True, any_query=False) -> str:
+    """Internal request schema; input URLs still prohibit every query string.
+
+    ``any_query`` (participant mode) accepts any same-origin query the survey app
+    itself generates; otherwise only the observed read-only startup schema.
+    """
     parts, source = urlsplit(url), urlsplit(start)
     if not parts.query:
         return validate_url(url, allow_test_local=local, approval=approval)
     validate_url(parts._replace(query="").geturl(), allow_test_local=local, approval=approval)
     if local or parts.hostname != "app.redjade.net" or origin(url) != origin(start) or parts.fragment:
         raise UnsafeSurveyURL("Startup query is not supported.")
+    if any_query:
+        return url
     pairs = parse_qsl(parts.query, keep_blank_values=True)
     params = dict(pairs)
     if len(params) != len(pairs):
@@ -76,28 +81,6 @@ def request_url(url: str, start: str, *, local=False, approval=True) -> str:
 
 
 SIGNIN_PATH = "/api/v1/surveys/online_sign_in_events"
-ANONYMOUS_FIELDS = ("participant_code", "verification_code", "external_id", "enc")
-
-
-def validate_signin(url: str, body: bytes, start: str) -> None:
-    """Approved test-participant start: anonymous, exact schema, bound to the input survey.
-
-    Carries no answers or identifiers. Every other write remains blocked by the transport.
-    """
-    try:
-        parts, segments = urlsplit(url), urlsplit(start).path.strip("/").split("/")
-        data = json.loads(body)
-        expected = {"company_token", "static_url", "event_id", "locale", *ANONYMOUS_FIELDS}
-        if (parts.hostname != "app.redjade.net" or origin(url) != origin(start) or parts.path != SIGNIN_PATH
-                or parts.query or parts.fragment or len(segments) != 3 or segments[0] != "surveys"
-                or not isinstance(data, dict) or set(data) != expected
-                or data["company_token"] != segments[1] or data["static_url"] != segments[2]
-                or type(data["event_id"]) is not int
-                or not re.fullmatch(r"[a-z]{2}_[A-Z]{2}", str(data["locale"]))
-                or any(data[field] is not None for field in ANONYMOUS_FIELDS)):
-            raise ValueError
-    except (ValueError, TypeError):
-        raise UnsafeSurveyURL("Participant sign-in request is not the approved anonymous test start.") from None
 
 
 def origin(url: str) -> str:

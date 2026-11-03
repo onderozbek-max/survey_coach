@@ -48,7 +48,7 @@ def router(repository, app):
         try:
             reader = getattr(app.state, "reader", read_survey)
             captured = reader(body.url, approval=True,
-                              test_session=os.environ.get("SURVEYCOACH_ALLOW_TEST_SESSION") == "1")
+                              participate=os.environ.get("SURVEYCOACH_PARTICIPANT_MODE") == "1")
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
                 update(job_id, "failed", body.survey_id,
                        error="No reviewable pages captured. The link may need authentication or an unsupported reader.")

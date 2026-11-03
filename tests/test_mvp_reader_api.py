@@ -30,13 +30,13 @@ def test_link_read_is_explicit_and_coverage_reaches_review(tmp_path):
         assert not detail["coverage"]["full_branching_coverage"]
         assert detail["review"]["scorecard"]["readiness"] != "ready"
         assert len(calls) == 1
-        assert calls[0][1]["test_session"] is False  # off unless the operator enables it
+        assert calls[0][1]["participate"] is False  # off unless the operator enables it
         summary = client.get(f"/api/surveys/{job['survey_id']}/versions/1/summary").text
         assert "one deterministic path" in summary
 
 
-def test_operator_setting_enables_one_test_participant_start(tmp_path, monkeypatch):
-    monkeypatch.setenv("SURVEYCOACH_ALLOW_TEST_SESSION", "1")
+def test_operator_setting_enables_participant_mode(tmp_path, monkeypatch):
+    monkeypatch.setenv("SURVEYCOACH_PARTICIPANT_MODE", "1")
     app = create_app(tmp_path / "studio.sqlite")
     calls = []
     def controlled(url, **kwargs):
@@ -45,4 +45,4 @@ def test_operator_setting_enables_one_test_participant_start(tmp_path, monkeypat
     app.state.reader = controlled
     with TestClient(app, base_url="http://localhost") as client:
         client.post("/api/reader/jobs", json={"url": "https://example.redjade.net/test", "approval": True})
-    assert calls == [{"approval": True, "test_session": True}]
+    assert calls == [{"approval": True, "participate": True}]

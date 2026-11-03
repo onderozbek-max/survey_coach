@@ -19,23 +19,26 @@ FINAL = re.compile(r"\b(submit|finish|complete|done)\b", re.I)
 NEXT = re.compile(r"^(next|continue|begin|start)$", re.I)
 
 
-def external_progression_stop(*, allow_test_local: bool) -> bool:
-    """An external Next may write/finalize; even a definition never authorizes it."""
-    return not allow_test_local
+def external_progression_stop(*, allow_test_local: bool, participate: bool = False) -> bool:
+    """An external Next may write; only owner-approved participant mode permits it.
+
+    Final controls (Submit/Finish) always stop the read, in every mode.
+    """
+    return not (allow_test_local or participate)
 
 
 def read_survey(url: str, *, allow_test_local: bool = False, approval: bool = False,
-                max_pages: int = 30, test_session: bool = False) -> ReadResult:
+                max_pages: int = 30, participate: bool = False) -> ReadResult:
     """Synchronous entry point; run browser interception on its own event loop.
 
-    ``test_session`` permits one owner-approved anonymous participant sign-in.
+    ``participate`` lets the reader answer and advance like a respondent (owner-approved).
     """
     return asyncio.run(_read_survey(url, allow_test_local=allow_test_local, approval=approval,
-                                    max_pages=max_pages, test_session=test_session))
+                                    max_pages=max_pages, participate=participate))
 
 
 async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
-                       max_pages: int, test_session: bool = False) -> ReadResult:
+                       max_pages: int, participate: bool = False) -> ReadResult:
     """Read one visible path into the existing SurveySnapshot.
 
     URL-policy errors raise UnsafeSurveyURL; invalid budgets raise ValueError.
@@ -47,11 +50,15 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
         raise ValueError("max_pages must be an integer between 1 and 30")
     coverage = Coverage()
     transport = GuardedTransport(url, local=allow_test_local, approval=approval, coverage=coverage,
-                                 test_session=test_session)
+                                 participate=participate)
     directory = Path(tempfile.mkdtemp(prefix="surveycoach-reader-"))
     result = ReadResult(snapshot=SurveySnapshot(title="", source_url=url, pages=[]),
                         coverage=coverage, capture_dir=directory)
-    if not allow_test_local:
+    if participate and not allow_test_local:
+        coverage.warnings.append("Participant mode: this read answered questions as a test respondent and left an "
+                                 "incomplete response in the survey tool (text answers say 'SurveyCoach test'). "
+                                 "It stops before the final Submit/Finish.")
+    elif not allow_test_local:
         coverage.warnings.append("Approved external read: page loads can create partial participant data. All writes are blocked.")
     from playwright.async_api import async_playwright
 
@@ -129,7 +136,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                     if len(result.captures) >= max_pages:
                         coverage.stop_reason = "page_limit"
                         break
-                    if external_progression_stop(allow_test_local=allow_test_local):
+                    if external_progression_stop(allow_test_local=allow_test_local, participate=participate):
                         coverage.stop_reason = "external_progression_unverified"
                         coverage.warnings.append("External advancement disabled: Next can write or finalize a response; passive content never authorizes advancement.")
                         break
