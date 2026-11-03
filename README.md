@@ -14,14 +14,32 @@ It reads no real surveys and changes nothing in RedJade. Open it locally with
 
 The review data in `site/data.js` is produced by the Python engine, never hand-edited:
 `.venv/bin/python -m surveycoach.demo_export` regenerates it, and a test fails if it goes stale.
-The page itself is plain HTML, CSS, and JS on purpose: the Living Design kit is
-Walmart-proprietary and must not be published, so the real product UI (Plan 4) belongs on
-internal hosting.
+The page uses the approved custom dark Studio design in plain HTML/CSS/JS. No proprietary Living Design code is bundled. Real surveys belong in the private local workspace, never the public demo.
 
 ## Status
 
-Plan 1 (review engine) is done: a deterministic, offline review of a survey snapshot.
-Not built yet: AI judge (Plan 2), backend (3), frontend (4), crawler reader (5).
+Review engine and AI judge are implemented. The public demo replays reviewed synthetic AI cache data; normal exports make no network calls. A local MVP candidate now adds saved surveys/versions/decisions, real review jobs, grouped fixes, re-check comparisons, Ask the Coach, HTML review packets, and a bounded link reader.
+
+**Not yet production validated:** real RedJade compatibility/vendor approval, full visual/branch coverage, and director-graded accuracy calibration. Do not treat this build as automatic launch approval. Hosted multi-user authentication is not implemented; the server must remain loopback-only.
+
+## Test the private local workspace
+
+After installing dependencies below, install Chromium with `.venv/bin/python -m playwright install chromium`, then run:
+
+```bash
+.venv/bin/python -m surveycoach.server --db "$HOME/Library/Application Support/SurveyCoach/mvp.sqlite3" --port 8765
+open http://127.0.0.1:8765/local.html
+```
+
+Choose **Try the saved-work flow with a sample** to test without technical files or external access. It runs local checks and explicitly leaves AI unchecked. Alternatively import a SurveyCoach JSON snapshot (developer-assisted), or use an approved clean HTTPS RedJade test link. AI review is opt-in and uses the fixed Wibey model; never a fake provider in normal usage.
+
+Choices, keep reasons, and manually marked changes persist on this computer. Copying does not mark a fix resolved. Import an updated snapshot or reread the approved link to compare versions. The summary packet contains survey wording: save/share it only through approved internal channels.
+
+### Reader boundaries
+
+The reader can passively extract a known questionnaire definition from already permitted same-origin GET responses, preserving question and answer wording without submitting answers. Otherwise it captures the initial visible page; external progression is disabled because a button called Next can submit the final response. Definition wording is not proof of image, layout, or path correctness. Coverage and stop reasons remain visible in the review/packet. Unsupported URLs, authentication, widget types and missing payloads fail closed or remain explicitly partial.
+
+Read `surveycoach/reader/README.md` and `surveycoach/server/README.md` for technical contracts. Browser captures use private temporary directories outside the repository; retention/cleanup is operator-managed. Do not put member responses/PII in this tool.
 
 ## Try it
 
@@ -32,7 +50,7 @@ uv pip install --python .venv/bin/python -e ".[dev]" \
   --allow-insecure-host pypi.ci.artifacts.walmart.com
 
 .venv/bin/python -m pytest -q
-.venv/bin/python -m surveycoach review fixtures/boxer-briefs.json   # flawed sample: Needs work, one blocker
+.venv/bin/python -m surveycoach review fixtures/boxer-briefs.json   # flawed sample; local checks only
 .venv/bin/python -m surveycoach review fixtures/coffee-pods.json    # clean sample
 ```
 

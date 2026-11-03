@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review work list</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css"></head>
+<body>
+<a class="skip" href="#workspace">Skip to work list</a>
+<header class="workflow-header"><a href="local.html" class="brand">Survey<span>Coach</span></a><span>Private local workspace</span></header>
+<main id="workspace" class="workflow">
+  <h1 id="review-title">Loading your review…</h1>
+  <p id="review-status" role="status" aria-live="polite"></p>
+  <div id="review-toolbar" class="actions"></div>
+  <section id="review-summary" class="workflow-panel" aria-label="Review summary"></section>
+  <section id="recheck-panel" class="workflow-panel" aria-labelledby="recheck-h">
+    <h2 id="recheck-h">Check your updated survey</h2>
+    <p>Make changes in RedJade first. Then reread the same approved test link or import an updated snapshot. Nothing is marked verified just because you copied a fix.</p>
+    <form id="recheck-form">
+      <label for="survey-link">Updated RedJade preview link</label><input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
+      <label class="check"><input id="approval" type="checkbox"> Approved test link and test-participant handling confirmed. Stop before final submission.</label>
+      <label for="snapshot">Or updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json">
+      <label class="check"><input id="use-ai" type="checkbox"> Include AI review through Wibey.</label>
+      <button class="btn" type="submit">Check again</button>
+    </form><p id="import-status" role="status" aria-live="polite"></p>
+  </section>
+  <section id="version-changes" aria-label="Changes since previous version"></section>
+  <section aria-labelledby="fixes-h"><h2 id="fixes-h">Your fix checklist</h2><p>Pick text, copy it, and paste it into RedJade yourself. “Marked done” is your note, not proof that RedJade changed.</p><div id="fix-list"></div></section>
+</main>
+<script src="dom.js"></script><script src="model.js"></script><script src="workflow.js"></script>
+</body></html>

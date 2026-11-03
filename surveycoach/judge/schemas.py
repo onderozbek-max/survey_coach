@@ -1,7 +1,7 @@
 """What the AI judge must answer. Everything is validated, then grounded, before it can touch a score."""
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from surveycoach.findings import RewriteOption, Severity
 
@@ -35,6 +35,14 @@ class BatchOutput(BaseModel):
     verdicts: list[Verdict] = Field(default_factory=list)
     blockers: list[BlockerCall] = Field(default_factory=list)
     findings: list[AiFinding] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def unique_decisions(self):
+        for items, field in ((self.verdicts, "criterion_id"), (self.blockers, "blocker_id")):
+            ids = [getattr(item, field) for item in items]
+            if len(ids) != len(set(ids)):
+                raise ValueError(f"duplicate {field} in judge output")
+        return self
 
 
 class Answer(BaseModel):

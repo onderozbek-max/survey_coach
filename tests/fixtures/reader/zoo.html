@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Synthetic survey zoo</title>
+<style>body{font:16px sans-serif;max-width:360px}label{display:block}img{width:40px;height:20px}</style>
+<main id="content"></main><script>
+const stage=location.pathname.split('/').pop();
+const root=document.getElementById('content');
+if(stage==='choices') root.innerHTML=`<h1>Welcome, researcher!</h1>
+<fieldset id="fruit"><legend>Which fruit — exactly?</legend>
+<label><input type="radio" name="fruit" value="a" required>Apple &amp; pear</label>
+<label><input type="radio" name="fruit" value="b">None of these</label></fieldset>
+<fieldset><legend>Select your snacks.</legend><label><input type="checkbox" name="snack">Crackers</label>
+<label><input type="checkbox" name="snack">Cheese</label></fieldset>
+<img src="/asset.svg" alt="A synthetic rectangle"><button onclick="location.href='/text'">Next</button>`;
+else if(stage==='text') root.innerHTML=`<fieldset><legend>Tell us why.</legend><textarea required></textarea></fieldset>
+<label>How many?<input type="number" min="2" max="8" required></label>
+<label>Choose a size.<select required><option value="">Choose</option><option value="s">Small</option><option value="l">Large</option></select></label>
+<button onclick="location.href='/grid'">Continue</button>`;
+else if(stage==='grid') root.innerHTML=`<fieldset><legend>Rate these products.</legend><table><thead><tr><th>Product</th><th>Bad</th><th>Good</th></tr></thead><tbody>
+<tr><th>Texture</th><td><input type="radio" name="texture" value="1"></td><td><input type="radio" name="texture" value="2"></td></tr>
+<tr><th>Flavor</th><td><input type="radio" name="flavor" value="1"></td><td><input type="radio" name="flavor" value="2"></td></tr>
+</tbody></table></fieldset><button onclick="location.href='/final'">Next</button>`;
+else if(stage==='final') root.innerHTML='<h1>Review your answers.</h1><button onclick="fetch(\'/submitted\')">Submit survey</button>';
+else if(stage==='screenout') root.innerHTML='<h1>You do not qualify for this survey.</h1>';
+else if(stage==='aria') root.innerHTML=`<div role="radiogroup" aria-label="Pick a color."><div role="radio" tabindex="0" aria-checked="false" onclick="this.setAttribute('aria-checked','true')">Blue</div><div role="radio" tabindex="0" aria-checked="false">Green</div></div><button onclick="location.href='/final'">Next</button>`;
+else if(stage==='empty') root.innerHTML='<p>Still loading.</p>';
+else if(stage==='unlabeled') root.innerHTML='<input type="radio" name="x"><input type="radio" name="x"><button>Next</button>';
+else if(stage==='disabled') root.innerHTML='<label>Pick a size.<select><option value="">Choose</option><option disabled value="x">Unavailable</option></select></label><button>Next</button>';
+else if(stage==='unsupported') root.innerHTML='<h1>Drag items to rank.</h1><canvas width="100" height="100"></canvas><button>Next</button>';
+else if(stage==='stuck') root.innerHTML='<fieldset><legend>Pick one.</legend><label><input type="radio" name="x">Yes</label></fieldset><button>Next</button>';
+else if(stage==='reveal') root.innerHTML=`<fieldset><legend>Choose.</legend><label><input type="checkbox" name="x" onchange="document.getElementById('extra').hidden=false">Other</label></fieldset><fieldset id="extra" hidden><legend>Explain your choice.</legend><input type="text"></fieldset><button>Next</button>`;
+else if(stage==='threats') {root.innerHTML='<h1>Safety fixture.</h1><button>Finish</button>';fetch('/save',{method:'POST'});fetch('/complete_response');fetch('http://localhost:1/secret');fetch('https://example.com/secret');fetch('/redirect');}
+else root.innerHTML='<h1>Unknown fixture.</h1>';
+</script></html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SurveyCoach · My surveys</title>
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css">
+</head>
+<body>
+  <a class="skip" href="#workspace">Skip to workspace</a>
+  <header class="workflow-header"><a href="local.html" class="brand">Survey<span>Coach</span></a><span>Private local workspace</span><a href="index.html">Try the sample demo</a></header>
+  <main id="workspace" class="workflow">
+    <h1>Get your survey ready for members.</h1>
+    <p>Review your survey, copy fixes into RedJade, then check it again. Your work is saved on this computer.</p>
+    <section aria-labelledby="import-h" class="workflow-panel">
+      <h2 id="import-h">Review a survey</h2>
+      <form id="import-form">
+        <label for="survey-link">RedJade preview link</label>
+        <input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
+        <label class="check"><input id="approval" type="checkbox"> This is an approved test link. Test-participant handling is agreed with the survey owner/vendor. Do not submit a completed response.</label>
+        <p>The reader follows one test path, not every possible answer. It stops before final submission. You must check the captured questions before relying on the review.</p>
+        <details><summary>Import a captured survey instead</summary>
+          <label for="snapshot">Survey snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json">
+          <p>For developer-assisted imports. This must use the SurveyCoach snapshot format. No member responses or personal information.</p>
+        </details>
+        <label class="check"><input id="use-ai" type="checkbox"> Include AI review through the approved Wibey connection. Survey wording will be sent to that service.</label>
+        <button class="btn" type="submit">Start review</button>
+      </form>
+      <div class="actions"><button type="button" class="btn" id="sample-start">Try the saved-work flow with a sample</button></div>
+      <p>No real link or file needed. Runs local checks only, so AI checks will be labeled not run.</p>
+      <p id="import-status" role="status" aria-live="polite"></p>
+    </section>
+    <section aria-labelledby="surveys-h"><h2 id="surveys-h">My surveys</h2><div id="survey-list"></div></section>
+    <p class="workflow-note">This is a local pilot, not an automatic launch approval. Check AI advice before using it. The tool never changes RedJade.</p>
+  </main>
+  <script src="dom.js"></script><script src="workflow.js"></script>
+</body>
+</html>

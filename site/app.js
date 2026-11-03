@@ -1,11 +1,39 @@
-(() => {
+(async () => {
   "use strict";
   const SC = window.SC, { h, mount, $, say, plural, clock } = SC;
-  const DATA = window.SURVEYCOACH_DEMO;
+  let DATA = window.SURVEYCOACH_DEMO;
+  const localParams = new URLSearchParams(location.search), localId = localParams.get("id");
+  let localDetail = null;
+  const decisionClient = crypto.randomUUID(), decisionRevisions = new Map();
+  if (localId) {
+    try {
+      const base = `/api/surveys/${encodeURIComponent(localId)}`;
+      const path = localParams.get("version") ? `${base}/versions/${Number(localParams.get("version"))}` : base;
+      const responses = await Promise.all([fetch("/api/metadata"), fetch(path)]);
+      if (responses.some((r) => !r.ok)) throw new Error("Review unavailable. Return to My surveys.");
+      const [metadata, detail] = await Promise.all(responses.map((r) => r.json()));
+      if (!detail.review) throw new Error("Review is not finished. Open My surveys to check its progress.");
+      localDetail = detail;
+      DATA = { ...metadata, surveys: [detail], disclaimer: "Private local review. Preview is a reconstruction, not verified RedJade rendering. Copy fixes into RedJade yourself.", disclaimer_short: "Local review · reconstructed preview · changes are manual" };
+      const nav = h("nav", { class: "local-nav", "aria-label": "Review navigation" }, h("a", { href: "local.html" }, "My surveys"), h("a", { href: `review.html?id=${encodeURIComponent(localId)}&version=${detail.version}` }, "Saved fix checklist"));
+      document.body.insertBefore(nav, document.getElementById("topbar"));
+    } catch (error) {
+      mount($("topbar"), h("p", { role: "alert" }, error.message), h("a", { href: "local.html" }, "My surveys"));
+      return;
+    }
+  }
   const DEVICES = [["iPhone SE", 320], ["iPhone 16", 390], ["Android XL", 412]];
   const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model;
+  if (localDetail) {
+    localDetail.review.findings.forEach((f, key) => {
+      const decision = localDetail.decisions[f.fingerprint];
+      if (!decision) return;
+      const pick = ["keep", "original"].includes(decision.action) ? "original" : SC.choicesOf(f).find((c) => c.text === decision.picked_text)?.value;
+      if (pick) state.choices[`0:${key}`] = pick;
+    });
+  }
 
   const survey = () => DATA.surveys[state.survey];
   const current = () => model.order[state.screen];
@@ -19,7 +47,7 @@
     if (state.mode !== "fixes") return null;
     return survey().review.findings.flatMap((f, key) => {
       const pick = f.current_text && chosen(f, key);
-      return pick ? [{ key, from: f.current_text, to: pick.text, ai: f.source === "ai" }] : [];
+      return pick ? [{ key, from: f.current_text, to: pick.text, page_id: f.page_id, question_id: f.question_id, ai: f.source === "ai" }] : [];
     }).sort((a, b) => a.ai - b.ai);     // code-made fixes are facts (a true time promise), so they go first; the sort is stable
   }
 
@@ -76,9 +104,29 @@
     const offscreen = (entry) => picked(entry) && !!entry.f.current_text && !onPhone(entry.f);
     return {
       data: DATA, review: survey().review, selected: state.selected, device: state.device, large: state.large,
-      total: model.items.length, plan, applied, blocked, offscreen, choiceOf, originalOf,
+      total: model.items.length, pageId: page.id, plan, applied, blocked, offscreen, choiceOf, originalOf,
       onPin: (key) => select(key, true), onSelect: (key) => select(key, false),
-      onChoose: (key, value) => { state.choices[`${state.survey}:${key}`] = value; renderAll(); },
+      onChoose: async (key, value) => {
+        state.choices[`${state.survey}:${key}`] = value; renderAll();
+        if (localDetail) {
+          const f = survey().review.findings[key], prior = localDetail.decisions[f.fingerprint] || {};
+          const picked = SC.chosenChoice(f, value);
+          const revision = (decisionRevisions.get(f.fingerprint) || 0) + 1;
+          decisionRevisions.set(f.fingerprint, revision);
+          try {
+            const response = await fetch(`/api/surveys/${encodeURIComponent(localId)}/versions/${localDetail.version}/decisions/${f.fingerprint}`, {
+              method: "PUT", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: picked ? "pick" : "original", picked_text: picked?.text || null, reason: prior.reason || "", manual_done: prior.manual_done || false, client_id: decisionClient, revision }),
+            });
+            if (!response.ok) throw new Error("Could not save");
+            const saved = await response.json();
+            if (revision === decisionRevisions.get(f.fingerprint)) {
+              localDetail.decisions[f.fingerprint] = saved;
+              say("Your choice is saved on this computer.");
+            }
+          } catch (_) { say("Your choice could not be saved. Try again before leaving this page."); }
+        }
+      },
       onCopy: copy,
     };
   }
@@ -89,7 +137,7 @@
   function headline(review) {
     const { readiness, open_blockers } = review.scorecard;
     const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.length - must;
-    if (readiness === "needs_work") return `Needs work. Fix ${plural(open_blockers.length || must, "thing")} first.`;
+    if (readiness === "needs_work") return `Needs work. Fix ${plural(must || open_blockers.length, "thing")} first.`;
     if (readiness === "ready") return review.unchecked.length ? `Ready to launch, but ${plural(review.unchecked.length, "check")} have not run.` : "Ready to launch.";
     if (worth) return `Almost ready. ${plural(worth, "improvement")} to consider.`;
     return review.ai && !Object.keys(review.ai.failed).length ? "Nothing to fix." : "Nothing to fix yet. The AI step still has to run.";
@@ -121,7 +169,7 @@
         h("p", { class: "brief" }, `${must} must fix \u2022 ${worth} worth improving \u2022 ${review.est_minutes} min \u2022 ${aiBrief}`)),
       h("dl", { class: "stats" }, stat(must, "must fix", "red"), stat(worth, "worth improving", "amber"),
         stat(`${review.est_minutes} min`, promised ? `for members, ${promised}` : "for members", "plain")),
-      h("label", { class: "pick" }, h("span", null, "Sample survey"),
+      h("label", { class: "pick" }, h("span", null, localDetail ? "Your survey" : "Sample survey"),
         h("select", { "data-fk": "survey-picker", onchange: (e) => chooseSurvey(Number(e.target.value)) },
           DATA.surveys.map((s, i) => h("option", { value: i, selected: i === state.survey }, s.title)))));
   }
@@ -221,5 +269,8 @@
     say(`Showing the sample survey: ${survey().title}. ${SC.READINESS[survey().review.scorecard.readiness]}.`);
   }
 
+  if (!localDetail && window.SURVEYCOACH_LOCAL) {
+    document.body.insertBefore(h("nav", { class: "local-nav", "aria-label": "Private workspace" }, h("a", { href: "local.html" }, "Open My surveys — requires the local SurveyCoach server")), $("topbar"));
+  }
   chooseSurvey(0);
 })();

@@ -17,10 +17,13 @@
   };
 
   /** Apply the chosen fixes to one string, first fix wins. `hits` collects the fixes that really changed something. */
-  SC.applyFixes = (text, plan, hits) => plan.reduce((t, fix) => {
-    if (!t.includes(fix.from)) return t;
-    if (hits) hits.add(fix.key);
-    return t.replace(fix.from, fix.to);
+  SC.applyFixes = (text, plan, hits, target = {}) => plan.reduce((t, fix) => {
+    if (fix.page_id && fix.page_id !== target.page_id) return t;
+    if (fix.question_id && fix.question_id !== target.question_id) return t;
+    if (!fix.from || !t.includes(fix.from)) return t;
+    const changed = t.replace(fix.from, fix.to);
+    if (hits && changed !== t) hits.add(fix.key);
+    return changed;
   }, text);
 
   /** Every string the phone shows through the fixer for this page, so "fixed in preview" can be checked, not assumed. */
@@ -31,7 +34,16 @@
 
   SC.hitsOn = (page, plan) => {
     const hits = new Set();
-    SC.pageTexts(page).forEach((text) => SC.applyFixes(text, plan, hits));
+    const target = { page_id: page.id };
+    [page.intro_text, page.text].filter(Boolean).forEach((text) => SC.applyFixes(text, plan, hits, target));
+    (page.questions || []).forEach((q) => {
+      const texts = [q.text, q.help_text];
+      if (!["dropdown", "grid_single", "grid_multi"].includes(q.kind)) {
+        texts.push(...q.options.map((o) => o.label));
+        if (q.scale) texts.push(`${q.scale.low_label || "(no label)"}${SC.SPLIT}${q.scale.high_label || "(no label)"}`);
+      }
+      texts.filter(Boolean).forEach((text) => SC.applyFixes(text, plan, hits, { ...target, question_id: q.id }));
+    });
     return hits;
   };
 

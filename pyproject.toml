@@ -3,10 +3,10 @@ name = "surveycoach"
 version = "0.1.0"
 description = "Reviews MMC surveys against the approved rubric, mobile first."
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2", "pyyaml", "pillow"]
+dependencies = ["pydantic>=2", "pyyaml", "pillow", "fastapi", "uvicorn", "playwright"]
 
 [project.optional-dependencies]
-dev = ["pytest", "playwright"]
+dev = ["pytest", "httpx"]
 
 [build-system]
 requires = ["setuptools>=68"]

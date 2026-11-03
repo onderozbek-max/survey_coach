@@ -54,6 +54,13 @@ def score(rubric: Rubric, results: dict[str, CheckResult], kept_blockers: frozen
         for d in rubric.dimensions
     }
     total = sum(earned.values())
+    # Only the two explicitly deferred image judgments may remain on a ready review.
+    # Missing wording/story/flow judgments are incomplete evidence, not a passing score.
+    incomplete = any(
+        c.active and c.id not in {"7.1", "7.4"}
+        and ((r := results.get(c.id)) is None or (r.applies and r.fraction is None))
+        for c in rubric.criteria
+    )
     flagged = [b.id for b in rubric.blockers if _is_failed(results.get(b.id))]
     open_blockers = [b for b in flagged if b not in kept_blockers]
     kept = [b for b in flagged if b in kept_blockers]
@@ -67,7 +74,7 @@ def score(rubric: Rubric, results: dict[str, CheckResult], kept_blockers: frozen
         open_blockers=open_blockers,
         kept_blockers=kept,
         pending_blockers=pending,
-        readiness=_readiness(rubric, total, bool(open_blockers), bool(pending)),
+        readiness=_readiness(rubric, total, bool(open_blockers), bool(pending) or incomplete),
         strengths=_strengths(rubric, results),
     )
 

@@ -1,0 +1,24 @@
+{
+  "response": {
+    "questionnaire": {
+      "questionnaire_type": "Synthetic passive questionnaire",
+      "data": {"pages": [
+        {"id": "p-intro", "index": 0, "questions": [
+          {"cid": "q-fruit", "question_type": "radio", "required": true,
+           "text": {"en_US": "<p>Which fruit &amp; flavor?</p>", "fr_CA": "Quel fruit?"},
+           "answers": [{"id": "a-apple", "text": {"en_US": "Apple"}}, {"id": "a-none", "text": {"en_US": "None of these"}}]}
+        ]},
+        {"id": "p-conditional", "index": 1, "triggers": [{"condition": "any", "answers": ["a-apple"]}], "questions": [
+          {"cid": "q-reasons", "question_type": "checkbox", "text": {"en_US": "Why did you choose it?"},
+           "conditions": [{"condition": "equal", "answers": ["a-apple"]}],
+           "answers": [{"id": "a-taste", "text": {"en_US": "Taste"}}, {"id": "a-price", "text": {"en_US": "Price"}}]},
+          {"cid": "q-widget", "question_type": "future_widget", "text": {"en_US": "Arrange these items."},
+           "answers": [{"id": "a-first", "text": {"en_US": "First item"}}]}
+        ]},
+        {"id": "p-locale", "index": 2, "questions": [
+          {"cid": "q-french", "question_type": "textarea", "text": {"fr_CA": "Dites-nous pourquoi."}, "answers": []}
+        ]}
+      ]}
+    }
+  }
+}

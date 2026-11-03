@@ -89,6 +89,22 @@ class SurveySnapshot(BaseModel):
         return next((p.intro_text or p.text for p in self.pages if p.kind == "intro"), "")
 
     @property
+    def review_hash(self) -> str:
+        """Version identity includes all review inputs, not capture paths or source-link tokens."""
+        canonical = self.model_dump(exclude={"source_url"})
+        for page in canonical["pages"]:
+            for media in page["media"]:
+                media.pop("asset_path", None)
+            for question in page["questions"]:
+                question["options"].sort(key=lambda option: (option["id"], option["label"]))
+                for media in question["media"]:
+                    media.pop("asset_path", None)
+                for option in question["options"]:
+                    if option["media"]:
+                        option["media"].pop("asset_path", None)
+        return hashlib.sha256(json.dumps(canonical, sort_keys=True).encode()).hexdigest()
+
+    @property
     def content_hash(self) -> str:
         """Stable across option reordering, so randomized surveys do not create new versions."""
         canonical = [

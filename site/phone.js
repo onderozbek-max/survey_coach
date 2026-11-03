@@ -5,7 +5,7 @@
   const KIND = { intro: "Welcome", question: "Question", thank_you: "Thank you", screen_out: "Screen-out" };
   const SCALE_CRITERIA = ["4.4", "6.3"];
 
-  const fixedText = (text, ctx) => (ctx.plan ? SC.applyFixes(text, ctx.plan) : text);
+  const fixedText = (text, ctx) => (ctx.plan ? SC.applyFixes(text, ctx.plan, null, { page_id: ctx.pageId, question_id: ctx.questionId }) : text);
   const scalePoints = (scale) => Array.from({ length: scale.points }, (_, i) => (scale.points === 11 ? i : i + 1));
   const ratio = (m) => (m.natural_w && m.natural_h ? `${m.natural_w} / ${m.natural_h}` : "1 / 1");
 
@@ -85,6 +85,7 @@
   }
 
   function renderQuestion(q, entries, ctx) {
+    ctx = { ...ctx, questionId: q.id };
     const mine = entries.filter((e) => e.f.question_id === q.id);
     const by = { text: [], option: [], scale: [], media: [] };
     mine.forEach((e) => by[targetOf(e, q)].push(e));

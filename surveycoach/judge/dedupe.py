@@ -23,7 +23,7 @@ def dedupe(results: dict[str, CheckResult], rubric: Rubric) -> tuple[dict[str, C
     rank = {cid: i for i, cid in enumerate([b.id for b in rubric.blockers] + [c.id for c in rubric.criteria])}
     notes: list[str] = []
     blocked_by: dict[tuple[str, str], str] = {}
-    rewritten_by: dict[str, str] = {}
+    rewritten_by: dict[tuple[str, str], str] = {}
     out: dict[str, CheckResult] = {}
     for result in sorted(results.values(), key=lambda r: rank.get(r.criterion_id, len(rank))):
         kept: list[Finding] = []
@@ -35,7 +35,7 @@ def dedupe(results: dict[str, CheckResult], rubric: Rubric) -> tuple[dict[str, C
                 notes.append(f"{result.criterion_id}: repeats {blocked_by[place]} on {place[0]}")
                 continue
             if f.current_text and (f.suggested_text or f.options):
-                owner = rewritten_by.setdefault(norm(f.current_text), result.criterion_id)
+                owner = rewritten_by.setdefault((_where(f), norm(f.current_text)), result.criterion_id)
                 if owner != result.criterion_id:
                     notes.append(f"{result.criterion_id}: its rewrite of this text was dropped, {owner} already rewrites it")
                     f = f.model_copy(update={"suggested_text": None, "options": [], "current_text": None, "structural": False})

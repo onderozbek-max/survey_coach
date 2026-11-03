@@ -38,7 +38,7 @@
   /** "Which version is better?": the researcher's pick drives the phone preview and what gets copied. */
   function choiceBlock(entry, ctx) {
     const { f, key, n } = entry, choices = SC.choicesOf(f), picked = ctx.choiceOf(key) || choices[0].value;
-    const chosen = SC.chosenChoice(f, picked) || choices[0], msg = h("p", { class: "note", role: "status" });
+    const chosen = SC.chosenChoice(f, picked), msg = h("p", { class: "note", role: "status" });
     const markable = f.current_text && !f.structural;     // a bundle of answer choices is shown whole, not word-diffed
     const radio = (value, label, body) => h("label", { class: `opt${picked === value ? " on" : ""}` },
       h("input", { type: "radio", name: `choice-${key}`, value, checked: picked === value, "data-fk": `opt-${key}-${value}`, onchange: () => ctx.onChoose(key, value) }),
@@ -63,7 +63,7 @@
       radio("original", f.current_text ? "Your original" : "Leave as is", original),
       choices.map((c) => radio(c.value, c.label, version(c))),
       h("div", { class: "actions" },
-        h("button", { type: "button", class: "btn", "data-fk": `copy-${key}`, "aria-label": `Copy suggested text for issue ${n}`, onclick: () => ctx.onCopy(chosen.text, msg) }, "Copy suggested text"),
+        h("button", { type: "button", class: "btn", disabled: !chosen, "data-fk": `copy-${key}`, "aria-label": `Copy suggested text for issue ${n}`, onclick: () => chosen && ctx.onCopy(chosen.text, msg) }, "Copy suggested text"),
         h("span", { class: "note" }, note)),
       msg);
   }
