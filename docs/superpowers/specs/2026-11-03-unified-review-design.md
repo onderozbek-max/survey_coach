@@ -1,6 +1,16 @@
 # Unified SurveyCoach review — revised design
 
-Status: proposed, incorporating Onder's clarification. Reader bug fix is separate.
+Status: implemented November 3 after explicit user request to complete all updates.
+Reader bug fix commit 69a739e; workspace/recommendation implementation follows.
+
+Implementation notes: shared design-system.css underpins home/workspace/demo/export;
+review.html is canonical and index.html?id links redirect. Workspace tabs retain
+checklist decisions and contextual preview. Synthetic demo intentionally replays its
+pinned human-reviewed v4 cache through current grounding; production uses prompt v5.
+Landscape rubric shape bands remain unchanged, but advice identifies potential risk,
+not proof of breakage, and no longer prescribes automatic cropping. Old validation
+captures get an explicit historical-reader warning rather than masquerading as questions.
+No live RedJade completion claim; a new read is needed to verify upload progression.
 
 ## Shared design system
 

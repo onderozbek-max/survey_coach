@@ -4,7 +4,7 @@
   const { h, mount, $, plural, READINESS } = window.SC;
   const params = new URLSearchParams(location.search), surveyId = params.get("id");
   let detail;
-  const clientId = crypto.randomUUID(), revisions = new Map();
+  const clientId = window.SC.decisionClient, revisions = window.SC.decisionRevisions;
   const endpoint = (version = detail.version) => `/api/surveys/${encodeURIComponent(surveyId)}/versions/${version}`;
   async function api(path, method = "GET", body) {
     const response = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -89,6 +89,7 @@
       const saved = await api(`${endpoint()}/decisions/${finding.fingerprint}`, "PUT", { ...value, client_id: clientId, revision });
       if (revision === revisions.get(finding.fingerprint)) {
         detail.decisions[finding.fingerprint] = saved;
+        window.dispatchEvent(new CustomEvent('surveycoach-decisions', { detail }));
         output.textContent = "Saved on this computer.";
       }
       return true;
@@ -114,7 +115,7 @@
     };
     const persist = async () => {
       const action = select.value === "original" ? (reason.value.trim() ? "keep" : "original") : select.value === "open" ? "open" : "pick";
-      return save(finding, { action, picked_text: action === "pick" ? choices[Number(select.value)].text : null, reason: reason.value, manual_done: done.checked }, output);
+      return save(finding, { action, picked_text: action === "pick" ? choices[Number(select.value)]?.text || null : null, reason: reason.value, manual_done: done.checked }, output);
     };
     select.onchange = () => { update(); persist(); };
     done.onchange = persist;
@@ -138,8 +139,9 @@
       h("h3", null, finding.headline), h("blockquote", null, finding.evidence),
       h("p", null, finding.explanation), h("p", null, finding.member_impact),
       question && h("details", null, h("summary", null, "See the original question and answer choices"), h("p", null, question.text), h("ul", null, question.options.map((o) => h("li", null, o.label)))),
-      h("label", null, "Which version do you want?", select), preview, reason,
-      h("div", { class: "actions" }, copyButton, h("label", { class: "check" }, done, "I made this change in RedJade (not verified yet)")), output,
+      h("label", null, choices.length ? "Which version do you want?" : "Decision on this finding", select),
+      choices.length ? preview : h("p", { class: "note" }, "Action required · No ready-to-use rewrite. Follow the guidance above and verify the result in RedJade."), reason,
+      h("div", { class: "actions" }, choices.length ? copyButton : null, h("label", { class: "check" }, done, "I made this change in RedJade (not verified yet)")), output,
       h("details", null, h("summary", null, "Ask about this finding"), h("p", null, "Uses Wibey AI and sends survey wording. Check its answer before use."), askInput, askButton, askOutput));
   }
   async function changes() {
@@ -167,8 +169,8 @@
     const versions = h("select", { "aria-label": "Review version", onchange: (e) => { location.href = `review.html?id=${encodeURIComponent(surveyId)}&version=${e.target.value}`; } },
       detail.versions.map((v) => h("option", { value: v.version, selected: v.version === detail.version }, `Version ${v.version}`)));
     const copyStatus = h("p", { role: "status" });
-    mount($("review-toolbar"), h("a", { href: `index.html?id=${encodeURIComponent(surveyId)}&version=${detail.version}` }, "Open phone preview"),
-      h("a", { href: `${endpoint()}/summary`, target: "_blank", rel: "noopener" }, "Open shareable summary"), versions,
+    mount($("review-toolbar"),
+      h("a", { href: `${endpoint()}/summary`, target: "_blank", rel: "noopener" }, "Export review report"), versions,
       h("button", { type: "button", class: "btn", onclick: () => {
         const text = r.findings.flatMap((f) => { const d = detail.decisions[f.fingerprint]; return d?.action === "pick" ? [`${f.question_id || f.page_id || "Survey"}: ${f.headline}\n${d.picked_text}`] : []; }).join("\n\n");
         if (!text) { copyStatus.textContent = "Choose at least one suggested fix first. Original choices are not copied."; return; }
@@ -189,8 +191,16 @@
     const groups = new Map();
     r.findings.forEach((f) => { const place = f.question_id || f.page_id || "Survey-wide"; if (!groups.has(place)) groups.set(place, []); groups.get(place).push(f); });
     mount($("fix-list"), groups.size ? [...groups].map(([place, findings]) => h("section", { class: "fix-group" }, h("h3", null, place), findings.map(fixCard))) : h("p", null, "No findings in the checks run. Review the unchecked items above."));
+    window.SC.loadWorkspace?.(detail);
     await changes();
   }
+  window.addEventListener('surveycoach-choice-saved', event => {
+    detail.decisions = event.detail.decisions;
+    // Refresh checklist from the same saved state without replacing the phone workspace.
+    const groups = new Map();
+    detail.review.findings.forEach(f => { const place = f.question_id || f.page_id || 'Survey-wide'; if (!groups.has(place)) groups.set(place, []); groups.get(place).push(f); });
+    mount($('fix-list'), [...groups].map(([place, findings]) => h('section', {class:'fix-group'}, h('h3', null, place), findings.map(fixCard))));
+  });
   $("sample-start")?.addEventListener("click", async () => {
     $("sample-start").disabled = true;
     try {

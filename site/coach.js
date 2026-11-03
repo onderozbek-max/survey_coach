@@ -54,12 +54,13 @@
     };
     const note = f.structural ? "This changes answer choices, so it is not drawn on the phone. Copy it and paste it into RedJade yourself."
       : ctx.offscreen(entry) ? "This text is not on a phone screen (the survey title, for example), so it cannot be previewed. Copy it into RedJade yourself."
-      : picked === "original" ? "Your original stays in the preview."
+      : ["original", "open"].includes(picked) ? "Your original stays in the preview until you choose a rewrite."
         : ctx.blocked(entry) ? "Another fix already changes this text in the preview, so this one is not shown."
           : "Shown on the phone under With fixes.";
     return h("fieldset", { class: `choice${f.structural ? " pre" : ""}` },
       h("legend", null, "Which version is better?"),
       f.source === "ai" && h("p", { class: "ai-note" }, "AI-written. Check it before you use it."),
+      picked === "open" && h("p", {class:"note"}, "No rewrite chosen yet."),
       radio("original", f.current_text ? "Your original" : "Leave as is", original),
       choices.map((c) => radio(c.value, c.label, version(c))),
       h("div", { class: "actions" },
@@ -74,8 +75,8 @@
       chips(entry, ctx),
       h("h3", null, h("button", { type: "button", class: "card-head", "data-fk": `card-${key}`, "aria-pressed": String(selected), onclick: () => ctx.onSelect(key) }, f.headline)),
       h("p", { class: "why" }, f.member_impact),
-      h("p", { class: "fix" }, h("strong", null, "How to fix: "), f.explanation),
-      SC.choicesOf(f).length ? choiceBlock(entry, ctx) : null);
+      h("p", { class: "fix" }, h("strong", null, SC.choicesOf(f).length ? "How to fix: " : "Action required: "), f.explanation),
+      SC.choicesOf(f).length ? choiceBlock(entry, ctx) : h("p", {class:"note"}, "No ready-to-use rewrite. Review the guidance above; no text change is applied in the preview."));
   }
 
   function areaRow(id, d, ctx) {

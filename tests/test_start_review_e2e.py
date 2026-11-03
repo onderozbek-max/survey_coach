@@ -38,12 +38,16 @@ def test_link_start_to_saved_review_preserves_partial_coverage(browser, studio, 
     page.get_by_label('RedJade preview link').fill('https://example.redjade.net/test')
     page.get_by_role('button', name='Start review', exact=True).click()
     page.wait_for_url('**/review.html?**', timeout=30000)
+    page.get_by_role('tab', name='All issues', exact=True).click()
     page.get_by_role('heading', name='Your fix checklist').wait_for()
+    page.locator('details.review-details > summary').filter(has_text='Coverage, checks').click()
     assert 'path_end' in page.locator('body').inner_text()
     assert 'one deterministic path' in page.locator('body').inner_text()
     assert calls == [{'approval': True, 'participate': True}]
     page.reload()
+    page.get_by_role('tab', name='All issues', exact=True).click()
     page.get_by_role('heading', name='Your fix checklist').wait_for()
+    page.locator('details.review-details > summary').filter(has_text='Coverage, checks').click()
     assert 'path_end' in page.locator('body').inner_text()
     page.close()
 

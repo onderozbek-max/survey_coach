@@ -4,19 +4,22 @@
   let DATA = window.SURVEYCOACH_DEMO;
   const localParams = new URLSearchParams(location.search), localId = localParams.get("id");
   let localDetail = null;
-  const decisionClient = crypto.randomUUID(), decisionRevisions = new Map();
+  const decisionClient = SC.decisionClient, decisionRevisions = SC.decisionRevisions;
+  if (localId && !SC.workspaceDetail && location.pathname.endsWith('/index.html')) {
+    location.replace(`review.html${location.search}`);
+    return;
+  }
   if (localId) {
     try {
       const base = `/api/surveys/${encodeURIComponent(localId)}`;
       const path = localParams.get("version") ? `${base}/versions/${Number(localParams.get("version"))}` : base;
-      const responses = await Promise.all([fetch("/api/metadata"), fetch(path)]);
+      const responses = await Promise.all([fetch("/api/metadata"), SC.workspaceDetail ? Promise.resolve({ok:true,json:async()=>SC.workspaceDetail}) : fetch(path)]);
       if (responses.some((r) => !r.ok)) throw new Error("Review unavailable. Return to My surveys.");
       const [metadata, detail] = await Promise.all(responses.map((r) => r.json()));
       if (!detail.review) throw new Error("Review is not finished. Open My surveys to check its progress.");
       localDetail = detail;
       DATA = { ...metadata, surveys: [detail], disclaimer: "Private local review. Preview is a reconstruction, not verified RedJade rendering. Copy fixes into RedJade yourself.", disclaimer_short: "Local review · reconstructed preview · changes are manual" };
-      const nav = h("nav", { class: "local-nav", "aria-label": "Review navigation" }, h("a", { href: "local.html" }, "My surveys"), h("a", { href: `review.html?id=${encodeURIComponent(localId)}&version=${detail.version}` }, "Saved fix checklist"));
-      document.body.insertBefore(nav, document.getElementById("topbar"));
+      // The canonical workspace owns app navigation and version controls.
     } catch (error) {
       mount($("topbar"), h("p", { role: "alert" }, error.message), h("a", { href: "local.html" }, "My surveys"));
       return;
@@ -29,8 +32,7 @@
   if (localDetail) {
     localDetail.review.findings.forEach((f, key) => {
       const decision = localDetail.decisions[f.fingerprint];
-      if (!decision) return;
-      const pick = ["keep", "original"].includes(decision.action) ? "original" : SC.choicesOf(f).find((c) => c.text === decision.picked_text)?.value;
+      const pick = ["keep", "original"].includes(decision?.action) ? "original" : SC.choicesOf(f).find((c) => c.text === decision?.picked_text)?.value || "open";
       if (pick) state.choices[`0:${key}`] = pick;
     });
   }
@@ -122,6 +124,7 @@
             const saved = await response.json();
             if (revision === decisionRevisions.get(f.fingerprint)) {
               localDetail.decisions[f.fingerprint] = saved;
+              window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail:localDetail}));
               say("Your choice is saved on this computer.");
             }
           } catch (_) { say("Your choice could not be saved. Try again before leaving this page."); }
@@ -164,7 +167,7 @@
         h("div", { class: "ring-in" }, earned.toFixed(0))),
         h("span", { class: "ring-cap" }, `of ${checked} points checked`)),
       h("div", { class: "head-text" },
-        h("h1", null, headline(review)),
+        h(SC.workspaceDetail ? "h2" : "h1", null, headline(review)),
         h("p", { class: "sub" }, `${survey().title} \u2022 ${waiting}`),
         h("p", { class: "brief" }, `${must} must fix \u2022 ${worth} worth improving \u2022 ${review.est_minutes} min \u2022 ${aiBrief}`)),
       h("dl", { class: "stats" }, stat(must, "must fix", "red"), stat(worth, "worth improving", "amber"),
@@ -271,6 +274,21 @@
 
   if (!localDetail && window.SURVEYCOACH_LOCAL) {
     document.body.insertBefore(h("nav", { class: "local-nav", "aria-label": "Private workspace" }, h("a", { href: "local.html" }, "Open My surveys — requires the local SurveyCoach server")), $("topbar"));
+  }
+  window.addEventListener('surveycoach-decisions', event => {
+    if (!localDetail) return;
+    localDetail.decisions = event.detail.decisions;
+    localDetail.review.findings.forEach((f, key) => {
+      const decision = localDetail.decisions[f.fingerprint];
+      const value = ['keep','original'].includes(decision?.action) ? 'original' : SC.choicesOf(f).find(c => c.text === decision?.picked_text)?.value || 'open';
+      if (value) state.choices[`0:${key}`] = value;
+      else delete state.choices[`0:${key}`];
+    });
+    renderAll();
+  });
+  if (!DATA?.surveys?.[0]?.snapshot?.pages?.length) {
+    mount($('stage'), h('p', {role:'status'}, 'No captured screens. Review the available findings and coverage below.'));
+    return;
   }
   chooseSurvey(0);
 })();

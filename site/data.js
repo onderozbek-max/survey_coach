@@ -210,28 +210,15 @@ window.SURVEYCOACH_DEMO = {
       "severity": "worth_improving",
       "headline": "The welcome leaves out the purpose and the member's role",
       "evidence": "Welcome to the Boxer Briefs Survey! This takes about 3 minutes.",
-      "explanation": "Explain what you want to learn and why this member was invited. Invite the member to contribute as a co-creator rather than simply complete a survey. This also covers criterion 1.3. Fill in the bracketed facts before publishing. The rewrite preserves the existing timing statement because its accuracy is already flagged separately.",
+      "explanation": "Explain what you want to learn and why this member was invited. Invite the member to contribute as a co-creator rather than simply complete a survey. This also covers criterion 1.3. Fill in the bracketed facts before publishing. The rewrite preserves the existing timing statement because its accuracy is already flagged separately.\n\nNo ready-to-use rewrite is available because the survey does not provide enough context. Confirm the missing study details with the study owner before drafting replacement wording.",
       "member_impact": "Members cannot tell why their perspective matters or what they are being invited to help explore.",
       "page_id": "p0",
       "question_id": "",
       "element_id": null,
       "current_text": "Welcome to the Boxer Briefs Survey! This takes about 3 minutes.",
-      "suggested_text": "Welcome! We'd like to explore [what you want to learn about Member's Mark boxer briefs] with you. You're invited because [why this member was asked]. Bring your perspective as a co-creator. This takes about 3 minutes.",
+      "suggested_text": null,
       "highlight": "Welcome to the Boxer Briefs Survey!",
-      "options": [
-       {
-        "label": "Neutral",
-        "text": "Welcome! We'd like to explore [what you want to learn about Member's Mark boxer briefs] with you. You're invited because [why this member was asked]. Bring your perspective as a co-creator. This takes about 3 minutes."
-       },
-       {
-        "label": "Shorter",
-        "text": "Help us explore [what you want to learn about Member's Mark boxer briefs] as a co-creator. You're invited because [why this member was asked]. This takes about 3 minutes."
-       },
-       {
-        "label": "Friendlier",
-        "text": "Welcome! Let's explore [what you want to learn about Member's Mark boxer briefs] together. We invited you because [why this member was asked]. We'd love your perspective as a co-creator. This takes about 3 minutes."
-       }
-      ],
+      "options": [],
       "structural": false,
       "source": "ai"
      },
@@ -532,10 +519,10 @@ window.SURVEYCOACH_DEMO = {
      {
       "criterion_id": "7.2",
       "severity": "worth_improving",
-      "headline": "Wide image makes the product small",
+      "headline": "Check wide image on mobile: potential layout risk",
       "evidence": "A wide image (1.78 wide for every 1 tall).",
-      "explanation": "Crop it to 4:5 (portrait) so the product fills the phone width instead of shrinking to a strip.",
-      "member_impact": "At phone width, a wide image makes the product tiny and awkward.",
+      "explanation": "Open the actual survey on a mobile device. Check that the full image is readable, not cropped, stretched or too small. Orientation alone does not prove a broken layout. Adjust placement or size only if needed; preserve research content.",
+      "member_impact": "Desktop drafting can hide small image details or awkward image composition on a phone.",
       "page_id": "p1",
       "question_id": "q1",
       "element_id": "img1",
@@ -602,28 +589,15 @@ window.SURVEYCOACH_DEMO = {
       "severity": "worth_improving",
       "headline": "The ending offers no inside look or sense of contribution",
       "evidence": "Survey complete.",
-      "explanation": "Replace the completion notice with thanks, a brief confirmed inside detail, and a concrete description of how member feedback will be used. Fill in the bracketed facts before publishing. This also addresses criterion 8.5 by giving the ending a warmer finish.",
+      "explanation": "Replace the completion notice with thanks, a brief confirmed inside detail, and a concrete description of how member feedback will be used. Fill in the bracketed facts before publishing. This also addresses criterion 8.5 by giving the ending a warmer finish.\n\nNo ready-to-use rewrite is available because the survey does not provide enough context. Confirm the missing study details with the study owner before drafting replacement wording.",
       "member_impact": "Members finish without feeling included in the product conversation or understanding the value of their contribution.",
       "page_id": "p12",
       "question_id": "",
       "element_id": null,
       "current_text": "Survey complete.",
-      "suggested_text": "Thank you for sharing your feedback! Here's an inside look: [one brief, confirmed detail about the boxer briefs or a decision under consideration]. Your input will help us [how the feedback will be used].",
+      "suggested_text": null,
       "highlight": "Survey complete.",
-      "options": [
-       {
-        "label": "Neutral",
-        "text": "Thank you for sharing your feedback! Here's an inside look: [one brief, confirmed detail about the boxer briefs or a decision under consideration]. Your input will help us [how the feedback will be used]."
-       },
-       {
-        "label": "Shorter",
-        "text": "Thank you! Inside look: [one brief, confirmed product detail]. Your feedback will help us [how the feedback will be used]."
-       },
-       {
-        "label": "Friendlier",
-        "text": "Thanks for sharing your take! A little behind the scenes: [one brief, confirmed detail about the boxer briefs or a decision under consideration]. You're helping us [how the feedback will be used]."
-       }
-      ],
+      "options": [],
       "structural": false,
       "source": "ai"
      },
@@ -700,12 +674,12 @@ window.SURVEYCOACH_DEMO = {
       "severity": "worth_improving",
       "headline": "The closing gives a status message instead of thanks",
       "evidence": "Survey complete.",
-      "explanation": "Thank members for their time and perspective, then briefly explain how their answers will be used. This also covers criterion 10.3 and the cold closing under criterion 9.1. Replace the bracketed text with a confirmed use of the answers, without promising changes or follow-up you cannot guarantee.",
+      "explanation": "Thank members for their time and perspective, then briefly explain how their answers will be used. This also covers criterion 10.3 and the cold closing under criterion 9.1. Replace the bracketed text with a confirmed use of the answers, without promising changes or follow-up you cannot guarantee.\n\nNo ready-to-use rewrite is available because the survey does not provide enough context. Confirm the missing study details with the study owner before drafting replacement wording.",
       "member_impact": "Members finish without feeling appreciated or knowing what will happen with their answers.",
       "page_id": "p12",
       "question_id": "",
       "element_id": null,
-      "current_text": null,
+      "current_text": "Survey complete.",
       "suggested_text": null,
       "highlight": "Survey complete.",
       "options": [],
@@ -740,8 +714,7 @@ window.SURVEYCOACH_DEMO = {
       "flow"
      ],
      "merged": [
-      "8.4: repeats B2 on q3",
-      "10.1: its rewrite of this text was dropped, 8.3 already rewrites it"
+      "8.4: repeats B2 on q3"
      ]
     }
    },

@@ -1,14 +1,28 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review work list</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="design-system.css"></head>
 <body>
-<a class="skip" href="#workspace">Skip to work list</a>
-<header class="workflow-header"><a href="local.html" class="brand">Survey<span>Coach</span></a><span>Private local workspace</span></header>
-<main id="workspace" class="workflow">
-  <h1 id="review-title">Loading your review…</h1>
-  <p id="review-status" role="status" aria-live="polite"></p>
+<a class="skip" href="#workspace">Skip to review</a>
+<header class="app-header"><a href="local.html" class="app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a><nav aria-label="Workspace"><a href="local.html">My surveys</a><span class="pill">Private local workspace</span></nav></header>
+<main id="workspace" class="workspace-shell">
+  <div class="workspace-heading"><div><h1 id="review-title">Loading your review…</h1><p id="review-status" role="status" aria-live="polite"></p></div></div>
   <div id="review-toolbar" class="actions"></div>
-  <section id="review-summary" class="workflow-panel" aria-label="Review summary"></section>
+  <header id="topbar" class="topbar" aria-label="Review overview"></header>
+  <div class="workspace-tabs" role="tablist" aria-label="Review views">
+    <button id="tab-survey" role="tab" aria-selected="true" aria-controls="survey-view" tabindex="0">Survey &amp; recommendations</button>
+    <button id="tab-issues" role="tab" aria-selected="false" aria-controls="issues-view" tabindex="-1">All issues</button>
+  </div>
+  <section id="survey-view" role="tabpanel" aria-labelledby="tab-survey">
+    <p class="reconstruction-note">Reconstructed preview—not exact RedJade rendering. Image placeholders preserve measured proportions. Check the actual survey on a phone before launch.</p>
+    <p id="strip" class="strip"></p>
+    <div class="studio"><nav id="rail" class="rail" aria-label="Survey screens"></nav><section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"></section><aside id="coach" class="coach" aria-labelledby="coach-h"></aside></div>
+  </section>
+  <section id="issues-view" role="tabpanel" aria-labelledby="tab-issues" hidden>
+    <h2 id="fixes-h">Your fix checklist</h2><p>Copy usable fixes into RedJade. Findings without a rewrite explain the action needed.</p><div id="fix-list"></div>
+  </section>
+  <details class="workflow-panel review-details"><summary>Coverage, checks &amp; source evidence</summary><section id="review-summary" aria-label="Review summary"></section></details>
+  <section id="version-changes" aria-label="Changes since previous version"></section>
+  <details class="workflow-panel review-details"><summary>Check your updated survey</summary>
   <section id="recheck-panel" class="workflow-panel" aria-labelledby="recheck-h">
     <h2 id="recheck-h">Check your updated survey</h2>
     <p>Make changes in RedJade first. Then reread the same approved test link or import an updated snapshot. Nothing is marked verified just because you copied a fix.</p>
@@ -19,9 +33,8 @@
       <p>Includes AI review through Wibey. Survey wording is sent to the approved AI service.</p>
       <button class="btn" type="submit">Check again</button>
     </form><p id="import-status" role="status" aria-live="polite"></p>
-  </section>
-  <section id="version-changes" aria-label="Changes since previous version"></section>
-  <section aria-labelledby="fixes-h"><h2 id="fixes-h">Your fix checklist</h2><p>Pick text, copy it, and paste it into RedJade yourself. “Marked done” is your note, not proof that RedJade changed.</p><div id="fix-list"></div></section>
+  </section></details>
 </main>
-<script src="dom.js"></script><script src="model.js"></script><script src="workflow.js"></script>
+<p id="status" class="sr-only" role="status" aria-live="polite"></p>
+<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="model.js"></script><script src="phone.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
 </body></html>

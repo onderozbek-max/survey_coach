@@ -2,6 +2,8 @@
   "use strict";
   const SC = window.SC;
   const RANK = { must_fix: 0, worth_improving: 1 };
+  SC.decisionClient = crypto.randomUUID();
+  SC.decisionRevisions = new Map();
   SC.SPLIT = " ... ";   // joins a scale's two end labels into one fixable string
 
   /** The versions a researcher can pick between: the AI's options, or the single code-made suggestion. */
@@ -11,7 +13,7 @@
 
   /** null means "keep the original". With no pick yet, the first (recommended) version is chosen. */
   SC.chosenChoice = (f, value) => {
-    if (value === "original") return null;
+    if (value === "original" || value === "open") return null;
     const list = SC.choicesOf(f);
     return list.find((c) => c.value === value) || list[0] || null;
   };

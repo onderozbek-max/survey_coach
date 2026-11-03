@@ -116,7 +116,7 @@ def test_local_root_has_an_entry_to_the_private_workspace(browser, studio):
     page = browser.new_page()
     try:
         page.goto(studio + "/")
-        page.locator("#topbar h1").wait_for()
+        page.get_by_role('button', name='Start review', exact=True).wait_for()
         # Check rendered DOM, not only source HTML (navigation might be JS-built).
         assert page.locator("#import-form, a[href='local.html']").count() > 0
     finally:
@@ -131,6 +131,7 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
         page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
         page.get_by_role("button", name="Start review").click()
         page.wait_for_url("**/review.html?**", timeout=30000)
+        page.get_by_role('tab', name='All issues', exact=True).click()
         card = page.locator(".fix-card").filter(has=page.locator("select option[value='0']")).first
         select = card.locator("select")
         held, completed = [], []

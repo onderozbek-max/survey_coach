@@ -8,6 +8,7 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
+from surveycoach.recommendations import guard_recommendation
 from surveycoach.snapshot import SurveySnapshot
 
 SCHEMA = """
@@ -161,6 +162,16 @@ class Repository:
                 data.update(review)
             data["coverage"] = self._coverage(db, survey_id, version)
             self._qualify(data["review"], data["coverage"])
+            if data["review"]:
+                data["review"]["findings"] = [guard_recommendation(finding)
+                                               for finding in data["review"].get("findings", [])]
+                for finding in data["review"]["findings"]:
+                    decision = data["decisions"].get(finding["fingerprint"])
+                    allowed = {o["text"] for o in finding.get("options", [])}
+                    if finding.get("suggested_text"):
+                        allowed.add(finding["suggested_text"])
+                    if decision and decision.get("action") == "pick" and decision.get("picked_text") not in allowed:
+                        data["decisions"][finding["fingerprint"]] = dict(decision, action="open", picked_text=None, manual_done=False)
             return data
 
     @staticmethod

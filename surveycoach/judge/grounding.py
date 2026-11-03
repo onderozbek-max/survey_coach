@@ -12,6 +12,7 @@ from surveycoach.checks.registry import clip, result
 from surveycoach.findings import CheckResult, Finding, RewriteOption
 from surveycoach.judge.batches import Batch
 from surveycoach.judge.schemas import AiFinding, BatchOutput
+from surveycoach.recommendations import guard_recommendation
 from surveycoach.rubric import Rubric
 from surveycoach.snapshot import Page, Question, SurveySnapshot
 
@@ -103,11 +104,12 @@ def _ground_one(raw: AiFinding, batch: Batch, raised: set[str], snapshot: Survey
     # Computed here, never taken from the model: a multi-line rewrite is a bundle (question plus answer choices), which
     # must not be swapped into one text element of the phone preview. Copy it, do not draw it.
     structural = any("\n" in t for t in (suggested, *[o.text for o in options]) if t)
-    return Finding(
+    finding = Finding(
         criterion_id=cid, severity="must_fix" if cid in batch.blockers else "worth_improving", headline=raw.headline,
         evidence=raw.evidence, explanation=raw.explanation, member_impact=raw.member_impact, page_id=page_id,
         question_id=raw.question_id, current_text=current, suggested_text=suggested, highlight=highlight,
-        options=options, structural=structural, source="ai"), ""
+        options=options, structural=structural, source="ai")
+    return Finding.model_validate(guard_recommendation(finding.model_dump())), ""
 
 
 def ground(output: BatchOutput, batch: Batch, snapshot: SurveySnapshot, rubric: Rubric) -> Grounded:

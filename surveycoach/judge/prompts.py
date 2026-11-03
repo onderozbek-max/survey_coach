@@ -10,7 +10,7 @@ from surveycoach.snapshot import Question, SurveySnapshot
 
 SENTINEL_OPEN = "<<<SURVEY_DATA"
 SENTINEL_CLOSE = "SURVEY_DATA>>>"
-PROMPT_VERSION = "4"          # bump when the wording of the prompts changes: it is part of the cache key
+PROMPT_VERSION = "5"          # bump when the wording of the prompts changes: it is part of the cache key
 
 
 def clean_line(text: str) -> str:
@@ -73,8 +73,10 @@ def system_prompt(batch: Batch, rubric: Rubric) -> str:
         "empty for an issue on the whole page); a headline that names the problem in plain words, never the criterion "
         "name; evidence quoted verbatim from the survey; why it matters to members (member_impact); and how to fix it "
         "(explanation). Findings whose evidence is not found verbatim in the survey are thrown away.",
-        "When you can rewrite wording, set current_text to the exact original text and give three options labeled "
-        "Neutral, Shorter and Friendlier. Set suggested_text to the Neutral one and highlight to the exact words at fault.",
+        "Only offer concrete, grounded, ready-to-use rewrites supported by the survey data. When you can rewrite "
+        "wording, set current_text to the exact original text and offer up to three usable options labeled Neutral, "
+        "Shorter and Friendlier. Do not force three variants when the context supports fewer. Set suggested_text to "
+        "the Neutral one (or the first usable option) and highlight to the exact words at fault.",
     ]
     rules += [
         "A rewrite changes wording only. Never change the question type (for example single choice to select all that "
@@ -82,8 +84,12 @@ def system_prompt(batch: Batch, rubric: Rubric) -> str:
         "and give no rewrite. When a rewrite includes answer choices, put the question text on the first line and one "
         "answer choice per line, and keep every existing answer choice you are not fixing.",
         "Never state in a rewrite something you cannot know: the research purpose, why the member was invited, what they "
-        "bought or tried, what they will receive, or what will change because of their answers. Put any such fact in "
-        "square brackets for the researcher to fill in, for example [what you want to learn].",
+        "bought or tried, what they will receive, or what will change because of their answers. Never use square "
+        "brackets or any other placeholder or fill-in template as a recommendation. If missing context prevents a "
+        "grounded rewrite, give no rewrite: suggested_text must be null and options must be empty. Retain the valid "
+        "finding and explain that no ready-to-use rewrite is available, name the missing information, and give the "
+        "researcher a specific action to resolve it. Do not invent facts to make a rewrite sound complete. Original "
+        "quotes and mathematical notation such as [0-10] are not placeholders.",
         "A finding's explanation and rewrites may only talk about the place the finding points to. Do not mention other "
         "questions or pages, except to say how many share the problem.",
     ]

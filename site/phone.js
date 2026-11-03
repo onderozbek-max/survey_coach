@@ -7,7 +7,8 @@
 
   const fixedText = (text, ctx) => (ctx.plan ? SC.applyFixes(text, ctx.plan, null, { page_id: ctx.pageId, question_id: ctx.questionId }) : text);
   const scalePoints = (scale) => Array.from({ length: scale.points }, (_, i) => (scale.points === 11 ? i : i + 1));
-  const ratio = (m) => (m.natural_w && m.natural_h ? `${m.natural_w} / ${m.natural_h}` : "1 / 1");
+  const dimensions = (m) => m.rendered_w > 0 && m.rendered_h > 0
+    ? [m.rendered_w, m.rendered_h] : [m.natural_w, m.natural_h];
 
   /** A numbered pin: the same number is on the coach card, so each problem is findable both ways. */
   function pin(entry, ctx) {
@@ -44,14 +45,22 @@
   }
 
   function mediaBox(m, entries, ctx) {
-    const label = m.alt || m.element_id;
-    const box = m.loaded === false
-      ? h("div", { class: "media broken", role: "img", "aria-label": `${label}: image failed to load` }, h("span", null, `Image failed to load: ${label}`))
-      : h("div", { class: "media", role: "img", "aria-label": m.alt || "Image without alt text", style: `aspect-ratio:${ratio(m)}` },
-        h("span", null, `${m.alt || "No alt text"} (${m.natural_w || "?"} x ${m.natural_h || "?"} px)`));
+    const label = m.alt || m.element_id || "Survey image";
+    const [width, height] = dimensions(m), known = width > 0 && height > 0;
+    const sourceKnown = m.natural_w > 0 && m.natural_h > 0;
+    const landscape = sourceKnown ? m.natural_w > m.natural_h : known && width > height;
+    const orientation = !known ? "Orientation unknown" : landscape ? "Landscape" : (sourceKnown ? m.natural_w < m.natural_h : width < height) ? "Portrait" : "Square";
+    const box = h("div", { class: `media${m.loaded === false ? " broken" : ""}`, role: "img",
+      "aria-label": `${label}: ${orientation}, image placeholder${m.loaded === false ? ", failed to load" : ""}`,
+      style: known ? `aspect-ratio:${width} / ${height};height:auto;min-height:0` : "min-height:100px" },
+      h("span", null, `${orientation} · Image placeholder`, h("br"), m.loaded === false ? "Image failed to load" : label));
+    const note = h("p", { class: "image-reminder" },
+      h("strong", null, landscape ? "Check on mobile: " : !known ? "Check image size on mobile: " : "Image preview: "),
+      landscape ? "This horizontal image may be hard to read on a phone. Review the actual survey on a mobile device for tiny content, cropping or distortion. Orientation alone is not a failure."
+        : "Placeholder only—not the actual image. Verify the image in the survey on a mobile device.");
     const mine = entries.filter((e) => e.f.element_id && e.f.element_id === m.element_id);
     // pins sit beside the image, not inside it: an image's children are invisible to screen readers
-    return mine.length ? h("div", { class: "media-wrap" }, box, mine.map((e) => pin(e, ctx))) : box;
+    return h("div", { class: "media-wrap" }, box, note, mine.map((e) => pin(e, ctx)));
   }
 
   function optionList(q, by, mine, ctx) {
@@ -108,6 +117,10 @@
 
   function renderPage(item, ctx) {
     const { page, entries } = item, own = entries.filter((e) => !e.f.question_id);
+    if (/^please correct the following errors\s*:/i.test((page.text || '').trim())) {
+      return h('div', {class:'q'}, h('h3', null, 'Captured validation screen—not a survey question'),
+        h('p', null, 'The earlier reader captured an upload or answer-validation error here. This is not evidence of the next survey screen. Run a fresh review to retry with the updated reader; later screens remain unverified.'));
+    }
     if (page.kind === "intro") {
       return [h("h3", null, "Welcome"), h("p", { class: "intro" }, marked(fixedText(page.intro_text, ctx), own, ctx)), h("div", { class: "next" }, "Start")];
     }
@@ -119,5 +132,6 @@
     h("div", { class: "phone-wrap" },
       h("div", { class: `phone${ctx.large ? " large" : ""}`, style: `--w:${ctx.device}px` },
         h("div", { class: "phone-bar" }, h("span", null, `${item.name} \u2022 screen ${item.index + 1} of ${ctx.total}`), h("span", null, KIND[item.page.kind] || item.page.kind)),
-        h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" }, renderPage(item, ctx))));
+        h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" },
+          (item.page.media || []).map((m) => mediaBox(m, item.entries, ctx)), renderPage(item, ctx))));
 })();

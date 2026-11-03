@@ -73,7 +73,11 @@ class StudioStaticFiles(StaticFiles):
         # Static fallback must never turn unknown API paths into Studio HTML.
         if path == "api" or path.startswith("api/"):
             return JSONResponse({"detail": "Not Found"}, 404)
-        return await super().get_response(path, scope)
+        if path in {"", "."}:
+            path = "local.html"
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def create_app(db_path, provider=None) -> FastAPI:
@@ -154,7 +158,7 @@ def create_app(db_path, provider=None) -> FastAPI:
     @app.get("/api/surveys/{survey_id}/versions/{version}/summary", response_class=HTMLResponse)
     def summary(survey_id: str, version: int):
         html = summary_packet(repository.detail(survey_id, version))
-        return HTMLResponse(html, headers={"Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'"})
+        return HTMLResponse(html, headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"})
 
     from surveycoach.server.ask import router as ask_router
     app.include_router(ask_router(repository, provider))

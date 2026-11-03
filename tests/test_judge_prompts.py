@@ -102,11 +102,13 @@ def test_rewrites_may_only_change_wording_and_must_keep_the_answer_choices_it_is
     assert "one answer choice per line" in prompt and "keep every existing answer choice" in prompt
 
 
-def test_rewrites_never_state_facts_the_judge_cannot_know_and_use_square_brackets_for_the_researcher():
+def test_rewrites_never_state_unknown_facts_or_use_fill_in_templates():
     prompt = system_prompt(STORY, RUBRIC)
     for unknown in ("research purpose", "why the member was invited", "what they bought", "what they will receive"):
         assert unknown in prompt
-    assert "square brackets" in prompt
+    assert "Never use square brackets" in prompt
+    assert "suggested_text must be null and options must be empty" in prompt
+    assert "name the missing information" in prompt
 
 
 def test_each_problem_is_reported_once_and_one_text_gets_one_rewrite():

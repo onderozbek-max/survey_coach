@@ -205,7 +205,19 @@ def test_fixed_in_preview_is_only_ever_said_when_the_phone_really_shows_that_tex
 
 
 def test_a_fix_that_loses_to_an_earlier_fix_on_the_same_words_says_so(browser, base_url):
-    page, _ = open_page(browser, base_url)
+    # Use an explicit conflict, not a historical template now correctly suppressed.
+    page = browser.new_page()
+    def conflict(route):
+        response = route.fetch()
+        script = response.text() + '''\n{
+          const s = SURVEYCOACH_DEMO.surveys[0], p = s.snapshot.pages[0];
+          const f = {...s.review.findings[0], page_id:p.id, question_id:null, current_text:p.intro_text, structural:false, source:'auto', options:[], suggested_text:'Complete replacement introduction.'};
+          s.review.findings.push({...f, headline:'First rewrite for regression'});
+          s.review.findings.push({...f, headline:'Conflicting rewrite for regression', suggested_text:'Different complete wording.'});
+        }'''
+        route.fulfill(response=response, body=script)
+    page.route('**/data.js', conflict)
+    page.goto(base_url)
     page.get_by_role("button", name="With fixes").click()
     open_screen(page, "Intro")
     notes = page.locator(".card .note").all_inner_texts()

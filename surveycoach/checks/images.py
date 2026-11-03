@@ -72,9 +72,10 @@ def phone_friendly_shape(ctx: ReviewContext) -> CheckResult:
         return passed("7.2") if any(_ratio(r.media) for r in all_media(ctx)) else not_applicable("7.2")
     shape = "wide" if worst_ratio > 1 else "tall"
     return result("7.2", worst, _img_finding("7.2", worst_ref, Problem(
-        f"{shape.capitalize()} image makes the product small", f"A {shape} image ({worst_ratio:.2f} wide for every 1 tall).",
-        "Crop it to 4:5 (portrait) so the product fills the phone width instead of shrinking to a strip."),
-        "At phone width, a wide image makes the product tiny and awkward."))
+        f"Check {shape} image on mobile: potential layout risk", f"A {shape} image ({worst_ratio:.2f} wide for every 1 tall).",
+        "Open the actual survey on a mobile device. Check that the full image is readable, not cropped, stretched or too small. "
+        "Orientation alone does not prove a broken layout. Adjust placement or size only if needed; preserve research content."),
+        "Desktop drafting can hide small image details or awkward image composition on a phone."))
 
 
 def _sharpness_problems(ref: MediaRef) -> list[Problem]:

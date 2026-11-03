@@ -7,12 +7,14 @@ building (and CI) never touch the network. To re-run the real model: ... demo_ex
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 from surveycoach.judge import JudgeCache
 from surveycoach.judge.batches import BATCHES
 from surveycoach.llm import LlmError, WibeyProvider
+from surveycoach.llm.base import ASSESSMENT_MODEL
 from surveycoach.review import run_review
 from surveycoach.rubric import load_rubric
 from surveycoach.snapshot import SurveySnapshot
@@ -36,9 +38,22 @@ class CacheOnlyProvider:
         raise LlmError("not in the committed AI cache; run: .venv/bin/python -m surveycoach.demo_export --ai-refresh")
 
 
+class ReviewedDemoCache(JudgeCache):
+    """Replay pinned, human-reviewed v4 example answers, then run current grounding.
+
+    Examples are historical fixtures, not evidence of a new live model assessment.
+    Production JudgeCache still invalidates all v4 answers on prompt version 5.
+    """
+
+    def key(self, snapshot, rubric, batch, known=()):
+        known_ids = ",".join(sorted(f.fingerprint for f in known))
+        raw = "|".join([snapshot.content_hash, rubric.version, ASSESSMENT_MODEL, batch.id, "4", known_ids])
+        return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
 def _survey(sample_id: str, blurb: str, provider=None) -> dict:
     snapshot = SurveySnapshot.model_validate_json((ROOT / "fixtures" / f"{sample_id}.json").read_text())
-    review = run_review(snapshot, provider=provider or CacheOnlyProvider(), cache=JudgeCache(AI_CACHE))
+    review = run_review(snapshot, provider=provider or CacheOnlyProvider(), cache=ReviewedDemoCache(AI_CACHE))
     return {
         "id": sample_id, "title": snapshot.title, "blurb": blurb,
         "review": review.model_dump(mode="json", exclude={"results", "timing"}),

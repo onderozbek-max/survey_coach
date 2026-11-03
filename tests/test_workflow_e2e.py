@@ -44,6 +44,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
     page.get_by_role("button", name="Start review").click()
     page.wait_for_url("**/review.html?**", timeout=30000)
+    page.get_by_role('tab', name='All issues', exact=True).click()
     page.get_by_role("heading", name="Your fix checklist").wait_for()
     first = page.locator(".fix-card").filter(has=page.get_by_role("button", name="Copy chosen fix", exact=True)).first
     select = first.locator("select")
@@ -52,14 +53,15 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     first.get_by_label("Reason for keeping", exact=False).blur()
     first.get_by_text("Saved on this computer.", exact=True).wait_for()
     page.reload()
-    first = page.locator(".fix-card").first
+    first = page.locator(".fix-card").filter(has=page.get_by_role("button", name="Copy chosen fix", exact=True)).first
     assert first.locator("select").input_value() == "original"
     assert first.get_by_label("Reason for keeping", exact=False).input_value() == "Required for comparability"
     assert first.get_by_role("button", name="Copy chosen fix").is_disabled()
-    page.get_by_role("link", name="Open phone preview").click()
+    page.get_by_role('tab', name='Survey & recommendations', exact=True).click()
     page.locator(".phone-screen").wait_for()
     assert "Local review" in page.locator("#strip").inner_text()
-    page.get_by_role("link", name="Saved fix checklist").click()
+    page.get_by_role('tab', name='All issues', exact=True).click()
+    page.locator('details.review-details > summary').filter(has_text='Check your updated survey').click()
     before = page.url
     updated = SurveySnapshot.model_validate_json((ROOT / "fixtures/boxer-briefs.json").read_text())
     updated.title += " revised"

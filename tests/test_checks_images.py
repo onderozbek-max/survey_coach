@@ -35,12 +35,16 @@ def test_7_2_shape_bands(natural, expected):
     assert result.fraction == pytest.approx(expected)
 
 
-def test_7_2_is_scored_on_the_worst_image_and_suggests_the_crop():
+def test_7_2_is_scored_on_worst_shape_but_requires_mobile_review_not_auto_crop():
     good, bad = image(natural=(1000, 1000)), image(natural=(1600, 900))
     snapshot = survey(intro(), page(1, question(media=[good]), ), page(2, question("b", media=[bad])), thank_you())
     result = run(images.phone_friendly_shape, snapshot)
     assert result.fraction == 0.0
-    assert "4:5" in result.findings[0].explanation
+    finding = result.findings[0]
+    assert "potential" in finding.headline.lower()
+    assert "mobile device" in finding.explanation
+    assert "does not prove" in finding.explanation
+    assert "Crop it" not in finding.explanation
 
 
 def test_7_2_not_applicable_without_images():
