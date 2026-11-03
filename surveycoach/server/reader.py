@@ -51,6 +51,13 @@ def router(repository, app):
                 update(job_id, "failed", body.survey_id,
                        error="No reviewable pages captured. The link may need authentication or an unsupported reader.")
                 return
+            if not captured.snapshot.all_questions() and all(
+                page.text.strip().lower().rstrip(". …") in {"", "loading", "please wait"}
+                for page in captured.snapshot.pages
+            ):
+                update(job_id, "failed", body.survey_id,
+                       error="Connected to RedJade, but SurveyCoach could not load the survey questions. This survey's startup requests are not yet supported. No review was created.")
+                return
             created = repository.submit(captured.snapshot, body.ai, body.survey_id)
             coverage = captured.coverage.model_dump(mode="json")
             with repository.transaction() as db:

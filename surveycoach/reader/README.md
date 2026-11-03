@@ -15,6 +15,10 @@ invalid budgets raise `ValueError`. Browser/interaction errors return captured
 content and a generic `reader_error`. No unavailable question is inferred.
 `ReadResult.model_dump(mode="json")` serializes paths for a caller.
 
+## Managed Mac corporate connection
+
+On the owner's Mac, the configured corporate PAC routes this survey host through `proxy-intlho.wal-mart.com:8080`. Start the local server with `SURVEYCOACH_CORPORATE_PROXY=http://proxy-intlho.wal-mart.com:8080` to use that approved route. The opt-in supports only `app.redjade.net`; arbitrary proxy URLs/credentials are rejected. The corporate proxy owns upstream DNS/network policy on this route; direct mode still validates/pins public DNS. TLS verification against the survey hostname remains enabled. GET/HEAD, same-origin, response-size, deadline, no-redirect, no-final-endpoint and no-answer-write guards remain in force.
+
 ## Supported, intentionally narrow
 
 - Visible native radio/checkbox groups with fieldset legends; explicit ARIA

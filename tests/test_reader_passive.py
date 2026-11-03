@@ -131,7 +131,8 @@ def test_bad_definition_leaves_rendered_reader_usable(payload):
 
 def test_session_uses_definition_without_answering_or_advancing(monkeypatch, tmp_path):
     from contextlib import nullcontext
-    import playwright.sync_api as browser_api
+    import playwright.async_api as browser_api
+    from unittest.mock import AsyncMock
 
     guards = []
     observed = {"title": "Rendered first page", "text": "First page only", "groups": [],
@@ -142,16 +143,16 @@ def test_session_uses_definition_without_answering_or_advancing(monkeypatch, tmp
         def on(self, *args):
             pass
 
-        def goto(self, *args, **kwargs):
-            guards[0].observe_response(FIXTURE.read_bytes())
+        async def goto(self, *args, **kwargs):
+            guards[0].__self__.observe_response(FIXTURE.read_bytes())
 
-        def wait_for_timeout(self, *args):
+        async def wait_for_timeout(self, *args):
             pass
 
-        def evaluate(self, *args):
+        async def evaluate(self, *args):
             return observed
 
-        def screenshot(self, *, path, **kwargs):
+        async def screenshot(self, *, path, **kwargs):
             Path(path).write_bytes(b"synthetic screenshot")
 
         def locator(self, *args):
@@ -161,18 +162,18 @@ def test_session_uses_definition_without_answering_or_advancing(monkeypatch, tmp
         def set_default_timeout(self, *args):
             pass
 
-        def route(self, pattern, guard):
+        async def route(self, pattern, guard):
             guards.append(guard)
 
-        def route_web_socket(self, *args):
+        async def route_web_socket(self, *args):
             pass
 
-        def new_page(self):
+        async def new_page(self):
             return FakePage()
 
-    browser = SimpleNamespace(new_context=lambda **kw: FakeContext(), close=lambda: None)
-    fake_playwright = SimpleNamespace(chromium=SimpleNamespace(launch=lambda **kw: browser))
-    monkeypatch.setattr(browser_api, "sync_playwright", lambda: nullcontext(fake_playwright))
+    browser = SimpleNamespace(new_context=AsyncMock(return_value=FakeContext()), close=AsyncMock())
+    fake_playwright = SimpleNamespace(chromium=SimpleNamespace(launch=AsyncMock(return_value=browser)))
+    monkeypatch.setattr(browser_api, "async_playwright", lambda: nullcontext(fake_playwright))
     monkeypatch.setattr("surveycoach.reader.session.tempfile.mkdtemp", lambda **kw: str(tmp_path))
     result = read_survey("http://127.0.0.1:9000/start", allow_test_local=True)
     assert result.coverage.stop_reason == "definition_captured"
