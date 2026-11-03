@@ -5,7 +5,7 @@
 
   /** The only decision form: recommended previews never become saved picks implicitly. */
   SC.renderIssueCard = (entry, ctx) => {
-    const {f, key, n} = entry, choices = SC.choicesOf(f);
+    const {f, key, n} = entry, choices = SC.choicesOf(f), adding = f.edit_kind === 'add_answer';
     const saved = ctx.decisionOf?.(key) || SC.issueDecision?.(f);
     const picked = ctx.choiceOf(key);
     const output = h('p', {class:'issue-save-status note', role:'status', 'aria-live':'polite'});
@@ -54,16 +54,17 @@
         'aria-pressed':String(ctx.selected === key), onclick:() => ctx.onSelect(key)}, f.headline)),
       saved?.carried_from_round && h('p', {class:'note'}, `Choice carried from Round ${saved.carried_from_round}. Still flagged; review it in this round’s context.`),
       h('p', {class:'why'}, f.member_impact), h('p', {class:'fix'}, f.explanation),
-      f.current_text && h('div', {class:'issue-original'}, h('strong', null, 'Original'), h('blockquote', null, ctx.originalOf?.(entry) || f.current_text)),
+      f.current_text && h('div', {class:'issue-original'}, h('strong', null, adding ? 'Keep this question' : 'Original'), h('blockquote', null, adding ? f.current_text : ctx.originalOf?.(entry) || f.current_text)),
       choices.length ? h('div', {class:'issue-rewrites'}, choices.map((choice, index) => h('section', {class:'issue-rewrite'},
-        h('h4', null, choices.length > 1 ? `Rewrite ${index + 1}` : 'Rewrite'),
+        h('h4', null, adding ? 'Add answer option' : choices.length > 1 ? `Rewrite ${index + 1}` : 'Rewrite'),
         h('blockquote', null, choice.text),
         h('button', {type:'button', class:'btn', 'data-fk':`use-${key}-${choice.value}`,
-          'aria-label':choices.length > 1 ? `Use this rewrite ${index + 1}` : 'Use this',
+          'aria-label':adding ? 'Use this answer option' : choices.length > 1 ? `Use this rewrite ${index + 1}` : 'Use this',
           onclick:() => act(choice.value, {action:'pick', reason:''}, choice.text)},
-        saved?.action === 'pick' && saved.picked_text === choice.text ? 'Use this · chosen' : 'Use this'))))
+        saved?.action === 'pick' && saved.picked_text === choice.text ? 'Use this · chosen' : adding ? 'Use this answer option' : 'Use this'))))
         : h('p', {class:'note'}, 'No text rewrite for this issue. Make the change in RedJade using the guidance above, then check again.'),
-      !saved && (!picked || picked === 'open') && choices.length > 0 && h('p', {class:'note'}, 'Rewritten previews recommended wording only. Nothing is accepted until you choose Use this.'),
+      adding && h('p',{class:'note'},'Copy only the new answer label into a new answer option. Do not replace the question. Preview does not add options or configure their behavior.'),
+      !adding && !saved && (!picked || picked === 'open') && choices.length > 0 && h('p', {class:'note'}, 'Rewritten previews recommended wording only. Nothing is accepted until you choose Use this.'),
       h('button', {type:'button', class:'btn keep-mine', 'data-fk':`keep-${key}`,
         'aria-expanded':String(!keepPanel.hidden), onclick:event => {
           keepPanel.hidden = !keepPanel.hidden; event.currentTarget.setAttribute('aria-expanded', String(!keepPanel.hidden));

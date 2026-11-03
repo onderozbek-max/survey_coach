@@ -39,6 +39,7 @@ class Finding(BaseModel):
     highlight: str | None = None
     options: list[RewriteOption] = Field(default_factory=list)   # AI findings offer several rewrites to choose from
     structural: bool = False   # the fix spans more than one text element (for example answer choices): copy it, do not preview it
+    edit_kind: Literal['rewrite', 'add_answer'] = 'rewrite'
     source: Literal["auto", "ai"] = "auto"
 
     @property

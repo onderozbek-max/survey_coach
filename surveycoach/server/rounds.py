@@ -217,7 +217,10 @@ def change_sheet(detail):
                 target = f"Answer {index}"
         if wording in [v for v in (question.get("scale") or {}).values() if isinstance(v, str)]:
             target = "Scale label"
-        lines.append({"fingerprint": finding["fingerprint"],
+        if finding.get('edit_kind') == 'add_answer':
+            target = 'New answer option'
+        lines.append({"fingerprint": finding["fingerprint"], 'edit_kind':finding.get('edit_kind','rewrite'),
+                      'instructions':finding.get('explanation',''),
                       "screen_label": (place or {}).get("screen_label", "Survey overall"),
                       "position": (place or {}).get("position", 0), "target": target,
                       "find": wording, "replace": decision.get("picked_text"),

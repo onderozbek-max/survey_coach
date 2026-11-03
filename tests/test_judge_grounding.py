@@ -168,7 +168,8 @@ def test_the_title_is_not_a_loophole_for_other_criteria():
 def test_a_rewrite_that_bundles_answer_choices_is_structural_so_it_is_never_swapped_into_the_question_text():
     bundle = [RewriteOption(label="Neutral", text=f"{LOUD}\nA lot\nA little\nNone of these")]
     kept = the_finding(run(output([finding(current_text=LOUD, options=bundle)])))
-    assert kept.structural is True and kept.options[0].text.count("\n") == 3      # still copyable, just not previewed
+    assert kept.structural is True and kept.edit_kind == 'add_answer'
+    assert kept.options[0].text == 'None of these'  # copy just the addition; never replace the stem
 
 
 def test_a_single_line_rewrite_is_a_plain_text_swap():

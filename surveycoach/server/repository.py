@@ -202,7 +202,7 @@ class Repository:
         """Project one round only. This never loads or walks historical rounds."""
         if data["review"]:
             data["review"] = project_review(data["snapshot"], data["review"])
-            data["review"]["findings"] = [guard_recommendation(finding)
+            data["review"]["findings"] = [guard_recommendation(finding, data['snapshot'])
                                            for finding in data["review"].get("findings", [])]
         self._qualify(data["review"], data["coverage"])
         data["decisions"] = valid_decisions(data)

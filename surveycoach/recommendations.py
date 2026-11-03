@@ -36,7 +36,7 @@ def _has_template(text: str) -> bool:
     return False
 
 
-def guard_recommendation(finding: dict) -> dict:
+def guard_recommendation(finding: dict, snapshot: dict | None = None) -> dict:
     """Return a sanitized copy, retaining the finding and any usable alternatives.
 
     Keeping this JSON-shaped lets the same guard handle historical payloads without
@@ -48,6 +48,8 @@ def guard_recommendation(finding: dict) -> dict:
             explanation="Open the actual survey on a mobile device. Check readability, cropping, distortion and image size. "
                         "Orientation alone does not prove a broken layout. Preserve research content; adjust only if needed.",
             member_impact="Desktop drafting can hide image layout problems on a phone.")
+    from surveycoach.answer_edits import answer_addition
+    finding = answer_addition(finding, snapshot)
     suggested = finding.get("suggested_text")
     options = finding.get("options") or []
     safe_options = [option for option in options

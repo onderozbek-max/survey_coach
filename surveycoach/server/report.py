@@ -34,7 +34,11 @@ def summary_packet(detail):
         for line in selected:
             parts.append(f"<li><strong>{text(line['screen_label'])} · {text(line['target'])}</strong>")
             if action == "pick":
-                parts.append(f"<p>Find: {text(line['find'])}<br>Replace: {text(line['replace'])}</p>")
+                if line.get('edit_kind') == 'add_answer':
+                    parts.append(f"<p>Keep question: {text(line['find'])}<br>Add answer option: {text(line['replace'])}</p>"
+                                 f"<p>{text(line.get('instructions',''))}</p>")
+                else:
+                    parts.append(f"<p>Find: {text(line['find'])}<br>Replace: {text(line['replace'])}</p>")
                 if line.get("manual_edit_required"):
                     parts.append("<p>Review the source manually; this change is not a verified text replacement.</p>")
             else:

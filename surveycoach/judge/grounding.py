@@ -109,7 +109,7 @@ def _ground_one(raw: AiFinding, batch: Batch, raised: set[str], snapshot: Survey
         evidence=raw.evidence, explanation=raw.explanation, member_impact=raw.member_impact, page_id=page_id,
         question_id=raw.question_id, current_text=current, suggested_text=suggested, highlight=highlight,
         options=options, structural=structural, source="ai")
-    return Finding.model_validate(guard_recommendation(finding.model_dump())), ""
+    return Finding.model_validate(guard_recommendation(finding.model_dump(), snapshot.model_dump())), ""
 
 
 def ground(output: BatchOutput, batch: Batch, snapshot: SurveySnapshot, rubric: Rubric) -> Grounded:

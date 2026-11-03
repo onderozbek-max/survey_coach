@@ -10,7 +10,7 @@ from surveycoach.snapshot import Question, SurveySnapshot
 
 SENTINEL_OPEN = "<<<SURVEY_DATA"
 SENTINEL_CLOSE = "SURVEY_DATA>>>"
-PROMPT_VERSION = "6"          # bump when the wording of the prompts changes: it is part of the cache key
+PROMPT_VERSION = "7"          # bump when the wording of the prompts changes: it is part of the cache key
 
 
 def clean_line(text: str) -> str:
@@ -83,6 +83,12 @@ def system_prompt(batch: Batch, rubric: Rubric) -> str:
         "apply), remove or replace images, or add routing. If the fix needs any of that, describe it in the explanation "
         "and give no rewrite. When a rewrite includes answer choices, put the question text on the first line and one "
         "answer choice per line, and keep every existing answer choice you are not fixing.",
+        "For a missing answer option, preserve the question and every existing answer exactly; append only the "
+        "missing answer in the answer-choice bundle. Do not rewrite the stem or append instructions like 'select "
+        "only that answer', 'choose the last answer' or 'select the option below'. Explain the authoring change "
+        "separately: add the missing answer, and configure exclusivity for a nonparticipation answer on a select-all "
+        "question. Do not pretend wording enforces exclusivity. Offer one clear answer label rather than three "
+        "stylistic rewrites of the whole question. Do not claim routing is missing merely because it was not captured.",
         "Never state in a rewrite something you cannot know: the research purpose, why the member was invited, what they "
         "bought or tried, what they will receive, or what will change because of their answers. Never use square "
         "brackets or any other placeholder or fill-in template as a recommendation. If missing context prevents a "

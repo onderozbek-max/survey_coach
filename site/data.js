@@ -114,6 +114,7 @@ window.SURVEYCOACH_DEMO = {
        }
       ],
       "structural": true,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -144,6 +145,7 @@ window.SURVEYCOACH_DEMO = {
        }
       ],
       "structural": true,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -161,6 +163,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "Statement 1",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -178,6 +181,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -208,6 +212,7 @@ window.SURVEYCOACH_DEMO = {
        }
       ],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -225,6 +230,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "Welcome to the Boxer Briefs Survey!",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -242,6 +248,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "about 3 minutes",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -259,6 +266,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -289,6 +297,7 @@ window.SURVEYCOACH_DEMO = {
        }
       ],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -306,6 +315,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "aforementioned",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -323,6 +333,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -353,6 +364,7 @@ window.SURVEYCOACH_DEMO = {
        }
       ],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -370,6 +382,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "1 to 5 years",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -400,6 +413,7 @@ window.SURVEYCOACH_DEMO = {
        }
       ],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -417,6 +431,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -434,6 +449,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -451,6 +467,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -468,6 +485,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -485,6 +503,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -502,6 +521,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -519,6 +539,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "Click",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -536,6 +557,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -553,6 +575,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -570,6 +593,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -587,6 +611,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -604,6 +629,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "Survey complete.",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -621,6 +647,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "Statement 1",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -638,6 +665,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -655,6 +683,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      },
      {
@@ -672,6 +701,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -689,6 +719,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": null,
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -706,6 +737,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "LOVE",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "auto"
      },
      {
@@ -723,6 +755,7 @@ window.SURVEYCOACH_DEMO = {
       "highlight": "Survey complete.",
       "options": [],
       "structural": false,
+      "edit_kind": "rewrite",
       "source": "ai"
      }
     ],

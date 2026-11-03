@@ -19,6 +19,7 @@
     return {screen: Infinity, label: 'Whole survey', target: 'Survey wording or structure'};
   };
   SC.issueTarget = (f, question) => {
+    if (f.edit_kind === 'add_answer') return 'New answer option';
     if (f.structural) return 'Question and answer choices';
     const index = (question.options || []).findIndex(o => o.label === f.current_text);
     if (index >= 0) return `Answer ${index + 1}`;

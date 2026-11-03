@@ -36,7 +36,7 @@
     return entries.map(f => {
       const d = SC.issueDecision(f, detail), place = SC.issueLocation(f, detail.snapshot);
       return `${place.label} · ${place.target}\n${f.headline}\n${d.action === 'pick'
-        ? `Find: ${f.current_text || 'No exact source text; locate using the guidance above'}\nReplace with: ${d.picked_text}`
+        ? f.edit_kind === 'add_answer' ? `Keep question: ${f.current_text}\nAdd answer option: ${d.picked_text}\n${f.explanation}` : `Find: ${f.current_text || 'No exact source text; locate using the guidance above'}\nReplace with: ${d.picked_text}`
         : `Keep mine: ${d.reason}\nAccepted risk, not a verified fix.`}`;
     }).join('\n\n');
   };
