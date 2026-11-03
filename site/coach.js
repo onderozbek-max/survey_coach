@@ -13,7 +13,7 @@
       area && h("span", { class: "chip area" }, area),
       (f.structural || ctx.offscreen(entry)) && h("span", { class: "chip warn" }, "Not previewed"),
       ctx.blocked(entry) && h("span", { class: "chip warn" }, "Not shown in preview"),
-      ctx.applied(entry) && h("span", { class: "chip good" }, "Fixed in preview"));
+      ctx.applied(entry) && h("span", { class: "chip good" }, SC.workspaceDetail ? "Rewrite previewed" : "Fixed in preview"));
   }
 
   /** Word-level before/after: only the words that change are marked, so nobody has to compare two sentences. */
@@ -38,7 +38,7 @@
   /** "Which version is better?": the researcher's pick drives the phone preview and what gets copied. */
   function choiceBlock(entry, ctx) {
     const { f, key, n } = entry, choices = SC.choicesOf(f), picked = ctx.choiceOf(key) || choices[0].value;
-    const chosen = SC.chosenChoice(f, picked), msg = h("p", { class: "note", role: "status" });
+    const chosen = SC.chosenChoice(f, picked === 'open' ? undefined : picked), msg = h("p", { class: "note", role: "status" });
     const markable = f.current_text && !f.structural;     // a bundle of answer choices is shown whole, not word-diffed
     const radio = (value, label, body) => h("label", { class: `opt${picked === value ? " on" : ""}` },
       h("input", { type: "radio", name: `choice-${key}`, value, checked: picked === value, "data-fk": `opt-${key}-${value}`, onchange: () => ctx.onChoose(key, value) }),
@@ -54,13 +54,13 @@
     };
     const note = f.structural ? "This changes answer choices, so it is not drawn on the phone. Copy it and paste it into RedJade yourself."
       : ctx.offscreen(entry) ? "This text is not on a phone screen (the survey title, for example), so it cannot be previewed. Copy it into RedJade yourself."
-      : ["original", "open"].includes(picked) ? "Your original stays in the preview until you choose a rewrite."
+      : picked === "original" ? "Your original stays in the preview until you choose a rewrite."
         : ctx.blocked(entry) ? "Another fix already changes this text in the preview, so this one is not shown."
           : "Shown on the phone under With fixes.";
     return h("fieldset", { class: `choice${f.structural ? " pre" : ""}` },
       h("legend", null, "Which version is better?"),
       f.source === "ai" && h("p", { class: "ai-note" }, "AI-written. Check it before you use it."),
-      picked === "open" && h("p", {class:"note"}, "No rewrite chosen yet."),
+      picked === "open" && h("p", {class:"note"}, "Recommended wording is previewed under With fixes. No decision has been saved."),
       radio("original", f.current_text ? "Your original" : "Leave as is", original),
       choices.map((c) => radio(c.value, c.label, version(c))),
       h("div", { class: "actions" },

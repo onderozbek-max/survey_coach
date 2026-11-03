@@ -3,14 +3,14 @@ from tests.test_site_e2e import browser
 from tests.test_workflow_e2e import studio
 
 
-def test_open_is_not_applied_and_action_only_keeps_reason(browser, studio):
+def test_no_rewrites_disables_preview_and_action_only_keeps_reason(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('.phone-screen').wait_for()
-    page.get_by_role('button', name='With fixes', exact=True).click()
-    assert page.get_by_text('Fixed in preview', exact=True).count() == 0
+    assert page.get_by_role('button', name='With fixes', exact=True).is_disabled()
+    assert 'No text changes to preview' in page.locator('.preview-effect').inner_text()
     page.get_by_role('tab', name='All issues', exact=True).click()
     action_only = page.locator('.fix-card').filter(has_text='Action required · No ready-to-use rewrite.').first
     action_only.locator('select').select_option('original')

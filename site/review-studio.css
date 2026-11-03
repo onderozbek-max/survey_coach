@@ -60,6 +60,8 @@
 .unsupported-widget > span { display:block; font-size:28px; line-height:1; margin-bottom:10px; }
 .unsupported-widget strong { font-size:13px; }.unsupported-widget p { font-size:12px; line-height:1.6; margin-top:8px; }
 .mobile-coach-link { display:none; }
+.preview-effect { text-align:center; color:var(--muted); font-size:10px; line-height:1.5; margin:6px 0 0; }
+.review-studio .toolbar button:disabled { opacity:.45; cursor:not-allowed; }
 .finding-context { background:none; color:var(--teal); border:0; text-align:left; padding:0; font-size:13px; }
 .review-studio .phone .next { border-radius:12px; margin-top:22px; }
 .review-studio .phone .opts li { border-radius:10px; padding:12px; }

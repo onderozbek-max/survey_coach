@@ -42,11 +42,11 @@
   const pageItem = () => (current().page ? current() : model.items[0]);
   const choiceOf = (key) => state.choices[`${state.survey}:${key}`];
   /** The version picked for a finding, or null for "keep my original". Bundles of answer choices are never previewed. */
-  const chosen = (f, key) => (f.structural ? null : SC.chosenChoice(f, choiceOf(key)));
+  const chosen = (f, key) => (f.structural ? null : SC.chosenChoice(f, choiceOf(key) === 'open' ? undefined : choiceOf(key)));
 
   /** The fixes to show on the phone, in finding order. Where two fixes want the same words, the first one wins. */
-  function previewPlan() {
-    if (state.mode !== "fixes") return null;
+  function previewPlan(forComparison = false) {
+    if (!forComparison && state.mode !== "fixes") return null;
     return survey().review.findings.flatMap((f, key) => {
       const pick = f.current_text && chosen(f, key);
       return pick ? [{ key, from: f.current_text, to: pick.text, page_id: f.page_id, question_id: f.question_id, ai: f.source === "ai" }] : [];
@@ -200,9 +200,9 @@
   }
 
   /* ---------- stage ---------- */
-  const seg = (label, options, value, onPick, prefix) =>
+  const seg = (label, options, value, onPick, prefix, disabled = []) =>
     h("div", { class: "seg", role: "group", "aria-label": label },
-      options.map(([v, text]) => h("button", { type: "button", "aria-pressed": String(v === value), "data-fk": `${prefix}-${v}`, onclick: () => onPick(v) }, text)));
+      options.map(([v, text]) => h("button", { type: "button", "aria-pressed": String(v === value), "data-fk": `${prefix}-${v}`, disabled: disabled.includes(v), onclick: () => onPick(v) }, text)));
 
   function goToPage(index) {
     state.screen = model.order.indexOf(model.items[index]);
@@ -222,15 +222,20 @@
 
   function renderStage() {
     const item = pageItem(), s = survey(), seconds = s.timeline[item.index]?.seconds || 0;
+    const changes = SC.hitsOn(item.page, previewPlan(true)).size;
+    const comparison = state.mode === 'fixes'
+      ? changes ? `${plural(changes, 'text change')} previewed · hypothetical, not accepted or saved.` : 'No text changes on this screen. Layout and image fixes must be checked in RedJade.'
+      : changes ? `${plural(changes, 'text change')} available to preview. RedJade is unchanged.` : 'No text changes to preview here. See the coach for other actions.';
     mount($("stage"),
       SC.workspaceDetail && h('div', {class:'preview-caption'}, h('span', null, '02 / EXPERIENCE'), h('h2', null, 'See what members see.'), h('p', null, `${item.name} · Screen ${item.index + 1} of ${model.items.length}`)),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
       h("div", { class: "toolbar" },
-        seg("View", [["current", "Current"], ["fixes", "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? "Showing the survey with your chosen fixes." : "Showing the survey as it is now."); }, "mode"),
+        seg("View", [["current", "Current"], ["fixes", "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? `${plural(changes, 'text change')} previewed. Hypothetical only; no decision saved.` : "Showing the original survey wording."); }, "mode", localDetail && !changes ? ['fixes'] : []),
         seg("Device", DEVICES.map(([name, w]) => [String(w), name]), String(state.device), (v) => { state.device = Number(v); renderAll(); }, "dev"),
         h("button", { type: "button", class: "toggle", "aria-pressed": String(state.large), "data-fk": "large", onclick: () => { state.large = !state.large; renderAll(); } }, "Large text")),
       leadLine(),
       SC.renderPhone(item, context()),
+      localDetail && h('p', {class:'preview-effect',role:'status'}, comparison),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
         current().entries.length ? `Review ${plural(current().entries.length, 'finding')} on this screen ↓` : 'Read the coach notes ↓'),
       h("div", { class: "pager" },
