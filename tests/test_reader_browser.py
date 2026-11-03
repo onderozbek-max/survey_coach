@@ -147,3 +147,10 @@ def test_no_usable_dropdown_returns_partial_error_not_fabricated_answer(zoo):
 def test_invalid_page_budget_is_rejected_before_launch(limit):
     with pytest.raises(ValueError, match="max_pages"):
         read_survey("http://127.0.0.1:1/test", allow_test_local=True, max_pages=limit)
+
+
+def test_text_answers_are_typed_like_a_person(zoo):
+    """RedJade keeps text answers in its own state from key events; a programmatic fill is ignored."""
+    result = read_survey(zoo[0] + "/keyup", allow_test_local=True)
+    assert result.coverage.stop_reason == "final_control"
+    assert result.coverage.pages_captured == 2

@@ -214,7 +214,9 @@ async def _answer_groups(page, observation: dict) -> None:
                         await locator.click()
                 selected.add(key)
             elif kind in {"text_short", "text_long"}:
-                await locator.fill("SurveyCoach test")
+                # Type key by key: RedJade tracks answers from key events and ignores a bulk fill.
+                await locator.fill("")
+                await locator.press_sequentially("SurveyCoach test")
             elif kind == "numeric":
                 low, high = float(item["min"] or 1), float(item["max"] or item["min"] or 10)
                 await locator.fill(str(int((low + high) // 2)))
