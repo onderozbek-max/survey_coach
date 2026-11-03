@@ -35,6 +35,11 @@ def router(repository, app):
         db.execute("CREATE TABLE IF NOT EXISTS captures (survey_id TEXT, version INTEGER, position INTEGER, page_id TEXT, path TEXT, PRIMARY KEY(survey_id,version,position))")
         db.execute("CREATE TABLE IF NOT EXISTS reader_jobs (id TEXT PRIMARY KEY, status TEXT NOT NULL, "
                    "survey_id TEXT, version INTEGER, error TEXT)")
+        columns = {row[1] for row in db.execute('PRAGMA table_info(reader_jobs)')}
+        for column, definition in [('stage','TEXT'), ('pages_captured','INTEGER DEFAULT 0'), ('deduplicated','INTEGER DEFAULT 0')]:
+            if column not in columns:
+                db.execute(f'ALTER TABLE reader_jobs ADD COLUMN {column} {definition}')
+        db.execute('CREATE TABLE IF NOT EXISTS reader_previews (job_id TEXT, position INTEGER, path TEXT, PRIMARY KEY(job_id,position))')
         db.execute("UPDATE reader_jobs SET status='failed',error='Server stopped during read; retry safely.' "
                    "WHERE status IN ('queued','running')")
 
@@ -61,7 +66,15 @@ def router(repository, app):
                     options["planner"] = None
                 options["rules_path"] = Path(os.environ.get("SURVEYCOACH_RULES_PATH",
                     str(Path.home() / "Library/Application Support/SurveyCoach/reader-rules.sqlite3")))
+            if reader is read_survey:
+                def on_capture(position, model, png):
+                    with repository.transaction() as db:
+                        db.execute('INSERT OR REPLACE INTO reader_previews VALUES (?,?,?)', (job_id,position,str(png)))
+                        db.execute("UPDATE reader_jobs SET stage='reading',pages_captured=? WHERE id=?", (position+1,job_id))
+                options['on_capture'] = on_capture
             captured = reader(body.url, **options)
+            with repository.transaction() as db:
+                db.execute("UPDATE reader_jobs SET stage='checking',pages_captured=? WHERE id=?", (len(captured.snapshot.pages),job_id))
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
                 update(job_id, "failed", body.survey_id,
                        error="No reviewable pages captured. The link may need authentication or an unsupported reader.")
@@ -81,6 +94,8 @@ def router(repository, app):
                 return
             created = repository.submit(captured.snapshot, body.ai, body.survey_id)
             coverage = captured.coverage.model_dump(mode="json")
+            with repository.transaction() as db:
+                db.execute('UPDATE reader_jobs SET deduplicated=? WHERE id=?', (int(created['deduplicated']),job_id))
             with repository.transaction() as db:
                 db.execute("INSERT OR REPLACE INTO coverage(survey_id,version,data) VALUES (?,?,?)",
                            (created["id"], created["version"], json.dumps(coverage)))
@@ -107,6 +122,21 @@ def router(repository, app):
             logger.error("Reader failure reference=%s type=%s", reference, type(error).__name__)
             update(job_id, "failed", body.survey_id,
                    error=f"The survey could not be read because of an app error. Please report reference {reference}. No completed review was created.")
+
+    @routes.get('/api/reader/mode')
+    def mode():
+        participates = os.environ.get('SURVEYCOACH_PARTICIPANT_MODE') == '1'
+        notice = ('This reader answers, advances and may submit synthetic test responses. Exclude them from results.'
+                  if participates else 'This reader blocks answer writes. Opening a test link may still create a partial test participant.')
+        return {'participates': participates, 'notice':notice}
+
+    @routes.get('/api/reader/jobs/{job_id}/preview/{position}')
+    def progress_capture(job_id: str, position: int):
+        with repository.transaction() as db:
+            row = db.execute('SELECT path FROM reader_previews WHERE job_id=? AND position=?', (job_id,position)).fetchone()
+        if not row or not Path(row['path']).is_file():
+            raise HTTPException(404,'Captured screen unavailable')
+        return FileResponse(row['path'],media_type='image/png',headers={'Cache-Control':'no-store'})
 
     @routes.get("/api/surveys/{survey_id}/versions/{version}/captures/{position}")
     def capture(survey_id: str, version: int, position: int):

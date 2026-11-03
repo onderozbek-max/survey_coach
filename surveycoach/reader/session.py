@@ -55,18 +55,18 @@ def external_progression_stop(*, allow_test_local: bool, participate: bool = Fal
 
 def read_survey(url: str, *, allow_test_local: bool = False, approval: bool = False,
                 max_pages: int = 30, participate: bool = False, planner=None,
-                rules_path: Path | None = None) -> ReadResult:
+                rules_path: Path | None = None, on_capture=None) -> ReadResult:
     """Synchronous entry point; run browser interception on its own event loop.
 
     ``participate`` lets the reader answer and advance like a respondent (owner-approved).
     """
     return asyncio.run(_read_survey(url, allow_test_local=allow_test_local, approval=approval,
-                                    max_pages=max_pages, participate=participate, planner=planner, rules_path=rules_path))
+                                    max_pages=max_pages, participate=participate, planner=planner, rules_path=rules_path, on_capture=on_capture))
 
 
 async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                        max_pages: int, participate: bool = False, planner=None,
-                       rules_path: Path | None = None) -> ReadResult:
+                       rules_path: Path | None = None, on_capture=None) -> ReadResult:
     """Read one visible path into the existing SurveySnapshot.
 
     URL-policy errors raise UnsafeSurveyURL; invalid budgets raise ValueError.
@@ -105,6 +105,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
         result.snapshot.pages.append(model)
         result.captures.append(Capture(page_id=model.id, viewport_png=png, observation_json=observation))
         coverage.pages_captured = len(result.captures)
+        if on_capture is not None:
+            on_capture(number, model, png)
 
     async def close_socket(socket):
         await socket.close()

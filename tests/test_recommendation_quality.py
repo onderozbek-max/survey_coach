@@ -1,4 +1,5 @@
 """Recommendations must be usable wording, not homework disguised as a rewrite."""
+from copy import deepcopy
 import json
 
 import pytest
@@ -119,8 +120,12 @@ def test_saved_reviews_are_guarded_on_read_without_rewriting_stored_history():
         detail = repository.detail(submitted["id"])
         assert detail["decisions"]["stable-id"]["action"] == "open"
         assert detail["decisions"]["stable-id"]["picked_text"] is None
-        saved = detail["review"]["findings"][0]
+        saved = next(f for f in detail["review"]["findings"] if f["fingerprint"] == "stable-id")
         assert saved["suggested_text"] is None and saved["options"] == []
+        # Refreshed code may offer a grounded time estimate before the AI concern.
+        suggestions = [f["suggested_text"] for f in detail["review"]["findings"] if f.get("suggested_text")]
+        assert suggestions and all("[" not in text and "{" not in text for text in suggestions)
+        assert any("minutes" in text for text in suggestions)
         assert saved["fingerprint"] == "stable-id" and saved["evidence"] == ORIGINAL
         assert "No ready-to-use rewrite" in saved["explanation"]
         assert repository.detail(submitted["id"])["review"] == detail["review"]
@@ -130,6 +135,42 @@ def test_saved_reviews_are_guarded_on_read_without_rewriting_stored_history():
             repository.save_decision(submitted["id"], 1, "stable-id", {
                 "action": "pick", "picked_text": finding["suggested_text"],
             })
+    finally:
+        repository.close()
+
+
+@pytest.mark.parametrize("with_results", [False, True])
+def test_unchanged_saved_ai_fingerprint_retains_valid_choice(with_results):
+    from surveycoach.review import run_review
+
+    repository = Repository(":memory:")
+    try:
+        snapshot = survey(intro(ORIGINAL))
+        submitted = repository.submit(snapshot, ai=True)
+        rewrite = "Welcome! Please share your feedback."
+        finding = Finding(**raw_finding(suggested_text=rewrite, options=[]).model_dump(),
+                          source="ai").model_dump(mode="json")
+        finding["fingerprint"] = "historical-ai-id"
+        review = {"findings": [finding], "scorecard": {}}
+        if with_results:
+            review["results"] = run_review(snapshot).model_dump(mode="json")["results"]
+            review["results"]["1.1"] = {"criterion_id": "1.1", "fraction": 0.5,
+                                        "findings": [finding]}
+        payload = {"review": review}
+        before = deepcopy(payload)
+        repository.finish(submitted["job_id"], payload)
+        # Existing API clients still address this finding by its persisted key.
+        saved = repository.save_decision(submitted["id"], 1, finding["fingerprint"],
+                                         {"action": "pick", "picked_text": rewrite})
+        detail = repository.detail(submitted["id"])
+        assert detail["decisions"][finding["fingerprint"]] == saved
+        assert saved["action"] == "pick" and saved["picked_text"] == rewrite
+        projected = next(f for f in detail["review"]["findings"]
+                         if f["fingerprint"] == finding["fingerprint"])
+        assert projected["suggested_text"] == rewrite
+        assert repository.detail(submitted["id"])["decisions"] == detail["decisions"]
+        assert json.loads(repository.db.execute("SELECT data FROM reviews").fetchone()[0]) == before
+        assert payload == before
     finally:
         repository.close()
 

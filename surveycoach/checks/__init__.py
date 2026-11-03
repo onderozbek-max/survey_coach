@@ -1,7 +1,7 @@
 """Registers every check module, then runs them all."""
 from __future__ import annotations
 
-from surveycoach.checks import answers, content, images, phone, structure  # noqa: F401  (import registers the checks)
+from surveycoach.checks import answers, content, experience, images, phone, structure  # noqa: F401  (import registers the checks)
 from surveycoach.checks.registry import REGISTRY, ReviewContext
 from surveycoach.findings import CheckResult
 

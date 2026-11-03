@@ -1,4 +1,7 @@
 /* Home "launch pad". Scoped to body.home; tokens come from styles.css. WCAG 2.2 AA. */
+.home .consent-note { font-size:12px; line-height:1.6; margin-top:12px; max-width:62ch; }
+.example-check { display:grid; place-items:center; width:64px; height:64px; border-radius:18px; background:#322916; color:#ffd18a; font-size:32px; font-weight:750; }
+.reading-preview { margin:18px 0; padding:16px; border:1px solid var(--edge); border-radius:18px; background:#111e2c; max-width:290px; }.reading-preview figcaption { font-size:12px; color:var(--teal); margin-bottom:12px; }.reading-preview img { width:100%; max-height:360px; object-fit:contain; object-position:top; border-radius:12px; }
 .home { --ring: #2d3d50; --glass: rgba(22, 34, 50, .72); --edge: rgba(120, 160, 200, .18); --teal: #5fd4c0;
   min-height: 100vh; display: flex; flex-direction: column;
   background: radial-gradient(1100px 520px at 12% -10%, rgba(77, 163, 255, .18), transparent 60%),

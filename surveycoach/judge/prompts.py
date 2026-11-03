@@ -10,7 +10,7 @@ from surveycoach.snapshot import Question, SurveySnapshot
 
 SENTINEL_OPEN = "<<<SURVEY_DATA"
 SENTINEL_CLOSE = "SURVEY_DATA>>>"
-PROMPT_VERSION = "5"          # bump when the wording of the prompts changes: it is part of the cache key
+PROMPT_VERSION = "6"          # bump when the wording of the prompts changes: it is part of the cache key
 
 
 def clean_line(text: str) -> str:
@@ -35,14 +35,14 @@ def _question_lines(q: Question) -> list[str]:
 def survey_block(snapshot: SurveySnapshot, known: Sequence[Finding] = ()) -> str:
     lines = [SENTINEL_OPEN, f"SURVEY: {clean_line(snapshot.title)} (type: {snapshot.survey_type})"]
     for page in snapshot.pages:
-        lines.append(f"PAGE {page.id} ({page.kind}, position {page.position})")
+        lines.append(f"PAGE {page.id} ({snapshot.page_role(page)}, position {page.position})")
         for label, text in (("intro", page.intro_text), ("text", page.text)):
             if text:
                 lines.append(f"  {label}: {clean_line(text)}")
         for q in page.questions:
             lines += _question_lines(q)
     if known:
-        lines.append("ALREADY FOUND BY CODE (never report these again):")
+        lines.append("ALREADY FOUND BY CODE (exact root-cause duplicates only):")
         lines += [f"  {f.criterion_id} [{f.question_id or f.page_id or 'survey'}] {clean_line(f.headline)}" for f in known]
     lines.append(SENTINEL_CLOSE)
     return "\n".join(lines)
@@ -101,12 +101,18 @@ def system_prompt(batch: Batch, rubric: Rubric) -> str:
     else:
         rules.append("severity is always worth_improving.")
     blocker_hint = " (a blocker, if one applies)" if batch.blockers else ""
-    rules += ["Problems listed under ALREADY FOUND BY CODE are done: never report those again, in the same words or in "
-              "different ones.",
+    rules += ["Independently assess every element, including elements under ALREADY FOUND BY CODE. Skip only exact "
+              "root-cause duplicates, not other issues on the same text. A cosmetic code finding must never suppress an "
+              "independent substantive issue such as leading wording, missing answers or double-barreled questions.",
+              "Do not condemn standard NPS 0–10, nine-point hedonic, JAR or Excellent-to-Poor scales merely for their "
+              "length or asymmetric wording. Do not condemn slider or ranking controls without an observed defect. "
+              "Unknown exclusive-choice or Other-text behavior is not evidence of a defect.",
+              "Recognized intro and thank_you roles may be inferred from boundary info-page wording. Judge the actual "
+              "copy. Do not invent reward terms, empirical drop-off rates or measured completion times.",
               f"Report each problem once, under the single most fitting criterion{blocker_hint}; never file "
-              "the same problem under a second criterion. When several criteria want to change the same text (the welcome, "
-              "the thank-you), report one finding with one rewrite that fixes everything and name the other criteria it "
-              "covers in the explanation.",
+              "the same root cause under a second criterion. Independent issues on the same text remain separate. "
+              "If one issue genuinely covers other criteria, name their IDs in the explanation; those criteria will "
+              "not be counted as independently passed.",
               "Report at most 3 findings per criterion. When the same problem repeats across questions, report it once on "
               "the worst example and say in the explanation how many questions share it.",
               "Write in plain words a researcher can act on. No em dashes."]

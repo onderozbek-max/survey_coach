@@ -1,59 +1,80 @@
-"""One decision revision sequence across checklist and contextual coach."""
+"""Persisted contextual decisions, including reordered requests against the real API."""
 from tests.test_site_e2e import browser
 from tests.test_workflow_e2e import studio
 
 
-def test_no_rewrites_disables_preview_and_action_only_keeps_reason(browser, studio):
-    page = browser.new_page()
+def open_sample(browser, studio):
+    context = browser.new_context(permissions=['clipboard-read', 'clipboard-write'])
+    page = context.new_page()
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('.phone-screen').wait_for()
-    assert page.get_by_role('button', name='With fixes', exact=True).is_disabled()
-    assert 'No text changes to preview' in page.locator('.preview-effect').inner_text()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    action_only = page.locator('.fix-card').filter(has_text='Action required · No ready-to-use rewrite.').first
-    action_only.locator('select').select_option('original')
-    reason = action_only.locator('textarea').first
-    reason.fill('Intentional research stimulus; keep full image.')
-    reason.blur()
-    action_only.get_by_text('Saved on this computer.', exact=True).wait_for()
+    return context, page
+
+
+def focus_finding(page, finding):
+    page.evaluate("fingerprint => dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:fingerprint}))", finding['fingerprint'])
+    assert page.locator('#coach .card-head').inner_text() == finding['headline']
+
+
+def finding_with(page, rewrite):
+    # Workflow exposes detail before the dynamically loaded app registers navigation.
+    page.locator('#coach .card-head').wait_for()
+    findings = page.evaluate('SC.workspaceDetail.review.findings')
+    return next(f for f in findings if bool(f.get('suggested_text') or f.get('options')) == rewrite)
+
+
+def keep_mine(page, reason):
+    page.get_by_role('button', name='Keep mine', exact=True).click()
+    page.get_by_label('Reason for keeping', exact=False).fill(reason)
+    page.get_by_role('button', name='Save reason & keep mine').click()
+    page.locator('.accepted-risk').wait_for()
+
+
+def test_action_only_keeps_reason_without_claiming_verification(browser, studio):
+    context, page = open_sample(browser, studio)
+    finding = finding_with(page, False)
+    focus_finding(page, finding)
+    assert page.locator('#coach .issue-rewrite').count() == 0
+    reason = 'Intentional research stimulus; keep full image.'
+    keep_mine(page, reason)
+    assert 'not a verified fix' in page.locator('.accepted-risk').inner_text()
     page.reload()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    action_only = page.locator('.fix-card').filter(has_text='Action required · No ready-to-use rewrite.').first
-    assert action_only.locator('select').input_value() == 'original'
-    assert 'Intentional research stimulus' in action_only.locator('textarea').first.input_value()
-    page.close()
-
-
-def test_delayed_checklist_save_cannot_overwrite_newer_coach_choice(browser, studio):
-    page = browser.new_page()
-    page.goto(studio + '/local.html')
-    page.locator('#sample-start').click()
-    page.wait_for_url('**/review.html?**')
     page.locator('.phone-screen').wait_for()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    card = page.locator('.fix-card').filter(has=page.get_by_role('button', name='Copy chosen fix', exact=True)).first
-    headline = card.locator('h3').inner_text()
+    focus_finding(page, finding)
+    assert page.get_by_label('Reason for keeping', exact=False).input_value() == reason
+    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+    context.close()
+
+
+def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studio):
+    context, page = open_sample(browser, studio)
+    finding = finding_with(page, True)
+    focus_finding(page, finding)
     pending = []
+
     def hold_first(route):
         if not pending:
             pending.append(route)
         else:
             route.continue_()
     page.route('**/decisions/*', hold_first)
-    card.locator('select').select_option('0')
+    page.evaluate("navigator.clipboard.writeText('unchanged clipboard')")
+    page.locator('#coach .issue-rewrite .btn').first.click()
     page.wait_for_timeout(100)
     assert pending
-    card.get_by_role('button', name='See on the phone', exact=False).click()
-    coach = page.locator('.card').filter(has=page.get_by_role('button', name=headline, exact=True))
-    coach.get_by_text('Your original', exact=True).click()
-    page.wait_for_timeout(200)
+    # A new contextual card lets the researcher change their mind during the save.
+    focus_finding(page, finding)
+    keep_mine(page, 'Required wording')
     response = pending[0].fetch()
     pending[0].fulfill(response=response)
-    page.wait_for_timeout(200)
+    page.wait_for_timeout(100)
+    assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
     page.reload()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    card = page.locator('.fix-card').filter(has=page.get_by_role('heading', name=headline, exact=True))
-    assert card.locator('select').input_value() == 'original'
-    page.close()
+    page.locator('.phone-screen').wait_for()
+    focus_finding(page, finding)
+    assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
+    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+    assert page.locator('#copy-all').is_disabled()
+    context.close()

@@ -48,6 +48,11 @@ class ImportRequest(BaseModel):
         return self
 
 
+class TitleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    title: str = Field(min_length=1, max_length=200)
+
+
 class DecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: Literal["pick", "original", "keep", "open"]
@@ -122,10 +127,14 @@ def create_app(db_path, provider=None) -> FastAPI:
 
     @app.post("/api/samples/{name}", status_code=202)
     def sample(name: str, background_tasks: BackgroundTasks):
-        if name not in {"boxer-briefs", "coffee-pods"}:
+        if name != 'boxer-briefs':
             raise KeyError("Sample not found")
         snapshot = SurveySnapshot.model_validate_json((SITE.parent / "fixtures" / f"{name}.json").read_text())
-        return submit(ImportRequest(snapshot=snapshot), background_tasks)
+        from surveycoach.server.example import run_example
+        result = repository.submit(snapshot, ai=False)
+        if result.pop('scheduled'):
+            background_tasks.add_task(run_example, repository, result['job_id'])
+        return result
 
     @app.post("/api/surveys", status_code=202)
     def import_snapshot(body: ImportRequest, background_tasks: BackgroundTasks):
@@ -138,6 +147,16 @@ def create_app(db_path, provider=None) -> FastAPI:
     @app.get("/api/surveys/{survey_id}")
     def latest(survey_id: str):
         return repository.detail(survey_id)
+
+    @app.patch("/api/surveys/{survey_id}")
+    def rename(survey_id: str, body: TitleRequest):
+        return repository.rename(survey_id, body.title)
+
+    @app.get("/api/surveys/{survey_id}/versions/{version}/change-sheet")
+    def changes(survey_id: str, version: int):
+        detail = repository.detail(survey_id, version)
+        return {"round": version, "changes": detail["change_sheet"],
+                "round_changes": detail["round_changes"]}
 
     @app.get("/api/surveys/{survey_id}/versions/{version}")
     def version_detail(survey_id: str, version: int):

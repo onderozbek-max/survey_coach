@@ -30,27 +30,32 @@ class Review(BaseModel):
 
 
 def _merge(results: dict[str, CheckResult], rubric: Rubric) -> list[Finding]:
-    """De-duplicate by fingerprint; must-fix first, then rubric order."""
+    """Only exact root duplicates collapse; must-fix wins, then rubric order."""
     order = {cid: i for i, cid in enumerate([b.id for b in rubric.blockers] + [c.id for c in rubric.criteria])}
-    unique: dict[str, Finding] = {}
-    for result in results.values():
-        for f in result.findings:
-            unique.setdefault(f.fingerprint, f)
-    return sorted(unique.values(), key=lambda f: (f.severity != "must_fix", order.get(f.criterion_id, 999)))
+    unique: dict[tuple[str, str, str], Finding] = {}
+    findings = sorted([f for result in results.values() for f in result.findings],
+                      key=lambda f: (f.severity != "must_fix", order.get(f.criterion_id, 999)))
+    for f in findings:
+        unique.setdefault(f.root_identity, f)
+    return list(unique.values())
 
 
 def _with_ai(code: dict[str, CheckResult], ai: dict[str, CheckResult]) -> dict[str, CheckResult]:
-    """Code wins wherever it judged. Where code left a criterion open (fraction None, for example 9.1 where code only
-    checks emoji), the AI supplies the verdict and the code's own findings are kept next to the AI's."""
+    """Preserve code evidence and independent AI problems; a cosmetic check never vetoes a semantic issue."""
     merged = dict(code)
     for cid, theirs in ai.items():
         mine = code.get(cid)
         if mine is None:
             merged[cid] = theirs
-        elif mine.fraction is None and theirs.fraction is not None:
-            findings = [*mine.findings, *theirs.findings]
-            fraction = min(theirs.fraction, CREDIT_CAP_WITH_FINDING) if findings else theirs.fraction
-            merged[cid] = CheckResult(criterion_id=cid, fraction=fraction, applies=mine.applies, findings=findings)
+        elif theirs.findings or not mine.assessed or (mine.fraction is None and theirs.fraction is not None):
+            known = {f.root_identity for f in mine.findings}
+            findings = [*mine.findings, *[f for f in theirs.findings if f.root_identity not in known]]
+            fractions = [f for f in (mine.fraction, theirs.fraction) if f is not None]
+            fraction = min(fractions) if fractions else None
+            if findings and fraction is not None:
+                fraction = min(fraction, CREDIT_CAP_WITH_FINDING)
+            merged[cid] = CheckResult(criterion_id=cid, fraction=fraction, applies=mine.applies,
+                                      assessed=mine.assessed or theirs.assessed, findings=findings)
     return merged
 
 

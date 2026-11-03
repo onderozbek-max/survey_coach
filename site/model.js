@@ -4,6 +4,8 @@
   const RANK = { must_fix: 0, worth_improving: 1 };
   SC.decisionClient = crypto.randomUUID();
   SC.decisionRevisions = new Map();
+  SC.scoreDisplay = card => ({earned: card.checked_points == null ? card.score-card.unchecked_points : card.score,
+    checked:card.checked_points == null ? 100-card.unchecked_points : card.checked_points});
   SC.SPLIT = " ... ";   // joins a scale's two end labels into one fixable string
 
   /** The versions a researcher can pick between: the AI's options, or the single code-made suggestion. */

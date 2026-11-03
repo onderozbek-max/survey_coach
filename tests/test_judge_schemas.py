@@ -30,14 +30,17 @@ def test_no_criterion_or_blocker_is_judged_twice():
 
 
 def test_the_batches_cover_everything_the_engine_says_is_waiting_on_ai():
-    """The user-visible contract: nothing listed as 'waiting on the AI step' is orphaned, except images."""
+    """Every pending check has an owner; timing needs calibration, not an AI all-clear."""
     rubric = load_rubric()
     title = {c.id: c.title for c in rubric.criteria}
     owned = {title[c] for b in BATCHES for c in b.criteria} | {title[c] for c in IMAGE_CRITERIA_WAITING_FOR_PLAN_5}
     for path in sorted(FIXTURES.glob("*.json")):
         review = run_review(SurveySnapshot.model_validate_json(path.read_text()), rubric)
         assert set(review.unchecked) <= owned, (path.name, set(review.unchecked) - owned)
-        assert set(review.scorecard.pending_blockers) <= {x for b in BATCHES for x in b.blockers}, path.name
+        ai_blockers = {x for b in BATCHES for x in b.blockers}
+        assert set(review.scorecard.pending_blockers) <= ai_blockers | {"B5"}, path.name
+        assert "B5" not in ai_blockers
+        assert not review.timing.calibrated and not review.results["B5"].assessed
 
 
 def test_the_judge_only_owns_criteria_the_rubric_says_need_ai():

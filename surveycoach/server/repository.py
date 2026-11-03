@@ -10,6 +10,8 @@ from uuid import uuid4
 
 from surveycoach.recommendations import guard_recommendation
 from surveycoach.snapshot import SurveySnapshot
+from surveycoach.server.rounds import (canonical_source_url, change_sheet, compare_rounds,
+                                       presentation, project_review, valid_decisions)
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -56,6 +58,9 @@ class Repository:
         self.db = sqlite3.connect(str(db_path), check_same_thread=False, timeout=15)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        columns = {r[1] for r in self.db.execute("PRAGMA table_info(surveys)")}
+        if "display_title" not in columns:
+            self.db.execute("ALTER TABLE surveys ADD COLUMN display_title TEXT")
         # A stopped process cannot finish its in-process jobs. Never leave a spinner forever.
         with self.transaction() as db:
             db.execute("UPDATE jobs SET status='failed', error='Local server stopped before review finished', "
@@ -73,6 +78,8 @@ class Repository:
     def submit(self, snapshot: SurveySnapshot, ai: bool, survey_id: str | None = None) -> dict:
         """Atomically find/create a snapshot and enqueue a review; never overwrite a snapshot."""
         with self.transaction() as db:
+            if survey_id is None:
+                survey_id = self.find_by_source_url(snapshot.source_url)
             if survey_id is None:
                 survey_id = uuid4().hex
                 db.execute("INSERT INTO surveys(id) VALUES (?)", (survey_id,))
@@ -97,6 +104,25 @@ class Repository:
                            (job_id, survey_id, version, int(ai)))
         return {"id": survey_id, "survey_id": survey_id, "version": version,
                 "job_id": job_id, "deduplicated": duplicate, "scheduled": not bool(active)}
+
+    def find_by_source_url(self, url: str) -> str | None:
+        canonical = canonical_source_url(url)
+        if not canonical:
+            return None
+        with self.transaction() as db:
+            rows = db.execute("SELECT survey_id,snapshot FROM versions ORDER BY rowid").fetchall()
+            matches = {row["survey_id"] for row in rows
+                       if canonical_source_url(json.loads(row["snapshot"]).get("source_url")) == canonical}
+            return next(iter(matches)) if len(matches) == 1 else None
+
+    def rename(self, survey_id: str, title: str) -> dict:
+        title = title.strip()
+        if not title or len(title) > 200 or any(ord(c) < 32 for c in title):
+            raise ValueError("Supply a title of 1 to 200 characters without control characters")
+        with self.transaction() as db:
+            if not db.execute("UPDATE surveys SET display_title=? WHERE id=?", (title, survey_id)).rowcount:
+                raise KeyError("Survey not found")
+        return {"id": survey_id, "survey_id": survey_id, "title": title}
 
     @staticmethod
     def _latest_review(db, survey_id: str, version: int):
@@ -125,18 +151,24 @@ class Repository:
             surveys = []
             for row in rows:
                 item = dict(row) | {"readiness": None, "must_fix": None, "score_checked": None}
+                title = db.execute("SELECT display_title FROM surveys WHERE id=?", (row["id"],)).fetchone()[0]
+                if title:
+                    item["title"] = title
                 data = self._latest_review(db, row["id"], row["version"])
                 if data:
-                    review = data["review"]
+                    snapshot = json.loads(db.execute("SELECT snapshot FROM versions WHERE survey_id=? AND version=?",
+                                                     (row["id"], row["version"])).fetchone()[0])
+                    review = project_review(snapshot, data["review"])
                     self._qualify(review, self._coverage(db, row["id"], row["version"]))
                     card = review["scorecard"]
                     item.update(readiness=card["readiness"],
                                 must_fix=sum(f["severity"] == "must_fix" for f in review["findings"]),
-                                score_checked=[round(card["score"] - card["unchecked_points"]), 100 - card["unchecked_points"]])
+                                score_checked=[round(card["score"] if "checked_points" in card else card["score"] - card["unchecked_points"]),
+                                               card.get("checked_points", 100 - card["unchecked_points"]) ])
                 surveys.append(item)
             return surveys
 
-    def detail(self, survey_id: str, version: int | None = None) -> dict:
+    def _raw_detail(self, survey_id: str, version: int | None = None) -> dict:
         with self.transaction() as db:
             versions = db.execute("SELECT version,title,content_hash,created_at FROM versions "
                                   "WHERE survey_id=? ORDER BY version DESC", (survey_id,)).fetchall()
@@ -160,19 +192,43 @@ class Repository:
                     "job": self._job(job) if job else None}
             if review:
                 data.update(review)
+            display_title = db.execute("SELECT display_title FROM surveys WHERE id=?", (survey_id,)).fetchone()[0]
+            data["title"] = display_title or row["title"]
+            data["snapshot_title"] = row["title"]
             data["coverage"] = self._coverage(db, survey_id, version)
-            self._qualify(data["review"], data["coverage"])
-            if data["review"]:
-                data["review"]["findings"] = [guard_recommendation(finding)
-                                               for finding in data["review"].get("findings", [])]
-                for finding in data["review"]["findings"]:
-                    decision = data["decisions"].get(finding["fingerprint"])
-                    allowed = {o["text"] for o in finding.get("options", [])}
-                    if finding.get("suggested_text"):
-                        allowed.add(finding["suggested_text"])
-                    if decision and decision.get("action") == "pick" and decision.get("picked_text") not in allowed:
-                        data["decisions"][finding["fingerprint"]] = dict(decision, action="open", picked_text=None, manual_done=False)
             return data
+
+    def _project_detail(self, data):
+        """Project one round only. This never loads or walks historical rounds."""
+        if data["review"]:
+            data["review"] = project_review(data["snapshot"], data["review"])
+            data["review"]["findings"] = [guard_recommendation(finding)
+                                           for finding in data["review"].get("findings", [])]
+        self._qualify(data["review"], data["coverage"])
+        data["decisions"] = valid_decisions(data)
+        return data
+
+    def detail(self, survey_id: str, version: int | None = None) -> dict:
+        # Copy DB state under the lock; expensive checks run outside it. Compare
+        # only the direct previous round, never recursively project all history.
+        with self.transaction():
+            data = self._raw_detail(survey_id, version)
+            version = data["version"]
+            prior = self._raw_detail(survey_id, version - 1) if version > 1 else None
+        data = self._project_detail(data)
+        data["round"] = version
+        data["round_changes"] = {key: [] for key in ("fixed", "still", "new", "uncertain")}
+        data["carried"] = {}
+        if prior:
+            data["round_changes"], carried = compare_rounds(self._project_detail(prior), data)
+            data["carried"] = {key: value for key, value in carried.items() if key not in data["decisions"]}
+            data["decisions"] = {**data["carried"], **data["decisions"]}
+            data["round_changes"]["compared_to_round"] = version - 1
+        data["round_changes"]["unchecked_paths"] = presentation(data)["scope"]["unchecked_paths"]
+        data["carried_decisions"] = data["carried"]
+        data["presentation"] = presentation(data)
+        data["change_sheet"] = change_sheet(data)
+        return data
 
     @staticmethod
     def _job(row) -> dict:
@@ -207,7 +263,7 @@ class Repository:
 
     def save_decision(self, survey_id: str, version: int, fingerprint: str, data: dict) -> dict:
         with self.transaction() as db:
-            detail = self.detail(survey_id, version)
+            detail = self._project_detail(self._raw_detail(survey_id, version))
             findings = (detail["review"] or {}).get("findings", [])
             finding = next((f for f in findings if f["fingerprint"] == fingerprint), None)
             if finding is None:

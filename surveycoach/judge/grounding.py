@@ -131,9 +131,12 @@ def ground(output: BatchOutput, batch: Batch, snapshot: SurveySnapshot, rubric: 
         if kept[cid]:
             fraction = min(verdict.fraction, CREDIT_CAP_WITH_FINDING)
         else:
-            fraction = 1.0
-            if verdict.fraction < 1.0:
-                grounded.dropped.append(f"{cid}: the judge took points off but gave no quotable reason, so full credit stands")
+            attempted = any(f.criterion_id == cid for f in output.findings)
+            covered = any(re.search(rf"(?<![\d.]){re.escape(cid)}(?!\d|\.\d)", f.explanation)
+                          for findings in kept.values() for f in findings if f.criterion_id != cid)
+            fraction = None if verdict.fraction < 1.0 or attempted or covered else 1.0
+            if fraction is None:
+                grounded.dropped.append(f"{cid}: no independent grounded assessment; remains unchecked")
         grounded.results[cid] = result(cid, fraction, *kept[cid])
     for call in output.blockers:
         bid = call.blocker_id
@@ -141,5 +144,7 @@ def ground(output: BatchOutput, batch: Batch, snapshot: SurveySnapshot, rubric: 
             continue
         if call.triggered and not kept[bid]:
             grounded.dropped.append(f"{bid}: the judge raised it but gave no quotable reason, so it is not raised")
+        if call.triggered and not kept[bid]:
+            continue  # ungrounded blocker is pending, not positively cleared
         grounded.results[bid] = CheckResult(criterion_id=bid, findings=kept[bid] if call.triggered else [])
     return grounded

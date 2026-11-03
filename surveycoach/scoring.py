@@ -27,22 +27,32 @@ class ScoreCard(BaseModel):
     pending_blockers: list[str]   # blockers no check has judged yet (the AI judge); 'ready' needs none
     readiness: Readiness
     strengths: list[str]
+    checked_points: int = 0
+    not_applicable_points: int = 0
+    score_explanation: str = (
+        "Score is earned points out of 100 rubric points: checked criterion points × fraction. "
+        "Unchecked and not-applicable criteria earn no points; this is evidence coverage, not a failure verdict."
+    )
 
 
 def score(rubric: Rubric, results: dict[str, CheckResult], kept_blockers: frozenset[str] = frozenset()) -> ScoreCard:
-    """Unchecked criteria get full credit but flag the score as provisional (never a silent penalty)."""
+    """Only checked, applicable criteria earn points; unknowns never masquerade as positive evidence."""
     earned: dict[str, float] = {}
     unchecked = 0
+    checked = 0
+    not_applicable = 0
     for criterion in rubric.criteria:
         if not criterion.active:
             continue
         result = results.get(criterion.id)
         if result is not None and not result.applies:
-            earned[criterion.id] = float(criterion.points)
-        elif result is None or result.fraction is None:
+            earned[criterion.id] = 0.0
+            not_applicable += criterion.points
+        elif result is None or result.fraction is None or not result.assessed:
             unchecked += criterion.points
-            earned[criterion.id] = float(criterion.points)
+            earned[criterion.id] = 0.0
         else:
+            checked += criterion.points
             earned[criterion.id] = criterion.points * result.fraction
 
     by_dimension = {
@@ -64,12 +74,14 @@ def score(rubric: Rubric, results: dict[str, CheckResult], kept_blockers: frozen
     flagged = [b.id for b in rubric.blockers if _is_failed(results.get(b.id))]
     open_blockers = [b for b in flagged if b not in kept_blockers]
     kept = [b for b in flagged if b in kept_blockers]
-    pending = [b.id for b in rubric.blockers if b.id not in results]
+    pending = [b.id for b in rubric.blockers if b.id not in results or not results[b.id].assessed]
 
     return ScoreCard(
         score=total,
         provisional=unchecked > 0,
         unchecked_points=unchecked,
+        checked_points=checked,
+        not_applicable_points=not_applicable,
         by_dimension=by_dimension,
         open_blockers=open_blockers,
         kept_blockers=kept,
@@ -95,7 +107,7 @@ def _strengths(rubric: Rubric, results: dict[str, CheckResult]) -> list[str]:
     """Top 3 criteria that were actually checked and earned full credit, heaviest first."""
     full = [
         c for c in rubric.criteria
-        if c.active and (r := results.get(c.id)) is not None and r.applies and r.fraction == 1.0 and not r.findings
+        if c.active and (r := results.get(c.id)) is not None and r.applies and r.assessed and r.fraction == 1.0 and not r.findings
     ]
     full.sort(key=lambda c: (-c.points, c.id))
     return [c.title for c in full[:3]]

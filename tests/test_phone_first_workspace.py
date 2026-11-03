@@ -22,7 +22,8 @@ def test_return_to_review_always_opens_member_experience(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.get_by_role('tab', name='All issues', exact=True).click()
+    page.locator('#issues-view > summary').click()
+    page.locator('.issue-jump').last.click()
     page.reload()
     page.locator('.phone-screen').wait_for(state='visible')
     assert page.locator('.phone').bounding_box()['y'] < 430

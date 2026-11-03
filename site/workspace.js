@@ -1,29 +1,10 @@
-/* One workspace, two views. Keyboard tabs and shared live review state. */
+/* One workspace. The issue drawer navigates; only the coach edits decisions. */
 (() => {
   'use strict';
-  const tabs = [...document.querySelectorAll('[role=tab]')];
-  function activate(tab, focus = false) {
-    tabs.forEach(item => {
-      const active = item === tab;
-      item.setAttribute('aria-selected', String(active));
-      item.tabIndex = active ? 0 : -1;
-      document.getElementById(item.getAttribute('aria-controls')).hidden = !active;
-    });
-    if (focus) tab.focus();
-  }
-  tabs.forEach((tab, index) => {
-    tab.onclick = () => activate(tab);
-    tab.onkeydown = event => {
-      const next = {ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1}[event.key];
-      if (next !== undefined) { event.preventDefault(); activate(tabs[next], true); }
-    };
-  });
-  // Always enter through the member experience; a previous admin view must not hide it.
-  activate(tabs[0]);
-  window.SC.activateReviewTab = id => activate(document.getElementById(id));
-  window.SC.loadWorkspace = async detail => {
-    window.SC.workspaceDetail = detail;
-    // app.js consumes precisely the same version as the checklist; no duplicate fetch.
+  const SC = window.SC;
+  SC.activateReviewTab = () => {}; // Older app callers must not hide the phone workspace.
+  SC.loadWorkspace = detail => {
+    SC.workspaceDetail = detail;
     if (!document.querySelector('script[data-workspace-app]')) {
       const script = document.createElement('script');
       script.src = 'app.js'; script.dataset.workspaceApp = 'true';

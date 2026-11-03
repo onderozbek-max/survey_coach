@@ -4,7 +4,6 @@
   const { h, mount, $, plural, READINESS } = window.SC;
   const params = new URLSearchParams(location.search), surveyId = params.get("id");
   let detail;
-  const clientId = window.SC.decisionClient, revisions = window.SC.decisionRevisions;
   const endpoint = (version = detail.version) => `/api/surveys/${encodeURIComponent(surveyId)}/versions/${version}`;
   async function api(path, method = "GET", body) {
     const response = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -23,12 +22,26 @@
   async function waitForJob(jobId, outputId) {
     for (let attempt = 0; attempt < 600; attempt++) {
       const job = await api(`/api/jobs/${encodeURIComponent(jobId)}`);
-      message(outputId, job.status === "running" ? "Review in progress. AI checks can take a few minutes…" : "Review queued…", "progress");
+      window.SC.renderReadProgress?.(job, jobId);
+      const stage = job.stage === 'reading' ? `Reading screen ${job.pages_captured || 1}…`
+        : job.stage === 'checking' ? `${job.pages_captured || 0} screens captured. Checking wording and flow…`
+        : job.status === 'running' ? 'Checking survey wording and flow. AI checks can take a few minutes…' : 'Review queued…';
+      message(outputId, stage, "progress");
       if (job.status === "failed") throw new Error(job.error || "Review did not finish. Your previous review is unchanged.");
       if (job.status === "completed") return;
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    throw new Error("Still working. Return to My surveys to reopen this review; do not start another copy.");
+    let resume = $('resume-checking');
+    if (!resume) {
+      resume = h('button', {type:'button',id:'resume-checking',class:'btn',onclick:async()=>{
+        resume.disabled=true;
+        try { await waitForJob(jobId,outputId); const finished=await api(`/api/jobs/${encodeURIComponent(jobId)}`);
+          location.href=`review.html?id=${encodeURIComponent(finished.survey_id)}&version=${finished.version}`;
+        } catch(error) { message(outputId,error.message,'error'); resume.disabled=false; }
+      }},'Resume checking');
+      $(outputId).after(resume);
+    }
+    throw new Error(`Still working. Keep this page open and use Resume checking; do not start another review. Reference ${jobId.slice(0,8)}.`);
   }
   async function submit(event) {
     event.preventDefault();
@@ -36,7 +49,7 @@
     button.disabled = true;
     try {
       let result;
-      const file = $("snapshot").files[0], ai = true;
+      const file = $("snapshot")?.files[0], ai = true;
       if (file) {
         if (file.size > 950000) throw new Error("Snapshot must be smaller than 950 KB.");
         const snapshot = JSON.parse(await file.text());
@@ -55,7 +68,7 @@
       }
       await waitForJob(result.job_id, "import-status");
       const job = await api(`/api/jobs/${encodeURIComponent(result.job_id)}`);
-      location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}`;
+      location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}${result.deduplicated || job.deduplicated ? '&unchanged=1' : ''}`;
     } catch (error) { message("import-status", error.message, "error"); }
     finally { button.disabled = false; }
   }
@@ -71,9 +84,9 @@
     h("div", null, h("span", { class: `chip ${s.readiness || ""}` }, READINESS[s.readiness] || "Not reviewed")),
     h("h3", null, s.title),
     h("div", { class: "card-meta" },
-      s.must_fix != null && h("span", { class: s.must_fix ? "red" : null }, `${s.must_fix} must fix`),
+      s.must_fix != null && h("span", { class: s.must_fix ? "red" : null }, `${s.must_fix} to fix before launch`),
       s.score_checked && h("span", null, `${s.score_checked[0]} of ${s.score_checked[1]} checked points`),
-      h("span", null, `Version ${s.version}`), h("span", null, `Updated ${since(s.created_at)}`)),
+      h("span", null, `Round ${s.version}`), h("span", null, `Updated ${since(s.created_at)}`)),
     h("span", { class: "card-open", "aria-hidden": "true" }, "Open review →"));
   async function home() {
     const data = await api("/api/surveys");
@@ -81,127 +94,86 @@
     mount($("survey-list"), data.surveys.length ? data.surveys.map(surveyCard)
       : h("p", { class: "empty" }, h("strong", null, "Nothing reviewed yet"), "Paste a link above, or try the sample survey to see what a review looks like."));
   }
-  async function save(finding, value, output) {
-    output.textContent = "Saving…";
-    const revision = (revisions.get(finding.fingerprint) || 0) + 1;
-    revisions.set(finding.fingerprint, revision);
-    try {
-      const saved = await api(`${endpoint()}/decisions/${finding.fingerprint}`, "PUT", { ...value, client_id: clientId, revision });
-      if (revision === revisions.get(finding.fingerprint)) {
-        detail.decisions[finding.fingerprint] = saved;
-        window.dispatchEvent(new CustomEvent('surveycoach-decisions', { detail }));
-        output.textContent = "Saved on this computer.";
-      }
-      return true;
-    } catch (error) { output.textContent = `Not saved: ${error.message}`; return false; }
+  function renderSummary() {
+    const r = detail.review, card = r.scorecard, coverage = detail.coverage;
+    const stops = {
+      definition_captured: 'Read the available survey definition.', final_control: 'Reached the final survey control.',
+      path_end: 'Reached the end of the observed path.', screen_out: 'Reached a screening exit.',
+      unsupported: 'Stopped at a control the reader could not safely use.', unmet_requirement: 'Could not meet a page requirement.',
+      time_limit: 'Stopped at the time limit.', page_limit: 'Stopped at the screen limit.', loop: 'Stopped after a repeated screen.',
+      blocked: 'A safety restriction stopped the read.', reader_error: 'The reader could not finish.',
+      external_progression_unverified: 'Could not verify progress in the survey.', same_page_change: 'The screen changed without confirmed progress.',
+      not_started: 'The read has not started.'
+    };
+    mount($("review-summary"), h('p', null, coverage
+      ? `${coverage.pages_captured} captured screens checked. ${stops[coverage.stop_reason] || 'The read stopped before all paths could be verified.'}`
+      : 'Imported survey screens checked; capture completeness was not independently verified.'),
+      h('p', null, `${!r.ai ? 'AI wording checks have not run. ' : Object.keys(r.ai.failed || {}).length ? 'Some AI checks did not finish. ' : 'AI advice needs your judgment. '}Unvisited paths are not checked. This is not launch approval.`),
+      r.unchecked?.length > 0 && h('details', null, h('summary', null, `${r.unchecked.length} checks not completed`), h('ul', null, r.unchecked.map(name => h('li', null, name)))),
+      r.projection?.score_limitations?.map(text => h('p',{class:'note'},text)),
+      h('details', null, h('summary', null, 'Technical details & source evidence'),
+        h('p', null, `${Math.round(window.SC.scoreDisplay(card).earned)} of ${window.SC.scoreDisplay(card).checked} checked points earned. ${card.unchecked_points} points unchecked.`),
+        coverage && h('p', null, `Reader stop code: ${coverage.stop_reason}`),
+        coverage && h('ul', null, (coverage.warnings || []).map(w => h('li', null, w))),
+        coverage && Array.from({length:coverage.pages_captured}, (_, i) => h('a', {href:`${endpoint()}/captures/${i}`, target:'_blank', rel:'noopener'}, `Captured screen ${i + 1} `))));
   }
-  function fixCard(finding) {
-    const saved = detail.decisions[finding.fingerprint] || { action: "open", reason: "", manual_done: false };
-    const choices = window.SC.choicesOf(finding);
-    const select = h("select", { "aria-label": `Version for ${finding.headline}` },
-      h("option", { value: "open", selected: saved.action === "open" }, "Choose a version…"),
-      h("option", { value: "original", selected: ["original", "keep"].includes(saved.action) }, "Keep my original"),
-      choices.map((choice, i) => h("option", { value: String(i), selected: saved.action === "pick" && choice.text === saved.picked_text }, choice.label)));
-    const preview = h("blockquote", null), output = h("p", { role: "status", class: "saved" });
-    const reason = h("textarea", { "aria-label": `Reason for keeping ${finding.headline}`, placeholder: "Why keep it? For example: required wording or comparability.", value: saved.reason });
-    reason.value = saved.reason || "";
-    const done = h("input", { type: "checkbox", checked: saved.manual_done });
-    const copyButton = h("button", { class: "btn", type: "button", onclick: () => copy(preview.textContent, output) }, "Copy chosen fix");
-    const update = () => {
-      const pick = choices[Number(select.value)];
-      preview.textContent = select.value === "original" ? (finding.current_text || finding.evidence) : pick?.text || "Choose a suggested version to preview and copy it.";
-      copyButton.disabled = ["open", "original"].includes(select.value);
-      reason.hidden = select.value !== "original";
-    };
-    const persist = async () => {
-      const action = select.value === "original" ? (reason.value.trim() ? "keep" : "original") : select.value === "open" ? "open" : "pick";
-      return save(finding, { action, picked_text: action === "pick" ? choices[Number(select.value)]?.text || null : null, reason: reason.value, manual_done: done.checked }, output);
-    };
-    select.onchange = () => { update(); persist(); };
-    done.onchange = persist;
-    reason.onchange = persist;
-    update();
-    const askInput = h("textarea", { "aria-label": `Question about ${finding.headline}`, placeholder: "Ask why this matters or how to improve it." });
-    const askOutput = h("p", { role: "status" });
-    const askButton = h("button", { type: "button", class: "btn", onclick: async () => {
-      if (!askInput.value.trim()) { askOutput.textContent = "Type a question first."; return; }
-      askButton.disabled = true;
-      askOutput.textContent = "Asking the coach…";
+  function refreshDecisions() {
+    window.SC.workspaceDetail = detail;
+    mount($('fix-list'), window.SC.renderIssueList(detail));
+    mount($('change-sheet'), window.SC.renderChangeSheet(detail));
+    const count = window.SC.issueCounts(detail).chosen;
+    $('copy-all').textContent = `Copy all changes (${count})`;
+    $('copy-all').disabled = count === 0;
+    const kept = window.SC.issueCounts(detail).kept;
+    message('decision-verdict', kept ? `${kept} kept on purpose · accepted risk, not verified fixes.` : '');
+  }
+  function revealRecheck() {
+    $('recheck-details').open = true;
+    $('survey-link').value ||= detail.source_url || detail.snapshot.source_url || '';
+    $('recheck-panel').scrollIntoView({block:'center', behavior:'smooth'});
+    $('survey-link').focus({preventScroll:true});
+  }
+  function titleEditor() {
+    const title = $('review-title'), input = h('input', {type:'text', maxlength:200, 'aria-label':'Survey title'});
+    const edit = h('button', {type:'button', class:'title-edit', onclick:() => {
+      input.value = detail.title; form.hidden = false; edit.hidden = true; input.focus();
+    }}, 'Rename');
+    const status = h('span', {role:'status'});
+    const form = h('form', {class:'title-form', hidden:true, onsubmit:async event => {
+      event.preventDefault();
+      if (!input.value.trim()) { status.textContent = 'Enter a title.'; return; }
+      const button = form.querySelector('button[type=submit]'); button.disabled = true;
       try {
-        const answer = await api(`${endpoint()}/ask`, "POST", { fingerprint: finding.fingerprint, question: askInput.value });
-        askOutput.textContent = `${answer.answer}\n${answer.warning}`;
-      } catch (error) { askOutput.textContent = error.message; }
-      finally { askButton.disabled = false; }
-    } }, "Ask the coach");
-    const question = detail.snapshot.pages.flatMap((p) => p.questions).find((q) => q.id === finding.question_id);
-    return h("article", { class: "fix-card" },
-      h("p", { class: "meta" }, `${finding.severity === "must_fix" ? "Must fix" : "Worth improving"} · ${finding.source === "ai" ? "AI—check before use" : "Local check"} · ${finding.criterion_id}`),
-      h("h3", null, finding.headline),
-      h('button', {type:'button',class:'finding-context',onclick:()=>window.dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:finding.fingerprint}))}, 'See on the phone →'),
-      h("blockquote", null, finding.evidence),
-      h("p", null, finding.explanation), h("p", null, finding.member_impact),
-      question && h("details", null, h("summary", null, "See the original question and answer choices"), h("p", null, question.text), h("ul", null, question.options.map((o) => h("li", null, o.label)))),
-      h("label", null, choices.length ? "Which version do you want?" : "Decision on this finding", select),
-      choices.length ? preview : h("p", { class: "note" }, "Action required · No ready-to-use rewrite. Follow the guidance above and verify the result in RedJade."), reason,
-      h("div", { class: "actions" }, choices.length ? copyButton : null, h("label", { class: "check" }, done, "I made this change in RedJade (not verified yet)")), output,
-      h("details", null, h("summary", null, "Ask about this finding"), h("p", null, "Uses Wibey AI and sends survey wording. Check its answer before use."), askInput, askButton, askOutput));
-  }
-  async function changes() {
-    if (detail.version < 2) return;
-    const previous = await api(`/api/surveys/${encodeURIComponent(surveyId)}/versions/${detail.version - 1}`);
-    const oldFindings = previous.review?.findings || [], current = detail.review.findings;
-    const key = (f) => `${f.criterion_id}:${f.page_id || ""}:${f.question_id || ""}`;
-    const unchecked = !detail.review.ai || detail.review.unchecked.length || Object.keys(detail.review.ai.failed).length;
-    const disappeared = oldFindings.filter((f) => !current.some((n) => key(n) === key(f)));
-    const newCount = current.filter((f) => !oldFindings.some((n) => key(n) === key(f))).length;
-    mount($("version-changes"), h("h2", null, "Since the previous version"),
-      h("p", null, `${newCount} newly flagged. ${current.length - newCount} still flagged. ${disappeared.length} previously flagged locations are no longer flagged.`),
-      h("p", null, unchecked ? "Some checks are incomplete. Not flagged does not mean verified resolved." : "Review changed wording and advice before deciding a problem is resolved."));
+        await api(`/api/surveys/${encodeURIComponent(surveyId)}`, 'PATCH', {title:input.value.trim()});
+        detail.title = input.value.trim(); title.textContent = detail.title;
+        form.hidden = true; edit.hidden = false; status.textContent = 'Title saved.';
+      } catch (error) { status.textContent = error.message; }
+      finally { button.disabled = false; }
+    }}, input, h('button', {type:'submit', class:'btn'}, 'Save title'),
+      h('button', {type:'button', class:'btn', onclick:() => { form.hidden = true; edit.hidden = false; }}, 'Cancel'));
+    mount($('title-tools'), edit, form, status);
   }
   async function review() {
-    detail = await api(params.get("version") ? `${endpoint(Number(params.get("version")))}` : `/api/surveys/${encodeURIComponent(surveyId)}`);
-    message("review-title", detail.title);
-    if (detail.job && ["queued", "running"].includes(detail.job.status)) {
-      await waitForJob(detail.job.id, "review-status");
-      return review();
+    detail = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
+    detail.decisions ||= {};
+    message('review-title', detail.title);
+    if (detail.job && ['queued', 'running'].includes(detail.job.status)) {
+      await waitForJob(detail.job.id, 'review-status'); return review();
     }
-    if (!detail.review) { message("review-status", detail.job?.error || "No completed review. Try checking again below."); return; }
-    const r = detail.review, c = r.scorecard;
-    message("review-status", `Version ${detail.version} · Saved on this computer. You make all changes in RedJade.`);
-    const versions = h("select", { "aria-label": "Review version", onchange: (e) => { location.href = `review.html?id=${encodeURIComponent(surveyId)}&version=${e.target.value}`; } },
-      detail.versions.map((v) => h("option", { value: v.version, selected: v.version === detail.version }, `Version ${v.version}`)));
-    const copyStatus = h("p", { role: "status" });
-    mount($("review-toolbar"),
-      h("a", { href: `${endpoint()}/summary`, target: "_blank", rel: "noopener" }, "Export review report"), versions,
-      h("button", { type: "button", class: "btn", onclick: () => {
-        const text = r.findings.flatMap((f) => { const d = detail.decisions[f.fingerprint]; return d?.action === "pick" ? [`${f.question_id || f.page_id || "Survey"}: ${f.headline}\n${d.picked_text}`] : []; }).join("\n\n");
-        if (!text) { copyStatus.textContent = "Choose at least one suggested fix first. Original choices are not copied."; return; }
-        copy(text, copyStatus);
-      } }, "Copy all chosen fixes"), copyStatus);
-    const failed = Object.keys(r.ai?.failed || {});
-    const coverage = detail.coverage;
-    mount($("review-summary"), h("h2", null, c.readiness === "needs_work" ? "Fix the must-fix issues before launch." : c.readiness === "ready" ? "No launch blockers found in the checks run." : "Review incomplete or improvements remain."),
-      h("p", null, `${r.findings.filter((f) => f.severity === "must_fix").length} must fix · ${r.findings.filter((f) => f.severity !== "must_fix").length} worth improving · about ${r.est_minutes} minutes for members`),
-      h("p", null, `${Math.round(c.score - c.unchecked_points)} of ${100 - c.unchecked_points} checked points earned. ${c.unchecked_points} points not checked.`),
-      h("p", null, !r.ai ? "AI checks have not run." : failed.length ? `AI could not check: ${failed.join(", ")}.` : "AI review completed. Its advice still needs your judgment."),
-      failed.length > 0 && h("ul", { role: "status" }, [...new Set(Object.values(r.ai.failed))].map((reason) => h("li", null, reason))),
-      r.unchecked.length > 0 && h("details", null, h("summary", null, "Checks not completed"), h("ul", null, r.unchecked.map((name) => h("li", null, name)))),
-      coverage && h("details", { open: true }, h("summary", null, `Read coverage: ${coverage.pages_captured} pages captured`), h("p", null, `Reader stopped: ${coverage.stop_reason}. This does not establish full branching coverage.`), h("ul", null, coverage.warnings.map((warning) => h("li", null, warning))),
-        h("p", null, "Actual captured screens (only the pages the reader visited):"),
-        Array.from({ length: coverage.pages_captured }, (_, index) => h("a", { href: `${endpoint()}/captures/${index}`, target: "_blank", rel: "noopener" }, `Open captured screen ${index + 1} `))),
-      h("p", null, "You are responsible for the final launch decision. A snapshot preview is not a verified replica of RedJade."));
-    const groups = new Map();
-    r.findings.forEach((f) => { const place = f.question_id || f.page_id || "Survey-wide"; if (!groups.has(place)) groups.set(place, []); groups.get(place).push(f); });
-    mount($("fix-list"), groups.size ? [...groups].map(([place, findings]) => h("section", { class: "fix-group" }, h("h3", null, place), findings.map(fixCard))) : h("p", null, "No findings in the checks run. Review the unchecked items above."));
-    window.SC.loadWorkspace?.(detail);
-    await changes();
+    if (!detail.review) { message('review-status', detail.job?.error || 'No completed review. Try checking again below.'); return; }
+    message('review-status', `Round ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
+    titleEditor(); renderSummary(); refreshDecisions();
+    mount($('version-changes'), window.SC.renderRounds(detail, surveyId));
+    $('survey-link').value = detail.source_url || detail.snapshot.source_url || '';
+    $('check-again').onclick = revealRecheck;
+    $('sign-off').href = `${endpoint()}/summary`;
+    $('copy-all').onclick = () => copy(window.SC.changeSheetText(detail), $('action-status'));
+    window.SC.loadWorkspace(detail);
   }
   window.addEventListener('surveycoach-choice-saved', event => {
+    if (!detail || event.detail.version !== detail.version) return;
     detail.decisions = event.detail.decisions;
-    // Refresh checklist from the same saved state without replacing the phone workspace.
-    const groups = new Map();
-    detail.review.findings.forEach(f => { const place = f.question_id || f.page_id || 'Survey-wide'; if (!groups.has(place)) groups.set(place, []); groups.get(place).push(f); });
-    mount($('fix-list'), [...groups].map(([place, findings]) => h('section', {class:'fix-group'}, h('h3', null, place), findings.map(fixCard))));
+    refreshDecisions();
   });
   $("sample-start")?.addEventListener("click", async () => {
     $("sample-start").disabled = true;

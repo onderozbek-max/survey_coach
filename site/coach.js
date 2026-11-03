@@ -1,136 +1,93 @@
 (() => {
-  "use strict";
-  const SC = window.SC;
-  const { h, plural } = SC;
+  'use strict';
+  const SC = window.SC, {h} = SC;
+  const reasons = ['Required wording', 'Keep comparable to earlier research', 'Intentional research design', 'Not relevant here'];
 
-  function chips(entry, ctx) {
-    const { f, n } = entry, criterion = ctx.data.criteria[f.criterion_id] || {};
-    const area = ctx.data.dimensions[criterion.dimension];   // blockers have no area; "Must fix" already says it
-    return h("div", { class: "chips" },
-      h("span", { class: "badge-n" }, String(n)),
-      f.source === "ai" && h("span", { class: "chip ai" }, "AI"),      // who said it comes first: an AI claim is never mistaken for a rule
-      h("span", { class: `chip ${f.severity}` }, SC.SEVERITY[f.severity]),
-      area && h("span", { class: "chip area" }, area),
-      (f.structural || ctx.offscreen(entry)) && h("span", { class: "chip warn" }, "Not previewed"),
-      ctx.blocked(entry) && h("span", { class: "chip warn" }, "Not shown in preview"),
-      ctx.applied(entry) && h("span", { class: "chip good" }, SC.workspaceDetail ? "Rewrite previewed" : "Fixed in preview"));
-  }
-
-  /** Word-level before/after: only the words that change are marked, so nobody has to compare two sentences. */
-  function diffParts(before, after) {
-    const a = before.split(" "), b = after.split(" ");
-    let head = 0;
-    while (head < a.length && head < b.length && a[head] === b[head]) head += 1;
-    let tail = 0;
-    while (tail < a.length - head && tail < b.length - head && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail += 1;
-    const join = (words) => words.join(" ");
-    return { head: join(a.slice(0, head)), cut: join(a.slice(head, a.length - tail)), add: join(b.slice(head, b.length - tail)), tail: join(a.slice(a.length - tail)) };
-  }
-
-  const spaced = (...parts) => parts.filter(Boolean).flatMap((p, i) => (i ? [" ", p] : [p]));
-
-  /** A bundle is the question on its first line and one answer choice per line; show the stem bold and the choices compact. */
-  const bundle = (text) => {
-    const [stem, ...choices] = text.split("\n");
-    return [h("span", { class: "stem" }, stem), choices.length ? h("span", { class: "choices" }, choices.join(" \u00b7 ")) : null];
+  /** The only decision form: recommended previews never become saved picks implicitly. */
+  SC.renderIssueCard = (entry, ctx) => {
+    const {f, key, n} = entry, choices = SC.choicesOf(f);
+    const saved = ctx.decisionOf?.(key) || SC.issueDecision?.(f);
+    const picked = ctx.choiceOf(key);
+    const output = h('p', {class:'issue-save-status note', role:'status', 'aria-live':'polite'});
+    const reason = h('textarea', {'aria-label':`Reason for keeping ${f.headline}`, rows:2,
+      placeholder:'Why keep it? Acknowledge the trade-off.'});
+    reason.value = saved?.reason || '';
+    const keepPanel = h('div', {class:'keep-reason', hidden:!['keep', 'original'].includes(saved?.action)},
+      h('p', {class:'note'}, 'Keeping this acknowledges the risk; it does not verify a fix.'),
+      h('div', {class:'reason-chips'}, reasons.map(text => h('button', {type:'button', class:'reason-chip',
+        onclick:() => { reason.value = text; reason.focus(); }}, text))), reason);
+    let busy = false;
+    const act = async (value, metadata, text) => {
+      if (busy) return;
+      busy = true;
+      const buttons = [...article.querySelectorAll('button')];
+      buttons.forEach(b => { b.disabled = true; });
+      output.textContent = 'Saving…';
+      let revision;
+      try {
+        const request = ctx.onChoose(key, value, metadata.reason);
+        revision = SC.decisionRevisions?.get(f.fingerprint);
+        const result = await request;
+        if (revision !== SC.decisionRevisions?.get(f.fingerprint)) return;
+        if (result === false) throw new Error('Your decision could not be saved. Try again.');
+        // app may rerender the card while the request is in flight. Always report to the current card.
+        const live = document.getElementById(`card-${key}`)?.querySelector('.issue-save-status') || output;
+        live.textContent = SC.workspaceDetail ? 'Decision saved. Not verified in RedJade.' : 'Choice recorded for this preview.';
+        if (text) await ctx.onCopy(text, live);
+      } catch (error) {
+        if (revision !== SC.decisionRevisions?.get(f.fingerprint)) return;
+        const live = document.getElementById(`card-${key}`)?.querySelector('.issue-save-status') || output;
+        live.textContent = error.message || 'Not saved. Try again.';
+      } finally { busy = false; buttons.forEach(b => { b.disabled = false; }); }
+    };
+    keepPanel.append(h('button', {type:'button', class:'btn', 'data-fk':`keep-save-${key}`, onclick:() => {
+      if (!reason.value.trim()) { output.textContent = 'Add a reason to keep this on purpose.'; reason.focus(); return; }
+      act('original', {action:'keep', reason:reason.value.trim()});
+    }}, 'Save reason & keep mine'));
+    const tier = SC.issueTier?.(f), location = SC.workspaceDetail && SC.issueLocation(f, SC.workspaceDetail.snapshot);
+    const article = h('article', {class:`card ${f.severity}${ctx.selected === key ? ' selected' : ''}`, id:`card-${key}`},
+      h('div', {class:'chips'}, h('span', {class:'badge-n'}, String(n)),
+        h('span', {class:`chip ${f.severity}`}, SC.ISSUE_TIERS?.[tier] || SC.SEVERITY[f.severity]),
+        location && h('span', {class:'chip area'}, location.label),
+        f.source === 'ai' && h('span', {class:'chip ai'}, 'AI · review the advice')),
+      h('h3', null, h('button', {type:'button', class:'card-head', 'data-fk':`card-${key}`,
+        'aria-pressed':String(ctx.selected === key), onclick:() => ctx.onSelect(key)}, f.headline)),
+      saved?.carried_from_round && h('p', {class:'note'}, `Choice carried from Round ${saved.carried_from_round}. Still flagged; review it in this round’s context.`),
+      h('p', {class:'why'}, f.member_impact), h('p', {class:'fix'}, f.explanation),
+      f.current_text && h('div', {class:'issue-original'}, h('strong', null, 'Original'), h('blockquote', null, ctx.originalOf?.(entry) || f.current_text)),
+      choices.length ? h('div', {class:'issue-rewrites'}, choices.map((choice, index) => h('section', {class:'issue-rewrite'},
+        h('h4', null, choices.length > 1 ? `Rewrite ${index + 1}` : 'Rewrite'),
+        h('blockquote', null, choice.text),
+        h('button', {type:'button', class:'btn', 'data-fk':`use-${key}-${choice.value}`,
+          'aria-label':choices.length > 1 ? `Use this rewrite ${index + 1}` : 'Use this',
+          onclick:() => act(choice.value, {action:'pick', reason:''}, choice.text)},
+        saved?.action === 'pick' && saved.picked_text === choice.text ? 'Use this · chosen' : 'Use this'))))
+        : h('p', {class:'note'}, 'No text rewrite for this issue. Make the change in RedJade using the guidance above, then check again.'),
+      !saved && (!picked || picked === 'open') && choices.length > 0 && h('p', {class:'note'}, 'Rewritten previews recommended wording only. Nothing is accepted until you choose Use this.'),
+      h('button', {type:'button', class:'btn keep-mine', 'data-fk':`keep-${key}`,
+        'aria-expanded':String(!keepPanel.hidden), onclick:event => {
+          keepPanel.hidden = !keepPanel.hidden; event.currentTarget.setAttribute('aria-expanded', String(!keepPanel.hidden));
+          if (!keepPanel.hidden) reason.focus();
+        }}, 'Keep mine'), keepPanel,
+      SC.acceptedRisk?.(f) && h('p', {class:'accepted-risk'}, `Kept on purpose: ${saved.reason} · accepted risk, not a verified fix.`), output);
+    return article;
   };
 
-  /** "Which version is better?": the researcher's pick drives the phone preview and what gets copied. */
-  function choiceBlock(entry, ctx) {
-    const { f, key, n } = entry, choices = SC.choicesOf(f), picked = ctx.choiceOf(key) || choices[0].value;
-    const chosen = SC.chosenChoice(f, picked === 'open' ? undefined : picked), msg = h("p", { class: "note", role: "status" });
-    const markable = f.current_text && !f.structural;     // a bundle of answer choices is shown whole, not word-diffed
-    const radio = (value, label, body) => h("label", { class: `opt${picked === value ? " on" : ""}` },
-      h("input", { type: "radio", name: `choice-${key}`, value, checked: picked === value, "data-fk": `opt-${key}-${value}`, onchange: () => ctx.onChoose(key, value) }),
-      h("span", { class: "opt-body" }, h("span", { class: "opt-label" }, label), h("span", { class: "opt-text" }, body)));
-    const alone = choices.length === 1 && markable ? diffParts(f.current_text, choices[0].text) : null;
-    const original = alone ? spaced(alone.head, alone.cut && h("del", null, alone.cut), alone.tail)
-      : f.structural && f.current_text ? bundle(ctx.originalOf(entry)) : f.current_text || "Nothing added";
-    const version = (c) => {
-      if (f.structural) return bundle(c.text);
-      if (!markable) return c.text;
-      const d = diffParts(f.current_text, c.text);
-      return spaced(d.head, d.add && h("ins", null, d.add), d.tail);
-    };
-    const note = f.structural ? "This changes answer choices, so it is not drawn on the phone. Copy it and paste it into RedJade yourself."
-      : ctx.offscreen(entry) ? "This text is not on a phone screen (the survey title, for example), so it cannot be previewed. Copy it into RedJade yourself."
-      : picked === "original" ? "Your original stays in the preview until you choose a rewrite."
-        : ctx.blocked(entry) ? "Another fix already changes this text in the preview, so this one is not shown."
-          : "Shown on the phone under With fixes.";
-    return h("fieldset", { class: `choice${f.structural ? " pre" : ""}` },
-      h("legend", null, "Which version is better?"),
-      f.source === "ai" && h("p", { class: "ai-note" }, "AI-written. Check it before you use it."),
-      picked === "open" && h("p", {class:"note"}, "Recommended wording is previewed under With fixes. No decision has been saved."),
-      radio("original", f.current_text ? "Your original" : "Leave as is", original),
-      choices.map((c) => radio(c.value, c.label, version(c))),
-      h("div", { class: "actions" },
-        h("button", { type: "button", class: "btn", disabled: !chosen, "data-fk": `copy-${key}`, "aria-label": `Copy suggested text for issue ${n}`, onclick: () => chosen && ctx.onCopy(chosen.text, msg) }, "Copy suggested text"),
-        h("span", { class: "note" }, note)),
-      msg);
-  }
-
-  function card(entry, ctx) {
-    const { f, key } = entry, selected = ctx.selected === key;
-    return h("article", { class: `card ${f.severity}${selected ? " selected" : ""}`, id: `card-${key}` },
-      chips(entry, ctx),
-      h("h3", null, h("button", { type: "button", class: "card-head", "data-fk": `card-${key}`, "aria-pressed": String(selected), onclick: () => ctx.onSelect(key) }, f.headline)),
-      h("p", { class: "why" }, f.member_impact),
-      h("p", { class: "fix" }, h("strong", null, SC.choicesOf(f).length ? "How to fix: " : "Action required: "), f.explanation),
-      SC.choicesOf(f).length ? choiceBlock(entry, ctx) : h("p", {class:"note"}, "No ready-to-use rewrite. Review the guidance above; no text change is applied in the preview."));
-  }
-
-  function areaRow(id, d, ctx) {
-    const unchecked = Object.values(ctx.data.criteria)
-      .filter((c) => c.dimension === id && ctx.review.unchecked.includes(c.title)).reduce((sum, c) => sum + c.points, 0);
-    const checked = d.possible - unchecked, earned = d.earned - unchecked, pct = (x) => `${(x / d.possible) * 100}%`;
-    return h("li", null, h("span", null, d.name),
-      h("span", { class: "bar", "aria-hidden": "true" },
-        h("i", { class: "got", style: `width:${pct(earned)}` }), h("i", { class: "lost", style: `width:${pct(checked - earned)}` }),
-        h("i", { class: "wait", style: `width:${pct(unchecked)}` })),
-      h("span", { class: "num" }, checked ? `${earned.toFixed(1)} of ${checked} checked` : "Not checked yet", unchecked && checked ? `, ${unchecked} waiting` : ""));
-  }
-
-  /** What the AI step did and did not do, in plain words, so nothing unchecked reads as checked. */
-  function aiDetails(ctx) {
-    const ai = ctx.review.ai, titles = ctx.data.ai_batches, failed = Object.entries(ai.failed);
-    return h("details", null, h("summary", null, "About the AI check"),
-      h("ul", { class: "plain" },
-        h("li", null, `Judge: ${ai.model}. For these sample surveys its answers were saved and reviewed by a person; this page replays them.`),
-        h("li", null, `Checked ${ai.checked.length} of ${ai.checked.length + failed.length} parts: ${ai.checked.map((id) => titles[id]).join(", ") || "none"}.`),
-        failed.map(([id, why]) => h("li", null, `Could not check ${titles[id]}: ${why}`)),
-        h("li", null, ai.dropped.length ? `Ignored ${plural(ai.dropped.length, "claim")} the survey did not back up. Points are only lost where a finding quotes the survey.` : "Every AI finding quotes the survey word for word. None had to be discarded."),
-        ai.merged.length ? h("li", null, `Merged ${plural(ai.merged.length, "overlap")} so each piece of text has one rewrite and each problem appears once.`) : null,
-        h("li", null, "AI findings are marked AI. You decide what to change; nothing is edited in RedJade for you.")));
-  }
-
-  function report(ctx) {
-    const { scorecard, unchecked, ai } = ctx.review;
-    return h("section", { class: "report", "aria-labelledby": "report-h" },
-      h("h2", { id: "report-h" }, "Report"),
-      h("details", null, h("summary", null, "Score by area"),
-        h("ul", { class: "areas" }, Object.entries(scorecard.by_dimension).map(([id, d]) => areaRow(id, d, ctx))),
-        h("p", { class: "legend" }, h("i", { class: "got" }), " earned ", h("i", { class: "lost" }), " lost ", h("i", { class: "wait" }), " not checked yet")),
-      ai ? aiDetails(ctx) : null,
-      unchecked.length ? h("details", { open: true }, h("summary", null, ai ? `Not checked yet (${plural(unchecked.length, "check")})` : `Waiting on the AI step (${plural(unchecked.length, "check")})`),
-        h("ul", { class: "plain" }, unchecked.map((title) => h("li", null, title)))) : null,
-      h("details", null, h("summary", null, "What is working"),
-        h("ul", { class: "plain" }, (scorecard.strengths.length ? scorecard.strengths : ["Nothing confirmed yet."]).map((s) => h("li", null, s)))));
-  }
-
   SC.renderCoach = (item, ctx) => {
-    const n = item.entries.length;
-    const sub = n
-      ? `${plural(n, "thing")} to look at ${item.page ? "on this screen" : "across the whole survey"}.`
-      : ctx.review.ai ? "Nothing flagged on this screen."
-        : "No issues found here. The AI step has not run yet, so tone and leading wording are not checked.";
-    if (SC.workspaceDetail) {
-      return [h('div', {class:'section-kicker'}, h('span', null, '03 / REFINE'),
-        h('h2', {id:'coach-h',tabindex:'-1'}, 'Make this screen better.'), h('p', null, sub)),
-        n ? item.entries.map(e => card(e, ctx)) : h('div', {class:'screen-clear'},
-          h('span', {class:'clear-symbol', 'aria-hidden':'true'}, ''), h('h3', null, 'A clear moment.'),
-          h('p', null, 'Nothing flagged here in the checks run. Keep walking through the survey; unvisited paths remain unverified.')),
-        h('p', {class:'coach-footnote'}, 'Your choices update this preview only. Copy the wording you choose into RedJade, then check again.')];
-    }
-    return [h("h2", { id: "coach-h" }, "Coach"), h("p", { class: "sub" }, sub), item.entries.map((e) => card(e, ctx)), report(ctx)];
+    const entries = item.entries, selected = entries.find(e => e.key === ctx.selected) || entries[0];
+    const all = ctx.review.findings;
+    const currentIndex = selected ? all.indexOf(selected.f) : -1;
+    const next = all.length > 1 ? all[(currentIndex + 1) % all.length] : null;
+    return [h('div', {class:'section-kicker'}, h('h2', {id:'coach-h', tabindex:'-1'}, 'Make this screen better'),
+      h('p', null, entries.length ? `${entries.length} ${entries.length === 1 ? 'issue' : 'issues'} on this screen.` : 'Nothing flagged here in the checks run.')),
+      // One active decision card keeps the phone and decision in the same context.
+      entries.length > 1 && h('nav', {class:'screen-issue-nav', 'aria-label':'Issues on this screen'}, entries.map(e =>
+        h('button', {type:'button', 'aria-current':e === selected ? 'true' : false, onclick:() => ctx.onSelect(e.key)}, `${e.n}. ${e.f.headline}`))),
+      selected ? SC.renderIssueCard(selected, ctx) : h('p', {class:'screen-clear'}, 'Keep walking through the survey. Unvisited paths remain unverified.'),
+      next && h('button', {type:'button', class:'btn next-issue', onclick:() => {
+        if (next.fingerprint) window.dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:next.fingerprint}));
+        else ctx.onSelect(all.indexOf(next));
+      }}, 'Next issue →'),
+      h('p', {class:'coach-footnote'}, 'Copy chosen wording into RedJade yourself. Check again to compare the next round; choosing or copying is not verification.')];
   };
 })();

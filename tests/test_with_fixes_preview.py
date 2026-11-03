@@ -9,27 +9,35 @@ def test_preview_changes_immediately_without_writes_and_can_restore_original(bro
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('.phone-screen').wait_for()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    card = page.locator('.fix-card').filter(has_text='desktop word').first
-    card.get_by_role('button', name='See on the phone', exact=False).click()
+    page.locator('#issues-view > summary').click()
+    pattern = page.locator('.issue-pattern').filter(has_text='desktop word')
+    if pattern.count() and not pattern.evaluate('(e) => e.open'):
+        pattern.locator(':scope > summary').click()
+    page.locator('.issue-jump').filter(has_text='desktop word').first.click()
     before = page.locator('.phone-screen').inner_text()
     writes = []
     page.on('request', lambda request: writes.append(request.url) if request.method == 'PUT' else None)
-    page.get_by_role('button', name='With fixes', exact=True).click()
+    page.get_by_role('button', name='Rewritten', exact=True).click()
     assert page.locator('.phone-screen').inner_text() != before
     assert 'Tap the one you like best.' in page.locator('.phone-screen').inner_text()
     assert 'not accepted or saved' in page.locator('.preview-effect').inner_text()
     assert not writes
-    page.get_by_role('button', name='Current', exact=True).click()
+    page.get_by_role('button', name='Original', exact=True).click()
     assert page.locator('.phone-screen').inner_text() == before
-    coach = page.locator('.card').filter(has_text='desktop word').first
-    coach.get_by_text('Your original', exact=True).click()
-    page.wait_for_timeout(100)
-    assert page.get_by_role('button', name='With fixes', exact=True).is_disabled()
+    page.get_by_role('button', name='Keep mine', exact=True).click()
+    page.get_by_role('button', name='Required wording', exact=True).click()
+    page.get_by_role('button', name='Save reason & keep mine').click()
+    page.locator('.accepted-risk').wait_for()
+    assert writes
+    assert page.get_by_role('button', name='Rewritten', exact=True).is_disabled()
     assert page.locator('.phone-screen').inner_text() == before
     page.reload()
     page.locator('.phone-screen').wait_for()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    card = page.locator('.fix-card').filter(has_text='desktop word').first
-    assert card.locator('select').input_value() == 'original'
+    page.locator('#issues-view > summary').click()
+    pattern = page.locator('.issue-pattern').filter(has_text='desktop word')
+    if pattern.count() and not pattern.evaluate('(e) => e.open'):
+        pattern.locator(':scope > summary').click()
+    page.locator('.issue-jump').filter(has_text='desktop word').first.click()
+    assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
+    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
     page.close()

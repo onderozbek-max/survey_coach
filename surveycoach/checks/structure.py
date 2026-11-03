@@ -15,7 +15,6 @@ REWARD_WORDS = re.compile(r"\b(points?|rewards?|earn(?:ed|ing)?|gift ?cards?|\$\
 THANKS = re.compile(r"\bthank", re.I)
 MINUTES_PHRASE = re.compile(
     r"(?:about\s+)?\d+(?:\.\d+)?\s*(?:(?:-|\u2013|to)\s*\d+(?:\.\d+)?\s*)?(?:minutes?|mins?)\b", re.I)
-REWARD_SENTENCE = "[Say what members get for finishing.]"   # a placeholder: only the researcher knows the reward
 FORMAT_FAMILY = {
     "single_choice": "single choice", "dropdown": "single choice", "multi_choice": "multiple choice",
     "rating": "rating", "text_short": "open text", "text_long": "open text", "image_choice": "image choice",
@@ -28,12 +27,12 @@ def _minutes_said(minutes: float) -> str:
 
 
 def fixed_intro(intro: str, minutes: float, *, fix_time: bool, add_reward: bool) -> str:
-    """The intro rewritten with the true time and a reward line, ready to paste."""
+    """Correct estimated time only; add_reward stays for compatibility, never invented."""
     text = intro.strip()
     if fix_time:
         said = _minutes_said(minutes)
         text = MINUTES_PHRASE.sub(said, text, count=1) if MINUTES_PHRASE.search(text) else f"{text} This takes {said}."
-    return f"{text} {REWARD_SENTENCE}" if add_reward else text
+    return text
 
 
 def _promise_broken(promised: float, estimated: float) -> bool:
@@ -46,7 +45,7 @@ def _promise_overrun(promised: float, estimated: float) -> bool:
 
 def _intro_page_id(ctx: ReviewContext) -> str | None:
     pages = ctx.snapshot.pages
-    return pages[0].id if pages and pages[0].kind == "intro" else None
+    return pages[0].id if pages and ctx.snapshot.page_role(pages[0]) == "intro" else None
 
 
 def _question_pages(ctx: ReviewContext) -> list[Page]:
@@ -60,18 +59,19 @@ def _real_questions(ctx: ReviewContext):
 @check("B4")
 def no_intro(ctx: ReviewContext) -> CheckResult:
     pages = ctx.snapshot.pages
-    if pages and pages[0].kind == "intro":
+    if pages and ctx.snapshot.page_role(pages[0]) == "intro":
         return blocker_ok("B4")
     return result("B4", None, finding(
         "B4", "must_fix", "Survey opens with no welcome page", "The survey opens straight into questions.",
-        "Add a short welcome page before the first question: why we're asking, how long it takes, and the reward.",
-        "Members don't know why they're here or what they get, so more of them leave.",
-        suggested_text=f"Thanks for helping! This takes {_minutes_said(ctx.timing.minutes)}. {REWARD_SENTENCE}"))
+        "Add a short welcome before the first question. State the known purpose and a verified time estimate.",
+        "A welcome helps members understand what they are being asked to do."))
 
 
 @check("B5")
 def broken_time_promise(ctx: ReviewContext) -> CheckResult:
     promised, estimated = ctx.promised_minutes, ctx.timing.minutes
+    if not ctx.timing.calibrated or ctx.timing.path_uncertain:
+        return CheckResult(criterion_id="B5", assessed=False)
     if promised is None or not _promise_broken(promised, estimated):
         return blocker_ok("B5")
     intro = ctx.snapshot.intro_text
@@ -94,7 +94,7 @@ def late_screen_out(ctx: ReviewContext) -> CheckResult:
     findings = []
     for index, page in _screen_out_pages(ctx):
         effort = ctx.timing.pages[index - 1].cumulative_seconds if index > 0 else 0
-        if effort > SCREEN_OUT_EFFORT_SECONDS:
+        if ctx.timing.calibrated and not ctx.timing.path_uncertain and effort > SCREEN_OUT_EFFORT_SECONDS:
             findings.append(finding(
                 "B3", "must_fix", f"Members are screened out after about {effort / 60:.0f} min of effort",
                 f"Members can be screened out after about {effort / 60:.0f} minutes of effort.",
@@ -117,11 +117,13 @@ def late_screen_out(ctx: ReviewContext) -> CheckResult:
 def time_and_reward(ctx: ReviewContext) -> CheckResult:
     intro, promised, estimated = ctx.snapshot.intro_text, ctx.promised_minutes, ctx.timing.minutes
     no_time = promised is None
+    if ctx.timing.path_uncertain:
+        return result("1.4", None)
     overrun = promised is not None and _promise_overrun(promised, estimated)
     no_reward = not REWARD_WORDS.search(intro)
     fraction = ((not no_time and not overrun) + (not no_reward)) / 2
     # B5 reports a badly broken promise; here only the smaller overruns, so nothing is said twice.
-    wrong_time = overrun and not _promise_broken(promised, estimated)
+    wrong_time = overrun and (not ctx.timing.calibrated or not _promise_broken(promised, estimated))
     parts, details = [], []
     if no_time:
         parts.append("doesn't say how long it takes")
@@ -130,21 +132,25 @@ def time_and_reward(ctx: ReviewContext) -> CheckResult:
         parts.append(f"says {promised:g} min but it takes about {max(1, round(estimated))}")
         details.append(f"The intro promises {promised:g} minutes; we estimate about {estimated:g}.")
     if no_reward:
-        parts.append("skips the reward")
-        details.append("The intro doesn't mention the reward.")
+        parts.append("has no confirmed reward details")
+        details.append("No reward terms are stated; whether a reward applies is unknown.")
     if not parts:
         return result("1.4", fraction)
     return result("1.4", fraction, finding(
         "1.4", "worth_improving", "Intro " + " and ".join(parts), " ".join(details),
-        "Say the true time and what members get, so they can decide to start. The suggested intro does both.",
-        "Members decide whether to start from the time and reward; a wrong time breaks trust.",
+        "Verify the estimated time with a timed run. If a reward applies, state its confirmed terms separately; "
+        "no reward details were supplied. The rewrite changes only the estimated time.",
+        "Clear time expectations and confirmed reward terms, when applicable, help members decide whether to start.",
         page_id=_intro_page_id(ctx), current_text=intro or None,
-        suggested_text=fixed_intro(intro, estimated, fix_time=no_time or wrong_time, add_reward=no_reward),
+        suggested_text=(fixed_intro(intro, estimated, fix_time=True, add_reward=False)
+                        if no_time or wrong_time else None),
         highlight=(MINUTES_PHRASE.search(intro) or [None])[0] if wrong_time else None))
 
 
 @check("2.1")
 def length_fits_type(ctx: ReviewContext) -> CheckResult:
+    if ctx.timing.path_uncertain:
+        return result("2.1", None)
     full, partial = ctx.rubric.length_targets_minutes[ctx.snapshot.survey_type]
     minutes, count = ctx.timing.minutes, len(_real_questions(ctx))
     if minutes <= full:
@@ -208,6 +214,13 @@ def room_to_speak(ctx: ReviewContext) -> CheckResult:
     tail = [q for p in _question_pages(ctx)[-2:] for q in p.questions]
     if any(q.kind in OPEN_TEXT and not q.required for q in tail):
         return passed("8.6")
+    existing = next((q for q in reversed(tail) if q.kind in OPEN_TEXT), None)
+    if existing:
+        return result("8.6", 0.0, finding(
+            "8.6", "worth_improving", "Make the final comment optional", existing.text,
+            "Make this existing comment question optional; keep one place for members to speak freely.",
+            "Members should be able to finish without writing a comment.",
+            question_id=existing.id, current_text=existing.text))
     return result("8.6", 0.0, finding(
         "8.6", "worth_improving", "No optional comment box near the end", "No optional comment box near the end.",
         "Add one optional question: Anything else you'd like the product team to know?",

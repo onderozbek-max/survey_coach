@@ -42,6 +42,12 @@ class Finding(BaseModel):
     source: Literal["auto", "ai"] = "auto"
 
     @property
+    def root_identity(self) -> tuple[str, str, str]:
+        """Conservative duplicate key: same location, evidence and named root problem."""
+        normalize = lambda text: re.sub(r"\s+", " ", text).strip().lower()
+        return (self.question_id or self.page_id or "survey", normalize(self.evidence), normalize(self.headline))
+
+    @property
     def fingerprint(self) -> str:
         """Identifies the same issue across re-checks: rubric ID, location, normalized evidence."""
         evidence = re.sub(r"\s+", " ", self.evidence).strip().lower()
@@ -53,11 +59,13 @@ class CheckResult(BaseModel):
     """One rubric criterion or blocker. `fraction` is 0..1 of the rubric points earned.
 
     None means the check could not judge (it stays unchecked). Blockers use findings only.
-    `applies=False` means there was nothing to judge (for example, no images): full credit, no
-    provisional flag, and never listed as a strength.
+    `applies=False` means there was nothing to judge (for example, no images): no earned points,
+    no provisional flag, and never listed as a strength. `assessed=False` marks a partial
+    blocker check that cannot positively clear the wider risk.
     """
 
     criterion_id: str
     fraction: float | None = Field(default=None, ge=0.0, le=1.0)
     applies: bool = True
+    assessed: bool = True
     findings: list[Finding] = Field(default_factory=list)

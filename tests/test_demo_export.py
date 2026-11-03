@@ -93,12 +93,12 @@ def test_no_text_is_offered_two_competing_ai_rewrites():
         assert len(rewritten) == len(set(rewritten)), survey["id"]
 
 
-def test_an_ai_finding_never_repeats_a_blocker_finding_on_the_same_question_and_quote():
+def test_an_ai_finding_never_repeats_a_blocker_with_the_same_root_problem():
     for survey in parsed()["surveys"]:
         findings = _ai_findings(survey)
-        blocked = {(f["question_id"] or f["page_id"], norm(f["evidence"])) for f in findings if f["criterion_id"].startswith("B")}
+        blocked = {(f["question_id"] or f["page_id"], norm(f["evidence"]), norm(f['headline'])) for f in findings if f["criterion_id"].startswith("B")}
         repeats = [f["criterion_id"] for f in findings
-                   if not f["criterion_id"].startswith("B") and (f["question_id"] or f["page_id"], norm(f["evidence"])) in blocked]
+                   if not f["criterion_id"].startswith("B") and (f["question_id"] or f["page_id"], norm(f["evidence"]), norm(f['headline'])) in blocked]
         assert repeats == [], (survey["id"], repeats)
 
 

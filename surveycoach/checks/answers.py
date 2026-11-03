@@ -114,6 +114,24 @@ class ScaleProblem:
     suggested: str | None = None
 
 
+def standard_scale(q: Question) -> bool:
+    """Recognize methods from wording and anchors, never from point count alone."""
+    labels = [o.label for o in q.options]
+    s = q.scale
+    if s:
+        labels += [s.low_label or "", s.high_label or "", *s.labels]
+    text = " ".join(labels).lower()
+    points = s.points if s else len(q.options)
+    numeric_nps = [o.label.strip() for o in q.options] == [str(i) for i in range(11)]
+    nps = points == 11 and "recommend" in q.text.lower() and (
+        numeric_nps or ("not at all likely" in text and ("extremely likely" in text or "very likely" in text)))
+    hedonic = points == 9 and "dislike extremely" in text and "like extremely" in text
+    jar = points in {3, 5} and "just about right" in text and "too" in text
+    quality = points == 5 and [label.strip().lower() for label in (s.labels if s else labels)] in (
+        ["excellent", "very good", "good", "fair", "poor"], ["poor", "fair", "good", "very good", "excellent"])
+    return nps or hedonic or jar or quality
+
+
 def _scale_problems(q: Question) -> list[ScaleProblem]:
     s = q.scale
     problems = []
@@ -127,7 +145,7 @@ def _scale_problems(q: Question) -> list[ScaleProblem]:
             f"Scale has {missing}",
             "Both ends of the scale should be labeled so every member reads it the same way.",
             end_text, f"{s.low_label} ... {added}" if added else None))
-    if len(s.labels) >= 3:
+    if len(s.labels) >= 3 and not standard_scale(q):
         signs = [polarity(label) for label in s.labels]
         if abs(signs.count(1) - signs.count(-1)) > 1:
             problems.append(ScaleProblem("Scale is lopsided",

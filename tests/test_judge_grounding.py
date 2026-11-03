@@ -107,9 +107,10 @@ def test_must_fix_is_only_for_blockers():
     assert the_finding(run(output([finding(severity="must_fix")]))).severity == "worth_improving"
 
 
-def test_points_are_never_lost_without_a_reason_the_researcher_can_see():
+def test_unsupported_point_loss_stays_unknown_with_a_visible_reason():
     grounded = run(output([], fraction=0.2, only="5.1"))
-    assert grounded.results["5.1"].fraction == 1.0 and [n for n in grounded.dropped if n.startswith("5.1")]
+    assert grounded.results["5.1"].fraction is None
+    assert any(n.startswith("5.1") and "remains unchecked" in n for n in grounded.dropped)
 
 
 def test_a_finding_caps_credit_at_three_quarters_but_a_lower_verdict_stands():
@@ -135,7 +136,8 @@ def test_blockers_not_triggered_are_clear_and_unanswered_blockers_stay_pending()
 def test_a_triggered_blocker_that_cannot_be_quoted_is_not_raised_and_says_why():
     ungrounded = finding(criterion_id="B1", evidence="invented quote")
     grounded = run(output([ungrounded], blockers=[BlockerCall(blocker_id="B1", triggered=True)]))
-    assert grounded.results["B1"].findings == [] and any("B1" in note for note in grounded.dropped)
+    assert "B1" not in grounded.results  # Unsupported risk is pending, not cleared.
+    assert any("B1" in note and "no quotable reason" in note for note in grounded.dropped)
 
 
 def test_a_finding_for_a_blocker_that_was_not_triggered_is_dropped():

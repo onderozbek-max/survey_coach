@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from surveycoach.checks.answers import standard_scale
 from surveycoach.checks.images import all_media
 from surveycoach.checks.registry import (Problem, ReviewContext, check, clip, problem_finding, result,
                                          share_fraction)
@@ -77,7 +78,7 @@ def tappable_answers(ctx: ReviewContext) -> CheckResult:
             problems.append(Problem("Answer text is too long to tap comfortably", clip(long_labels[0], 90),
                                     f"Keep each answer to about {MAX_LABEL_CHARS} characters (2 lines).",
                                     current=long_labels[0], highlight=long_labels[0]))
-        if len(q.options) > MAX_CHOICES:
+        if len(q.options) > MAX_CHOICES and not standard_scale(q):
             problems.append(Problem(f"{len(q.options)} answer choices; cut to {MAX_CHOICES}", f"{len(q.options)} answer choices.",
                                     f"Group, alphabetize, or trim to {MAX_CHOICES} or fewer."))
         if q.kind == "dropdown" and len(q.options) <= MAX_DROPDOWN_BUTTONS:
@@ -104,7 +105,7 @@ def small_grids(ctx: ReviewContext) -> CheckResult:
                                         f"Use {MAX_GRID_COLUMNS} columns or fewer."))
         elif q.scale and q.kind in {"rating", "slider"}:
             total += 1
-            if q.scale.points > MAX_SCALE_POINTS:
+            if q.scale.points > MAX_SCALE_POINTS and not standard_scale(q):
                 problems.append(Problem(f"{q.scale.points}-point scale is hard to tap", f"A {q.scale.points}-point scale.",
                                         f"Use {MAX_SCALE_POINTS} points or fewer; a 0 to 10 scale is hard to tap."))
         failing += bool(problems)
@@ -130,9 +131,6 @@ def thumb_friendly(ctx: ReviewContext) -> CheckResult:
             problems.append(Problem(f'"{word}" is a desktop word', f'"{word}" is a desktop word.',
                                     'Say "tap" and avoid "left" or "right".', current=text, highlight=word,
                                     suggested=swap_word(text, word, replacement) if replacement else None))
-        if q.kind in {"ranking", "slider"}:
-            problems.append(Problem(f"{q.kind.capitalize()} question is hard with a thumb", f"A {q.kind} question.",
-                                    "Offer a tap alternative: drag-and-drop and precision sliders are hard with a thumb."))
         failing += bool(problems)
         findings += [_on_question("6.4", q, pr, "Members on a phone can't click, hover, or drag.") for pr in problems]
     return result("6.4", share_fraction(failing, len(_questions(ctx))), *findings)

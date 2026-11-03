@@ -48,6 +48,9 @@ class PageTiming(BaseModel):
 class Timing(BaseModel):
     total_seconds: float
     pages: list[PageTiming]
+    path_uncertain: bool = False
+    calibrated: bool = False
+    basis: str = "Uncalibrated estimate of captured screens, not measured completion time."
 
     @property
     def minutes(self) -> float:
@@ -87,7 +90,11 @@ def estimate(snapshot: SurveySnapshot, constants: TimingConstants = TimingConsta
         answered += len(page.questions)
         pages.append(PageTiming(page_id=page.id, kind=page.kind, seconds=round(seconds, 1),
                                 cumulative_seconds=round(elapsed, 1), fatigue=_zone(elapsed, answered, constants)))
-    return Timing(total_seconds=round(elapsed, 1), pages=pages)
+    uncertain = any(q.conditional for q in snapshot.all_questions()) or any(
+        p.kind == "screen_out" for p in snapshot.pages)
+    return Timing(total_seconds=round(elapsed, 1), pages=pages, path_uncertain=uncertain,
+                  basis=("Captured-screen total includes conditional or alternative pages; not a member route."
+                         if uncertain else "Uncalibrated estimate of captured screens, not measured completion time."))
 
 
 _PROMISE = re.compile(

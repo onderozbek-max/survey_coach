@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -37,8 +38,8 @@ class Option(BaseModel):
     id: str
     label: str
     media: Media | None = None
-    is_other_with_text: bool = False
-    is_exclusive: bool = False
+    is_other_with_text: bool | None = None  # None: reader did not capture the behavior
+    is_exclusive: bool | None = None
 
 
 class Scale(BaseModel):
@@ -81,12 +82,46 @@ class SurveySnapshot(BaseModel):
     survey_type: SurveyType = "non_ihut_product"
     pages: list[Page]
 
+    def page_role(self, page: Page) -> PageKind:
+        """Infer conversation roles only at boundaries, from explicit wording, never from info alone."""
+        if page.kind != "info" or any(q.kind != "info" for q in page.questions):
+            return page.kind
+        text = self.page_copy(page)
+        if self.pages and page.id == self.pages[0].id:
+            greeting = re.search(
+                r"\bwelcome\b|\bthanks? for (?:helping|taking|joining|participating)\b", text, re.I
+            )
+            # A short topical invitation is a welcome even without the word "welcome".
+            # Keep system screens and generic sharing/navigation instructions out.
+            system_message = re.search(
+                r"\b(?:loading|sign[ -]?in|log[ -]?in|password|authentication|verification|"
+                r"validation|error|required question|answer (?:all|the) required)\b", text, re.I
+            )
+            invitation = len(text) <= 1200 and re.search(
+                r"\b(?:(?:let us know|tell us)\s+(?:how|what|about|your)|"
+                r"share\s+your\s+(?:thoughts|feedback|experience|opinions?|ideas?)\s+(?:on|about|with)|"
+                r"your thoughts\s+(?:on|about))\s+(?!(?:next|continue|back|submit)\b)[a-z][\w'-]*",
+                text, re.I,
+            )
+            if greeting or (invitation and not system_message):
+                return "intro"
+        if self.pages and page.id == self.pages[-1].id and re.search(
+            r"\bthank(?:s| you)\b", text, re.I
+        ) and not re.search(r"\b(?:now|next|taste|read|continue|sample)\b", text, re.I):
+            return "thank_you"
+        return page.kind
+
+    @staticmethod
+    def page_copy(page: Page) -> str:
+        return " ".join(dict.fromkeys(t for t in [page.intro_text, page.text,
+                           *[q.text for q in page.questions if q.kind == "info"]] if t))
+
     def all_questions(self) -> list[Question]:
         return [q for page in self.pages for q in page.questions]
 
     @property
     def intro_text(self) -> str:
-        return next((p.intro_text or p.text for p in self.pages if p.kind == "intro"), "")
+        return next((self.page_copy(p) for p in self.pages if self.page_role(p) == "intro"), "")
 
     @property
     def review_hash(self) -> str:

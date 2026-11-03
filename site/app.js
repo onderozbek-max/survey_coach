@@ -29,6 +29,19 @@
   const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model;
+  let comparing = false, playing = false, playbackTimer = null;
+  function stopPlayback() { clearTimeout(playbackTimer); playing = false; }
+  function schedulePlayback() {
+    clearTimeout(playbackTimer);
+    if (!playing || document.hidden) { playing = false; return; }
+    const item = pageItem(), previous = survey().timeline[item.index - 1]?.seconds || 0;
+    const seconds = Math.max(1, (survey().timeline[item.index]?.seconds || previous) - previous);
+    playbackTimer = setTimeout(() => {
+      if (item.index >= model.items.length - 1) { stopPlayback(); renderAll(); return; }
+      goToPage(item.index + 1); schedulePlayback();
+    }, seconds * 1000);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden && playing) { stopPlayback(); renderAll(); } });
   if (localDetail) {
     localDetail.review.findings.forEach((f, key) => {
       const decision = localDetail.decisions[f.fingerprint];
@@ -108,8 +121,11 @@
       data: DATA, review: survey().review, selected: state.selected, device: state.device, large: state.large,
       total: model.items.length, pageId: page.id, plan, applied, blocked, offscreen, choiceOf, originalOf,
       onPin: (key) => select(key, true), onSelect: (key) => select(key, false),
-      onChoose: async (key, value) => {
-        state.choices[`${state.survey}:${key}`] = value; renderAll();
+      decisionOf: key => localDetail?.decisions[survey().review.findings[key].fingerprint],
+      onKeep: (key, reason) => context().onChoose(key, 'original', reason),
+      onChoose: async (key, value, reason) => {
+        const choiceKey = `${state.survey}:${key}`, previousChoice = state.choices[choiceKey];
+        state.choices[choiceKey] = value; renderAll();
         if (localDetail) {
           const f = survey().review.findings[key], prior = localDetail.decisions[f.fingerprint] || {};
           const picked = SC.chosenChoice(f, value);
@@ -118,17 +134,20 @@
           try {
             const response = await fetch(`/api/surveys/${encodeURIComponent(localId)}/versions/${localDetail.version}/decisions/${f.fingerprint}`, {
               method: "PUT", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: picked ? "pick" : "original", picked_text: picked?.text || null, reason: prior.reason || "", manual_done: prior.manual_done || false, client_id: decisionClient, revision }),
+              body: JSON.stringify({ action: picked ? "pick" : reason ? "keep" : "original", picked_text: picked?.text || null, reason: reason ?? prior.reason ?? "", manual_done: false, client_id: decisionClient, revision }),
             });
             if (!response.ok) throw new Error("Could not save");
             const saved = await response.json();
+            if (revision !== decisionRevisions.get(f.fingerprint)) return false;
             if (revision === decisionRevisions.get(f.fingerprint)) {
               localDetail.decisions[f.fingerprint] = saved;
               window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail:localDetail}));
+              renderAll();
               say("Your choice is saved on this computer.");
             }
-          } catch (_) { say("Your choice could not be saved. Try again before leaving this page."); }
+          } catch (_) { if (revision === decisionRevisions.get(f.fingerprint)) { state.choices[choiceKey] = previousChoice; renderAll(); } say("Your choice could not be saved. Try again before leaving this page."); return false; }
         }
+        return true;
       },
       onCopy: copy,
     };
@@ -148,8 +167,8 @@
 
   function renderTop() {
     const { review } = survey(), card = review.scorecard;
-    const checked = 100 - card.unchecked_points, earned = card.score - card.unchecked_points;
-    const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.length - must;
+    const {checked,earned} = SC.scoreDisplay(card);
+    const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.filter(f=>f.severity !== 'must_fix' && SC.issueTier?.(f) !== 'polish').length;
     const promised = review.promised_minutes ? `intro promises ${review.promised_minutes}` : "";
     const ai = review.ai, failed = ai ? Object.keys(ai.failed) : [];
     const waiting = !ai
@@ -158,14 +177,17 @@
         failed.length && `could not check ${failed.map((id) => DATA.ai_batches[id]).join(", ")}`,
         card.unchecked_points && `${card.unchecked_points} points still unchecked (${review.unchecked.join(", ")})`].filter(Boolean).join("; ");
     if (SC.workspaceDetail) {
+      const kept = f => ['keep','original'].includes(localDetail.decisions[f.fingerprint]?.action) && !!localDetail.decisions[f.fingerprint]?.reason?.trim();
+      const remaining = review.findings.filter(f => f.severity === 'must_fix' && !kept(f)).length;
+      const acknowledged = review.findings.filter(f => f.severity === 'must_fix' && kept(f)).length;
+      const unknown = review.unchecked.length || card.pending_blockers.length;
       mount($('topbar'),
-        h('div', {class:'verdict-line'}, h('span', {class:`readiness-dot ${card.readiness}`, 'aria-hidden':'true'}),
-          h('strong', null, SC.READINESS[card.readiness] || 'Review incomplete'),
-          h('span', {class:'verdict-limit'}, card.unchecked_points ? `${card.unchecked_points} points unchecked` : 'Checked scope only · not launch approval')),
+        h('div', {class:'verdict-line'}, h('span', {class:`readiness-dot ${remaining ? 'needs_work':'ready'}`, 'aria-hidden':'true'}),
+          h('strong', null, remaining ? `${plural(remaining,'issue')} to fix before launch` : acknowledged ? 'Remaining risks acknowledged · not verified fixes' : unknown ? 'No blockers found · some checks incomplete' : 'No blockers found in what we checked'),
+          h('span', {class:'verdict-limit'}, `${plural(worth,'issue')} worth a look${SC.issueCounts ? ` · ${SC.issueCounts(localDetail).polish} polish` : ''}`)),
         h('div', {class:'review-metrics'},
-          h('span', {class:'metric-score'}, h('strong', null, earned.toFixed(0)), ` / ${checked} checked`),
-          h('span', {class:'metric-issues'}, h('strong', null, String(must)), ' must fix'),
-          h('span', null, `${review.est_minutes} min for members`)));
+          h('span', null, `About ${review.est_minutes} min on the captured path`),
+          h('span', {class:'scope-flag'}, 'Scope-limited review · not launch approval')));
       return;
     }
     const aiBrief = !ai ? "AI check pending" : `${failed.length ? "AI partly checked" : "AI checked"}${card.unchecked_points ? `, ${card.unchecked_points} pts unchecked` : ""}`;
@@ -204,6 +226,14 @@
     h("div", { class: "seg", role: "group", "aria-label": label },
       options.map(([v, text]) => h("button", { type: "button", "aria-pressed": String(v === value), "data-fk": `${prefix}-${v}`, disabled: disabled.includes(v), onclick: () => onPick(v) }, text)));
 
+  function nextIssue() {
+    const entries = model.order.flatMap(item=>item.entries.map(entry=>({...entry,item})))
+      .sort((a,b)=>(a.f.severity === 'must_fix'?0:1)-(b.f.severity === 'must_fix'?0:1));
+    const next = entries[(entries.findIndex(entry=>entry.key===state.selected)+1)%entries.length];
+    if (!next) return;
+    state.screen=model.order.indexOf(next.item); state.selected=next.key; renderAll();
+  }
+
   function goToPage(index) {
     state.screen = model.order.indexOf(model.items[index]);
     state.selected = current().entries.length ? current().entries[0].key : null;
@@ -226,23 +256,33 @@
     const comparison = state.mode === 'fixes'
       ? changes ? `${plural(changes, 'text change')} previewed · hypothetical, not accepted or saved.` : 'No text changes on this screen. Layout and image fixes must be checked in RedJade.'
       : changes ? `${plural(changes, 'text change')} available to preview. RedJade is unchanged.` : 'No text changes to preview here. See the coach for other actions.';
+    $('stage').classList.toggle('comparing', comparing);
+    const originalCtx = {...context(),plan:null,applied:()=>false,blocked:()=>false};
+    const rewrittenCtx = {...context(),plan:previewPlan(true),applied:e=>SC.hitsOn(item.page,previewPlan(true)).has(e.key)};
     mount($("stage"),
-      SC.workspaceDetail && h('div', {class:'preview-caption'}, h('span', null, '02 / EXPERIENCE'), h('h2', null, 'See what members see.'), h('p', null, `${item.name} · Screen ${item.index + 1} of ${model.items.length}`)),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
       h("div", { class: "toolbar" },
-        seg("View", [["current", "Current"], ["fixes", "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? `${plural(changes, 'text change')} previewed. Hypothetical only; no decision saved.` : "Showing the original survey wording."); }, "mode", localDetail && !changes ? ['fixes'] : []),
-        seg("Device", DEVICES.map(([name, w]) => [String(w), name]), String(state.device), (v) => { state.device = Number(v); renderAll(); }, "dev"),
+        seg("View", [["current", localDetail ? "Original" : "Current"], ["fixes", localDetail ? "Rewritten" : "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? `${plural(changes, 'text change')} previewed. Hypothetical only; no decision saved.` : "Showing the original survey wording."); }, "mode", localDetail && !changes ? ['fixes'] : []),
+        !localDetail && seg("Device", DEVICES.map(([name, w]) => [String(w), name]), String(state.device), (v) => { state.device = Number(v); renderAll(); }, "dev"),
         h("button", { type: "button", class: "toggle", "aria-pressed": String(state.large), "data-fk": "large", onclick: () => { state.large = !state.large; renderAll(); } }, "Large text")),
-      leadLine(),
-      SC.renderPhone(item, context()),
-      localDetail && h('p', {class:'preview-effect',role:'status'}, comparison),
+      !localDetail && leadLine(),
+      comparing ? h('div', {class:'comparison-phones'},
+        h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
+        h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
+      localDetail && h('p', {class:'preview-effect',role:'status'}, comparison.replace('See the coach','See the issues')),
+      h('div', {class:'member-controls'},
+        h('button', {type:'button','aria-pressed':String(comparing),disabled:!changes && !comparing,onclick:()=>{comparing=!comparing;renderAll();}},comparing?'Close comparison':'Compare wording'),
+        h('button', {type:'button',onclick:()=>{playing=!playing;renderAll();schedulePlayback();}},playing?'Pause walkthrough':'Play as a member'),
+        h('button', {type:'button',onclick:()=>nextIssue()},'Next issue →')),
+      comparing && h('p', {class:'comparison-note'}, `Estimated reading-time change: ${Math.abs(SC.previewReadingDelta(item.page,previewPlan(true)))} seconds ${SC.previewReadingDelta(item.page,previewPlan(true)) < 0 ? 'longer' : 'shorter'}. Layout, typing and unvisited paths are not reassessed.`),
+      SC.renderJourney?.(model.items,s,item.index,previewPlan(true),index=>{stopPlayback();goToPage(index);}),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
-        current().entries.length ? `Review ${plural(current().entries.length, 'finding')} on this screen ↓` : 'Read the coach notes ↓'),
+        current().entries.length ? `Review ${plural(current().entries.length, 'issue')} on this screen ↓` : 'Read the coach notes ↓'),
       h("div", { class: "pager" },
         h("button", { type: "button", "data-fk": "prev", disabled: item.index === 0, onclick: () => goToPage(item.index - 1) }, "Previous screen"),
         h("button", { type: "button", "data-fk": "next", disabled: item.index === model.items.length - 1, onclick: () => goToPage(item.index + 1) }, "Next screen")),
       h("div", { class: "timing" },
-        h("p", null, `Members reach this screen at about ${clock(seconds)} of ${clock(s.total_seconds)}.`),
+        h("p", null, `Estimated time to this screen: ${clock(seconds)} of ${clock(s.total_seconds)} on the captured path.`),
         h("div", { class: "timebar", "aria-hidden": "true" }, h("i", { style: `left:${(seconds / s.total_seconds) * 100}%` }))));
   }
 
@@ -271,21 +311,28 @@
     const pageKey = `${state.survey}:${pageItem().index}`, samePage = pageKey === lastPage;
     lastPage = pageKey;
     renderTop();
-    mount($("strip"), h("span", { class: "long" }, DATA.disclaimer), h("span", { class: "short" }, DATA.disclaimer_short));
+    if ($('strip')) mount($("strip"), h("span", { class: "long" }, DATA.disclaimer), h("span", { class: "short" }, DATA.disclaimer_short));
     mount($("rail"), h("h2", { class: "sr-only" }, "Screens"), model.order.map(railItem));
     renderStage();
+    if (comparing) {
+      const screens = [...document.querySelectorAll('.comparison-phones .phone-screen')];
+      for (const screen of screens) screen.addEventListener('scroll',()=>{
+        for (const other of screens) if(other!==screen && Math.abs(other.scrollTop-screen.scrollTop)>2) other.scrollTop=screen.scrollTop;
+      });
+    }
     mount($("coach"), SC.renderCoach(current(), context()));
     centerSelectedInRail();
     if (samePage) document.querySelector(".phone-screen").scrollTop = keepTop;
-    else if (state.selected != null) scrollPhoneTo(state.selected);
+    else document.querySelector('.phone-screen').scrollTop = 0;
     restoreFocus(key);
   }
 
   function chooseSurvey(i) {
+    stopPlayback(); comparing = false;
     state.survey = i;
     model = SC.buildModel(survey());
     state.mode = "current";
-    const start = SC.workspaceDetail ? model.items.find(item => item.page.kind === 'question') || model.items[0] || model.start : model.start;
+    const start = model.start;
     state.screen = model.order.indexOf(start);
     state.selected = start.entries.length ? start.entries[0].key : null;
     renderAll();

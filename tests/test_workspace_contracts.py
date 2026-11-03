@@ -10,21 +10,23 @@ from tests.test_workflow_e2e import studio
 def test_root_is_launchpad_and_assets_revalidate(tmp_path):
     with TestClient(create_app(tmp_path / 'workspace.sqlite'), base_url='http://127.0.0.1') as client:
         response = client.get('/')
-        assert 'Start review' in response.text
+        assert 'Check survey' in response.text
         assert 'design-system.css' in response.text
         assert response.headers['cache-control'] == 'no-cache'
         assert client.get('/api/missing').status_code == 404
 
 
 def test_export_embeds_shared_components_without_external_dependencies():
-    html = summary_packet({'title': '<script>unsafe</script>', 'version': 1, 'review': None})
-    assert '--radius:16px' in html and 'report-shell' in html
+    html = summary_packet({'title': '<script>unsafe</script>', 'version': 1, 'review': None, 'snapshot': {'pages': []}, 'decisions': {}})
+    assert '<style>' in html and '<main>' in html
+    assert 'Share for sign-off' in html and 'not launch approval' in html
+    assert 'Review not available' in html and 'No readiness judgement has been made' in html
     assert '<script>unsafe' not in html
     assert '&lt;script&gt;unsafe' in html
     assert '<link' not in html
 
 
-def test_legacy_phone_link_and_keyboard_tabs(browser, studio):
+def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
@@ -33,15 +35,25 @@ def test_legacy_phone_link_and_keyboard_tabs(browser, studio):
     page.goto(studio + '/index.html?' + query)
     page.wait_for_url('**/review.html?**')
     page.locator('.phone-screen').wait_for()
-    first = page.get_by_role('tab', name='Survey & recommendations', exact=True)
-    first.focus()
-    page.keyboard.press('ArrowRight')
-    second = page.get_by_role('tab', name='All issues', exact=True)
-    assert second.get_attribute('aria-selected') == 'true'
-    assert second.evaluate('e => e === document.activeElement')
-    page.keyboard.press('Home')
-    assert first.get_attribute('aria-selected') == 'true'
+    assert page.get_by_role('tab').count() == 0
+    summary = page.locator('#issues-view > summary')
+    summary.focus()
+    page.keyboard.press('Enter')
+    jump = page.locator('.issue-jump').first
+    headline = jump.locator('strong').inner_text()
+    jump.focus()
+    page.keyboard.press('Enter')
+    assert page.locator('#coach .card').count() == 1
+    assert page.locator('#coach .card-head').inner_text() == headline
     assert page.locator('#survey-view').is_visible()
+    assert page.locator('.phone-screen').is_visible()
+    assert page.locator('#fix-list select, #fix-list textarea').count() == 0
+    assert page.locator('#issues-view').evaluate('e => e.tagName') == 'DETAILS'
+    assert page.locator('#fix-list .issue-jump').count() > 0
+    headings = page.locator('#fix-list h3, #fix-list .issue-place').all_inner_texts()
+    assert not any('fingerprint' in text or 'q-' in text for text in headings)
+    assert page.locator('.review-actionbar #sign-off').inner_text() == 'Share for sign-off'
+    assert page.locator('details.studio-tools').count() == 0
     page.close()
 
 

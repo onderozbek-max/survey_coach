@@ -92,7 +92,10 @@ def test_version_scoped_decisions_and_escaped_packet(client, snapshot):
     assert "&lt;img" in packet and "Manual" in packet
     changed = {**snapshot, "title": "Version two"}
     client.post(f"/api/surveys/{data['id']}/recheck", json={"snapshot": changed})
-    assert client.get(f"/api/surveys/{data['id']}/versions/2").json()["decisions"] == {}
+    carried = client.get(f"/api/surveys/{data['id']}/versions/2").json()["decisions"]
+    assert carried[finding["fingerprint"]]["reason"] == decision["reason"]
+    assert carried[finding["fingerprint"]]["carried_from_round"] == 1
+    assert carried[finding["fingerprint"]]["manual_done"] is False
     assert client.put(url, json={"action": "keep", "reason": ""}).status_code == 422
     assert client.put(url, json={"action": "original"}).json()["picked_text"] is None
     assert client.put(url.replace(finding["fingerprint"], "not-a-finding"), json=decision).status_code == 404

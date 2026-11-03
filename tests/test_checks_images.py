@@ -19,10 +19,12 @@ def with_image(media, **q_extra):
 
 
 # "applies" flag
-def test_not_applicable_gets_full_credit_without_flagging_provisional_or_strengths():
+def test_not_applicable_is_excluded_from_earned_and_unchecked_points_and_strengths():
     results = {"7.2": CheckResult(criterion_id="7.2", applies=False)}
     card = score(load_rubric(), results)
-    assert card.score == 100 and card.unchecked_points == 100 - 3
+    assert card.score == 0 and card.unchecked_points == 100 - 3
+    assert card.not_applicable_points == 3 and card.checked_points == 0
+    assert card.provisional  # Other criteria still await assessment.
     assert "Phone-friendly shape" not in card.strengths
 
 

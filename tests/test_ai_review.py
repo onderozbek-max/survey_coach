@@ -49,13 +49,17 @@ def test_without_a_provider_nothing_changes(flawed):
     assert run_review(flawed).ai is None
 
 
-def test_an_all_clear_judge_resolves_the_pending_blockers_and_leaves_only_the_images_unchecked(flawed):
+def test_all_clear_judge_resolves_semantic_blockers_but_cannot_calibrate_timing(flawed):
     code_only, review = run_review(flawed), run_review(flawed, provider=clear_provider())
-    assert review.scorecard.pending_blockers == [] and set(review.unchecked) == IMAGES_STILL_WAITING
-    # A provisional score assumes full credit for what is unchecked, so it is an upper bound: checking more can only
-    # shrink the unchecked points, and here it lowers the score by the point 9.1 really loses to its emoji finding.
+    assert review.scorecard.pending_blockers == ["B5"] and set(review.unchecked) == IMAGES_STILL_WAITING
+    # Checking more earns evidence-backed points; unknown checks never get free credit.
     assert review.scorecard.unchecked_points == 4 < code_only.scorecard.unchecked_points == 54
-    assert review.scorecard.score <= code_only.scorecard.score
+    assert review.scorecard.score > code_only.scorecard.score
+    assert review.scorecard.checked_points == 91
+    assert review.scorecard.not_applicable_points == 5
+    assert sum((review.scorecard.checked_points, review.scorecard.unchecked_points,
+                review.scorecard.not_applicable_points)) == 100
+    assert review.results["9.1"].fraction == 0.75  # All-clear AI does not erase the emoji defect.
     assert [f.headline for f in review.findings if f.source == "auto"] == [f.headline for f in code_only.findings]
     assert review.ai.checked == ["wording", "story", "flow"] and review.ai.failed == {}
 
@@ -63,7 +67,7 @@ def test_an_all_clear_judge_resolves_the_pending_blockers_and_leaves_only_the_im
 def test_a_judge_that_is_down_leaves_the_review_exactly_as_honest_as_before(flawed):
     code_only, review = run_review(flawed), run_review(flawed, provider=failing_provider(LlmUnavailable("no wibey")))
     assert review.scorecard == code_only.scorecard and review.unchecked == code_only.unchecked
-    assert review.scorecard.pending_blockers == ["B1", "B2", "B6"] and set(review.ai.failed) == {"wording", "story", "flow"}
+    assert review.scorecard.pending_blockers == ["B1", "B2", "B5", "B6"] and set(review.ai.failed) == {"wording", "story", "flow"}
 
 
 def test_a_triggered_ai_blocker_becomes_a_must_fix_finding_and_sorts_first(flawed):
@@ -131,4 +135,6 @@ def test_the_cli_lists_the_claims_it_refused_so_nothing_is_hidden(monkeypatch, c
     monkeypatch.setattr(cli, "WibeyProvider", lambda: clear_provider([invented]))
     cli.main(["review", str(ROOT / "fixtures" / "boxer-briefs.json"), "--ai"])
     out = capsys.readouterr().out
-    assert "ignored 1 claims the survey did not back up" in out and "wording: 5.1: the quote was not found" in out
+    assert "ignored 2 claims the survey did not back up" in out
+    assert "wording: 5.1: the quote was not found" in out
+    assert "wording: 5.1: no independent grounded assessment; remains unchecked" in out

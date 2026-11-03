@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent.parent
 RUBRIC = load_rubric()
 
 # Auto-capable rubric items we have deliberately not built yet. A new gap must be added here on purpose.
-KNOWN_UNBUILT = {"1.1", "3.4", "7.1", "8.1", "B2"}
+KNOWN_UNBUILT = {"1.1", "3.4", "7.1", "8.1"}
 
 
 def load_fixture(name: str) -> SurveySnapshot:
@@ -49,10 +49,16 @@ def test_flawed_fixture_needs_work_with_a_blocker_and_citations():
 
 def test_clean_fixture_is_never_called_ready_while_ai_blockers_are_pending():
     review = run_review(load_fixture("coffee-pods"))
-    assert review.scorecard.score >= 90
-    assert review.scorecard.open_blockers == []
-    assert review.scorecard.pending_blockers == ["B1", "B2", "B6"]
-    assert review.scorecard.readiness == "almost_ready"
+    card = review.scorecard
+    expected_earned = sum(c.points * review.results[c.id].fraction for c in RUBRIC.criteria
+                          if c.active and c.id in review.results and review.results[c.id].applies
+                          and review.results[c.id].fraction is not None)
+    assert card.score == expected_earned == 43
+    assert card.unchecked_points == 54 and card.checked_points == 43
+    assert card.not_applicable_points == 3
+    assert card.open_blockers == []
+    assert card.pending_blockers == ["B1", "B2", "B5", "B6"]
+    assert card.readiness != "ready"
     assert not [f for f in review.findings if f.severity == "must_fix"]
 
 

@@ -104,7 +104,8 @@ def test_summary_packet_distinguishes_earned_and_unchecked_points(tmp_path):
         detail = import_sample(client)
         card = detail["review"]["scorecard"]
         assert card["unchecked_points"] > 0
-        earned, checked = card["score"] - card["unchecked_points"], 100 - card["unchecked_points"]
+        earned = card["score"] if "checked_points" in card else card["score"] - card["unchecked_points"]
+        checked = card.get("checked_points", 100 - card["unchecked_points"])
         packet = client.get(f"/api/surveys/{detail['id']}/versions/1/summary").text
         assert f"{earned:g} of {checked} checked points" in packet, {
             "score_includes_unchecked_credit": card["score"],
@@ -116,7 +117,7 @@ def test_local_root_has_an_entry_to_the_private_workspace(browser, studio):
     page = browser.new_page()
     try:
         page.goto(studio + "/")
-        page.get_by_role('button', name='Start review', exact=True).wait_for()
+        page.get_by_role('button', name='Check survey', exact=True).wait_for()
         # Check rendered DOM, not only source HTML (navigation might be JS-built).
         assert page.locator("#import-form, a[href='local.html']").count() > 0
     finally:
@@ -129,11 +130,11 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
     try:
         page.goto(studio + "/local.html")
         page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
-        page.get_by_role("button", name="Start review").click()
+        page.get_by_role("button", name="Check survey").click()
         page.wait_for_url("**/review.html?**", timeout=30000)
-        page.get_by_role('tab', name='All issues', exact=True).click()
-        card = page.locator(".fix-card").filter(has=page.locator("select option[value='0']")).first
-        select = card.locator("select")
+        from tests.test_workspace_decisions import finding_with, focus_finding, keep_mine
+        finding = finding_with(page, True)
+        focus_finding(page, finding)
         held, completed = [], []
 
         def reorder(route):
@@ -145,19 +146,21 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
                 completed.append(True)
 
         page.route("**/decisions/*", reorder)
-        select.select_option("0")
+        page.locator('#coach .issue-rewrite .btn').first.click()
         page.wait_for_timeout(100)
         assert held
-        select.select_option("original")
-        page.wait_for_timeout(200)
+        focus_finding(page, finding)
+        keep_mine(page, 'Required wording')
         assert completed
         response = held[0].fetch()
-        held[0].fulfill(response=response)  # Old pick arrives after the original decision.
-        page.wait_for_timeout(200)
-        assert select.input_value() == "original"
+        held[0].fulfill(response=response)  # Old pick arrives after the keep decision.
+        page.wait_for_timeout(100)
+        assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
         page.reload()
-        page.get_by_role('tab', name='All issues', exact=True).click()
-        card = page.locator(".fix-card").filter(has=page.locator("select option[value='0']")).first
-        assert card.locator("select").input_value() == "original", "Reload restores stale suggestion despite last choice being original"
+        page.locator('.phone-screen').wait_for()
+        focus_finding(page, finding)
+        assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
+        assert 'accepted risk' in page.locator('.accepted-risk').inner_text(), 'Reload must not restore the stale suggestion'
+        assert page.locator('#copy-all').is_disabled()
     finally:
         context.close()

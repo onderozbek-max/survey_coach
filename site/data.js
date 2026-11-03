@@ -11,18 +11,18 @@ window.SURVEYCOACH_DEMO = {
     "content_hash": "912f055f4103cff763ddb10e52ab44ea20e4ea0532fac87d555f29fc097d3d4e",
     "rubric_version": "v2",
     "scorecard": {
-     "score": 67.13,
+     "score": 42.13,
      "provisional": true,
-     "unchecked_points": 4,
+     "unchecked_points": 21,
      "by_dimension": {
       "D1": {
        "name": "First impression",
-       "earned": 5.75,
+       "earned": 1.75,
        "possible": 11
       },
       "D2": {
        "name": "Respect for members' time",
-       "earned": 11.75,
+       "earned": 8.75,
        "possible": 13
       },
       "D3": {
@@ -32,12 +32,12 @@ window.SURVEYCOACH_DEMO = {
       },
       "D4": {
        "name": "Fair and complete answers",
-       "earned": 5.0,
+       "earned": 2.0,
        "possible": 9
       },
       "D5": {
        "name": "Neutral questions",
-       "earned": 7.0,
+       "earned": 4.0,
        "possible": 7
       },
       "D6": {
@@ -47,7 +47,7 @@ window.SURVEYCOACH_DEMO = {
       },
       "D7": {
        "name": "Images that work on a phone",
-       "earned": 8.5,
+       "earned": 2.5,
        "possible": 13
       },
       "D8": {
@@ -57,12 +57,12 @@ window.SURVEYCOACH_DEMO = {
       },
       "D9": {
        "name": "Community voice and tone",
-       "earned": 5.0,
+       "earned": 2.0,
        "possible": 6
       },
       "D10": {
        "name": "Closing the loop",
-       "earned": 3.0,
+       "earned": 0.0,
        "possible": 7
       }
      },
@@ -72,13 +72,18 @@ window.SURVEYCOACH_DEMO = {
       "B7"
      ],
      "kept_blockers": [],
-     "pending_blockers": [],
+     "pending_blockers": [
+      "B5"
+     ],
      "readiness": "needs_work",
      "strengths": [
       "Length fits the survey type",
-      "Co-creator framing",
-      "Impact reminder"
-     ]
+      "One idea per question",
+      "Don't ask what we already know"
+     ],
+     "checked_points": 74,
+     "not_applicable_points": 5,
+     "score_explanation": "Score is earned points out of 100 rubric points: checked criterion points \u00d7 fraction. Unchecked and not-applicable criteria earn no points; this is evidence coverage, not a failure verdict."
     },
     "findings": [
      {
@@ -225,15 +230,15 @@ window.SURVEYCOACH_DEMO = {
      {
       "criterion_id": "1.4",
       "severity": "worth_improving",
-      "headline": "Intro says 3 min but it takes about 4 and skips the reward",
-      "evidence": "The intro promises 3 minutes; we estimate about 4.3. The intro doesn't mention the reward.",
-      "explanation": "Say the true time and what members get, so they can decide to start. The suggested intro does both.",
-      "member_impact": "Members decide whether to start from the time and reward; a wrong time breaks trust.",
+      "headline": "Intro says 3 min but it takes about 4 and has no confirmed reward details",
+      "evidence": "The intro promises 3 minutes; we estimate about 4.3. No reward terms are stated; whether a reward applies is unknown.",
+      "explanation": "Verify the estimated time with a timed run. If a reward applies, state its confirmed terms separately; no reward details were supplied. The rewrite changes only the estimated time.",
+      "member_impact": "Clear time expectations and confirmed reward terms, when applicable, help members decide whether to start.",
       "page_id": "p0",
       "question_id": null,
       "element_id": null,
       "current_text": "Welcome to the Boxer Briefs Survey! This takes about 3 minutes.",
-      "suggested_text": "Welcome to the Boxer Briefs Survey! This takes about 4 minutes. [Say what members get for finishing.]",
+      "suggested_text": "Welcome to the Boxer Briefs Survey! This takes about 4 minutes.",
       "highlight": "about 3 minutes",
       "options": [],
       "structural": false,
@@ -602,6 +607,40 @@ window.SURVEYCOACH_DEMO = {
       "source": "ai"
      },
      {
+      "criterion_id": "8.4",
+      "severity": "worth_improving",
+      "headline": "The agreement rows contain no product feedback to judge",
+      "evidence": "Statement 1",
+      "explanation": "All seven rows use placeholder labels rather than statements about boxer briefs. Replace each with a specific, relevant statement members can assess from their experience. Keep the existing grid and agreement scale. The researcher must supply the intended content before a wording-only rewrite is possible.",
+      "member_impact": "Members cannot give meaningful agreement ratings when the rows do not say anything about the product.",
+      "page_id": "p3",
+      "question_id": "q3",
+      "element_id": null,
+      "current_text": null,
+      "suggested_text": null,
+      "highlight": "Statement 1",
+      "options": [],
+      "structural": false,
+      "source": "ai"
+     },
+     {
+      "criterion_id": "8.5",
+      "severity": "worth_improving",
+      "headline": "3 consecutive typing questions",
+      "evidence": "Why did you choose them?",
+      "explanation": "Review this run for redundant items. Keep necessary tracker scales consistent; make nonessential comments optional rather than adding arbitrary formats.",
+      "member_impact": "This captured run asks for repeated effort; check whether every item supports a research decision.",
+      "page_id": null,
+      "question_id": "q8",
+      "element_id": null,
+      "current_text": null,
+      "suggested_text": null,
+      "highlight": null,
+      "options": [],
+      "structural": false,
+      "source": "auto"
+     },
+     {
       "criterion_id": "8.5",
       "severity": "worth_improving",
       "headline": "Three writing prompts in a row drain energy near the end",
@@ -621,15 +660,15 @@ window.SURVEYCOACH_DEMO = {
      {
       "criterion_id": "8.6",
       "severity": "worth_improving",
-      "headline": "No optional comment box near the end",
-      "evidence": "No optional comment box near the end.",
-      "explanation": "Add one optional question: Anything else you'd like the product team to know?",
-      "member_impact": "Members who have something to say feel heard when they get the chance.",
-      "page_id": "p11",
-      "question_id": null,
+      "headline": "Make the final comment optional",
+      "evidence": "Tell us what else you would like to share?",
+      "explanation": "Make this existing comment question optional; keep one place for members to speak freely.",
+      "member_impact": "Members should be able to finish without writing a comment.",
+      "page_id": null,
+      "question_id": "q10",
       "element_id": null,
-      "current_text": null,
-      "suggested_text": "Anything else you'd like the product team to know? (optional)",
+      "current_text": "Tell us what else you would like to share?",
+      "suggested_text": null,
       "highlight": null,
       "options": [],
       "structural": false,
@@ -688,8 +727,13 @@ window.SURVEYCOACH_DEMO = {
      }
     ],
     "unchecked": [
+     "Co-creator framing",
+     "Every member can find their answer",
+     "No leading or loaded words",
      "The right image is there",
-     "The product is the hero"
+     "The product is the hero",
+     "Warm and human",
+     "Impact reminder"
     ],
     "est_minutes": 4.3,
     "promised_minutes": 3.0,
@@ -702,20 +746,18 @@ window.SURVEYCOACH_DEMO = {
      ],
      "failed": {},
      "dropped": [
-      "wording: 4.1: the judge took points off but gave no quotable reason, so full credit stands",
-      "wording: 5.1: the judge took points off but gave no quotable reason, so full credit stands",
-      "story: 1.3: the judge took points off but gave no quotable reason, so full credit stands",
-      "story: 9.1: the judge took points off but gave no quotable reason, so full credit stands",
-      "story: 10.3: the judge took points off but gave no quotable reason, so full credit stands"
+      "wording: 4.1: no independent grounded assessment; remains unchecked",
+      "wording: 5.1: no independent grounded assessment; remains unchecked",
+      "story: 1.3: no independent grounded assessment; remains unchecked",
+      "story: 9.1: no independent grounded assessment; remains unchecked",
+      "story: 10.3: no independent grounded assessment; remains unchecked"
      ],
      "from_cache": [
       "wording",
       "story",
       "flow"
      ],
-     "merged": [
-      "8.4: repeats B2 on q3"
-     ]
+     "merged": []
     }
    },
    "timeline": [
@@ -1099,7 +1141,7 @@ window.SURVEYCOACH_DEMO = {
     "content_hash": "c7ea56fa07e286305478b8c2f40de9750c2fa48ebaa0811d7d14fa110055689e",
     "rubric_version": "v2",
     "scorecard": {
-     "score": 100.0,
+     "score": 93.0,
      "provisional": true,
      "unchecked_points": 4,
      "by_dimension": {
@@ -1110,7 +1152,7 @@ window.SURVEYCOACH_DEMO = {
       },
       "D2": {
        "name": "Respect for members' time",
-       "earned": 13.0,
+       "earned": 10.0,
        "possible": 13
       },
       "D3": {
@@ -1135,7 +1177,7 @@ window.SURVEYCOACH_DEMO = {
       },
       "D7": {
        "name": "Images that work on a phone",
-       "earned": 13.0,
+       "earned": 9.0,
        "possible": 13
       },
       "D8": {
@@ -1156,13 +1198,18 @@ window.SURVEYCOACH_DEMO = {
      },
      "open_blockers": [],
      "kept_blockers": [],
-     "pending_blockers": [],
-     "readiness": "ready",
+     "pending_blockers": [
+      "B5"
+     ],
+     "readiness": "almost_ready",
      "strengths": [
       "Length fits the survey type",
       "Co-creator framing",
       "A genuine thank-you"
-     ]
+     ],
+     "checked_points": 93,
+     "not_applicable_points": 3,
+     "score_explanation": "Score is earned points out of 100 rubric points: checked criterion points \u00d7 fraction. Unchecked and not-applicable criteria earn no points; this is evidence coverage, not a failure verdict."
     },
     "findings": [],
     "unchecked": [

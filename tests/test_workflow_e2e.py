@@ -42,36 +42,36 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(studio + "/local.html")
     page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
-    page.get_by_role("button", name="Start review").click()
+    page.get_by_role("button", name="Check survey").click()
     page.wait_for_url("**/review.html?**", timeout=30000)
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    page.get_by_role("heading", name="Your fix checklist").wait_for()
-    first = page.locator(".fix-card").filter(has=page.get_by_role("button", name="Copy chosen fix", exact=True)).first
-    select = first.locator("select")
-    select.select_option("original")
-    first.get_by_label("Reason for keeping", exact=False).fill("Required for comparability")
-    first.get_by_label("Reason for keeping", exact=False).blur()
-    first.get_by_text("Saved on this computer.", exact=True).wait_for()
+    page.locator('#issues-view > summary').click()
+    jump = page.locator('.issue-jump').first
+    headline = jump.locator('strong').inner_text()
+    jump.click()
+    assert page.locator('#coach .card').count() == 1
+    page.get_by_role('button', name='Keep mine', exact=True).click()
+    page.get_by_label('Reason for keeping', exact=False).fill('Required for comparability')
+    page.get_by_role('button', name='Save reason & keep mine').click()
+    page.locator('.accepted-risk').wait_for()
     page.reload()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    first = page.locator(".fix-card").filter(has=page.get_by_role("button", name="Copy chosen fix", exact=True)).first
-    assert first.locator("select").input_value() == "original"
-    assert first.get_by_label("Reason for keeping", exact=False).input_value() == "Required for comparability"
-    assert first.get_by_role("button", name="Copy chosen fix").is_disabled()
-    page.get_by_role('tab', name='Survey & recommendations', exact=True).click()
-    page.locator(".phone-screen").wait_for()
-    assert "Local review" in page.locator("#strip").inner_text()
-    page.get_by_role('tab', name='All issues', exact=True).click()
-    page.locator('details.review-details > summary').filter(has_text='Check your updated survey').click()
+    page.locator('#issues-view > summary').click()
+    page.locator('.issue-jump').filter(has_text=headline).first.click()
+    assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required for comparability'
+    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+    assert page.locator('#copy-all').is_disabled()
+    assert page.locator('.phone-screen').is_visible()
+    assert 'Local review' in page.locator('#strip').inner_text()
+    page.locator('#check-again').click()
+    page.locator('.advanced-recheck > summary').click()
     before = page.url
     updated = SurveySnapshot.model_validate_json((ROOT / "fixtures/boxer-briefs.json").read_text())
     updated.title += " revised"
-    page.get_by_label("Or updated snapshot file (.json)").set_input_files({"name": "revised.json", "mimeType": "application/json", "buffer": updated.model_dump_json().encode()})
-    page.get_by_role("button", name="Check again").click()
+    page.get_by_label("Updated snapshot file (.json)").set_input_files({"name": "revised.json", "mimeType": "application/json", "buffer": updated.model_dump_json().encode()})
+    page.get_by_role("button", name="Start next round").click()
     page.wait_for_url(lambda url: str(url) != before, timeout=30000)
-    page.get_by_text("Since the previous version", exact=True).wait_for()
-    page.locator('.studio-tools > summary').click()
-    assert page.get_by_label("Review version").input_value() == "2"
+    page.locator('.round-timeline').wait_for()
+    assert page.locator('.round-timeline a').count() == 2
+    assert '/versions/2/summary' in page.locator('#sign-off').get_attribute('href')
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors
     context.close()

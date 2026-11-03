@@ -46,10 +46,10 @@ def test_click_becomes_tap_and_the_word_is_highlighted(flawed):
     assert f.suggested_text == "Tap the one you like best."
 
 
-def test_one_intro_finding_fixes_the_time_and_adds_the_reward_together(flawed):
+def test_one_intro_finding_fixes_time_without_inventing_reward_terms(flawed):
     (f,) = by_criterion(flawed, "1.4")
     assert "3 min" in f.headline and "reward" in f.headline
-    assert f.suggested_text == "Welcome to the Boxer Briefs Survey! This takes about 4 minutes. [Say what members get for finishing.]"
+    assert f.suggested_text == "Welcome to the Boxer Briefs Survey! This takes about 4 minutes."
 
 
 def test_jargon_is_highlighted_and_removed_from_the_suggestion(flawed):
@@ -77,7 +77,7 @@ def test_the_time_overrun_is_reported_even_though_it_is_below_the_blocker_thresh
 
 
 def test_intro_fixer_keeps_what_is_right():
-    assert fixed_intro("Hi! This takes 5 minutes.", 5.2, fix_time=False, add_reward=True) == "Hi! This takes 5 minutes. [Say what members get for finishing.]"
+    assert fixed_intro("Hi! This takes 5 minutes.", 5.2, fix_time=False, add_reward=True) == "Hi! This takes 5 minutes."
     assert fixed_intro("Hi!", 2.2, fix_time=True, add_reward=False) == "Hi! This takes about 2 minutes."
 
 

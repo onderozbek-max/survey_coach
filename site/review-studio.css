@@ -1,8 +1,23 @@
 /* Phone-first review composition. Shared tokens live in design-system.css. */
+.journey { margin:20px auto 8px; width:min(100%,520px); border-top:1px solid var(--edge); padding-top:14px; }
+.journey-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:11px; }.journey-heading span { color:var(--muted); font-size:10px; }
+.journey-bars { display:flex; align-items:end; gap:4px; padding:12px 0 4px; overflow:auto; }
+.journey-stop { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:end; min-width:27px; min-height:66px; border:0; background:none; padding:4px 2px; color:var(--muted); border-radius:5px; }
+.journey-stop i { display:block; width:100%; max-width:25px; border-radius:4px 4px 1px 1px; background:#426276; }.journey-stop.must_fix i { background:var(--red); }.journey-stop.worth_improving i { background:#ba985c; }.journey-stop.active { background:#234355; color:var(--text); }.journey-stop.active i { background:var(--teal); }
+.journey-stop span { font-size:9px; margin-top:5px; max-width:35px; overflow:hidden; }.journey-caption,.journey-limit { font-size:10px; color:var(--muted); line-height:1.6; margin-top:7px; }.journey-caption button { padding:0; border:0; background:none; color:var(--teal); font-size:10px; min-height:24px; }
+.member-controls { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin:12px 0; }.member-controls button { background:#152838; border:1px solid #355366; border-radius:8px; color:var(--text); min-height:44px; padding:6px 12px; font-size:11px; }
+.review-studio .stage.comparing { position:static; }.review-studio .studio:has(.comparing) { grid-template-columns:150px minmax(0,1fr); grid-template-areas:'screens stage' 'screens coach'; }.review-studio .studio:has(.comparing) .coach { max-width:780px; justify-self:center; }
+.comparison-phones { display:grid; grid-template-columns:1fr 1fr; gap:22px; }.comparison-phones > section { min-width:0; }.comparison-phones h3 { text-align:center; font-size:13px; margin:12px 0; }.comparison-note { text-align:center; color:var(--muted); font-size:11px; margin:8px 0; }
+@media(max-width:700px) { .review-studio .studio:has(.comparing) { grid-template-columns:minmax(0,1fr); grid-template-areas:'screens' 'stage' 'coach'; }.comparison-phones { grid-template-columns:minmax(0,1fr); gap:14px; }.journey { margin-top:14px; }.journey-heading { flex-wrap:wrap; }.member-controls button { font-size:11px; } }
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto!important; } *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
 .review-studio { --content:1480px; background:radial-gradient(ellipse at 45% 36%,#142b3c 0,transparent 44%),var(--bg); }
 .review-studio .app-header { padding:6px 28px; border-bottom:1px solid var(--edge); }
 .review-studio .workspace-shell { padding:14px 28px 60px; }
 .review-studio .workspace-heading { margin:0 0 8px; gap:16px; flex-wrap:nowrap; align-items:center; }
+.review-studio .workspace-heading > div { width:100%; position:relative; }
+.review-studio #title-tools { position:absolute; right:0; top:0; }
+.review-studio #title-tools:has(form:not([hidden])) { position:static; margin-top:10px; }
+.review-studio .workspace-heading h1 { padding-right:80px; }
 .review-studio .workspace-heading .studio-eyebrow { display:none; }
 .studio-eyebrow { font-size:10px; font-weight:750; letter-spacing:.17em; color:var(--teal)!important; margin-bottom:6px; }
 .review-studio .workspace-heading h1 { font-size:clamp(23px,2.2vw,32px); max-width:50ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0; }
@@ -93,7 +108,7 @@
 }
 @media(max-width:700px) {
   .review-studio .app-header { padding:6px 14px; }.review-studio .app-header nav { gap:8px; }.review-studio .app-header nav a { font-size:12px; }
-  .review-studio .workspace-shell { padding:12px 14px 36px; }.review-studio .workspace-heading { margin-bottom:12px; align-items:flex-start; }
+  .review-studio .workspace-shell { padding:12px 14px 160px; }.review-studio .workspace-heading { margin-bottom:12px; align-items:flex-start; }
   .review-studio .workspace-heading h1 { font-size:21px; }.studio-eyebrow { font-size:9px; }.review-studio #review-status { font-size:10px; max-height:30px; overflow:hidden; }
   .studio-tools summary { font-size:0; width:44px; padding:10px; justify-content:center; }.studio-tools summary span { font-size:18px; }
   .review-studio #review-toolbar { width:min(320px,calc(100vw - 28px)); }

@@ -85,9 +85,10 @@ def test_a_known_headline_built_from_survey_text_cannot_close_the_block():
     assert block.count(SENTINEL_CLOSE) == 1
 
 
-def test_the_prompt_tells_the_judge_to_skip_known_problems_and_not_to_spam_patterns():
+def test_the_prompt_skips_only_exact_duplicates_and_does_not_spam_patterns():
     prompt = system_prompt(WORDING, RUBRIC)
-    assert "ALREADY FOUND BY CODE" in prompt and "never report" in prompt
+    assert "ALREADY FOUND BY CODE" in prompt and "Skip only exact root-cause duplicates" in prompt
+    assert "independent substantive issue" in prompt and "must never suppress" in prompt
     assert "at most 3 findings per criterion" in prompt and "worst example" in prompt
 
 
@@ -111,9 +112,11 @@ def test_rewrites_never_state_unknown_facts_or_use_fill_in_templates():
     assert "name the missing information" in prompt
 
 
-def test_each_problem_is_reported_once_and_one_text_gets_one_rewrite():
+def test_each_root_problem_is_reported_once_but_independent_issues_remain_separate():
     prompt = system_prompt(FLOW, RUBRIC)
-    assert "once, under the single most fitting criterion" in prompt and "one rewrite that fixes everything" in prompt
+    assert "once, under the single most fitting criterion" in prompt
+    assert "Independent issues on the same text remain separate" in prompt
+    assert "not be counted as independently passed" in prompt
 
 
 def test_a_finding_may_only_talk_about_the_place_it_points_to():

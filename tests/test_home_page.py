@@ -21,12 +21,13 @@ def test_survey_list_summarises_latest_review(tmp_path):
         listed = client.get("/api/surveys").json()["surveys"][0]
         assert listed["readiness"] == card["readiness"]
         assert listed["must_fix"] == sum(f["severity"] == "must_fix" for f in detail["review"]["findings"])
-        assert listed["score_checked"] == [round(card["score"] - card["unchecked_points"]), 100 - card["unchecked_points"]]
+        assert listed["score_checked"] == [round(card["score"]), card["checked_points"]]
 
 
 def test_home_renders_cards_example_and_toned_errors(browser, studio):
     context = browser.new_context(viewport={"width": 390, "height": 844})
     page = context.new_page()
+    page.set_default_timeout(10000)
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(studio + "/local.html")
@@ -35,18 +36,19 @@ def test_home_renders_cards_example_and_toned_errors(browser, studio):
     assert page.locator("#sample-start").count() == 1
     assert page.get_by_role("img", name="Example review result", exact=False).count() == 1
     page.get_by_label("RedJade preview link").fill("not-a-url")
-    page.get_by_role("button", name="Start review", exact=True).click()
+    page.get_by_role("button", name="Check survey", exact=True).click()
     status = page.locator("#import-status")
     page.wait_for_function("document.querySelector('#import-status').dataset.tone === 'error'")
     assert "valid HTTPS RedJade test link" in status.inner_text()
-    page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
-    page.get_by_role("button", name="Start review", exact=True).click()
+    # Snapshot import is developer-only; use the visible, network-free sample path.
+    assert page.locator("details.import").is_hidden()
+    page.get_by_role("button", name="Try a sample survey", exact=True).click()
     page.wait_for_url("**/review.html?**", timeout=30000)
     page.goto(studio + "/local.html")
     survey_card = page.locator("#survey-list a.survey-card").first
     survey_card.wait_for()
     assert survey_card.locator(".chip").inner_text().strip()
-    assert "must fix" in survey_card.inner_text().lower()
+    assert "fix before launch" in survey_card.inner_text().lower()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors
     context.close()

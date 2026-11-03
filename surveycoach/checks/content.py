@@ -110,7 +110,8 @@ def _standards_findings(ctx: ReviewContext) -> list[Finding]:
         add("Title isn't in sentence case", title,
             "Write the title in sentence case: only the first word and names are capitalized.",
             suggested=sentence_case(title))
-    for text in [p.intro_text or p.text for p in ctx.snapshot.pages if p.kind in {"intro", "thank_you"}]:
+    for text in [ctx.snapshot.page_copy(p) for p in ctx.snapshot.pages
+                 if ctx.snapshot.page_role(p) in {"intro", "thank_you"}]:
         if banned := BANNED_TERMS.search(text):
             word = banned.group(0)
             add(f'Say "members", not "{word}"', text, f'Say "members" instead of "{word}".',

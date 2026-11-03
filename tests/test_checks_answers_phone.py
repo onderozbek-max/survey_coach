@@ -139,11 +139,12 @@ def test_6_3_passes_small_grids():
 
 
 # 6.4 thumb friendly
-def test_6_4_flags_desktop_words_and_drag_ranking():
+def test_6_4_flags_desktop_words_but_not_unobserved_ranking_defects():
     assert run(phone.thumb_friendly, single(question(text="Click the one you like best."))).fraction == 0.0
     assert run(phone.thumb_friendly, single(question(text="Choose the option on the left."))).fraction == 0.0
     ranking = question("r", "Rank these", "ranking")
-    assert run(phone.thumb_friendly, single(ranking)).fraction == 0.0
+    result = run(phone.thumb_friendly, single(ranking))
+    assert result.fraction == 1.0 and result.findings == []
 
 
 def test_6_4_passes_tap_language():

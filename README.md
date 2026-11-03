@@ -18,7 +18,7 @@ The page uses the approved custom dark Studio design in plain HTML/CSS/JS. No pr
 
 ## Status
 
-Review engine and AI judge are implemented. The public demo replays reviewed synthetic AI cache data; normal exports make no network calls. A local MVP candidate now adds saved surveys/versions/decisions, real review jobs, grouped fixes, re-check comparisons, Ask the Coach, HTML review packets, and a bounded link reader.
+Review engine and AI judge are implemented. The public demo replays reviewed synthetic AI cache data; normal exports make no network calls. A local MVP candidate now adds saved surveys/versions/decisions, real review jobs, one contextual issue coach, an effort-by-screen journey, side-by-side wording previews, saved round comparisons, HTML sign-off packets, and a bounded link reader. The legacy Ask API remains compatible but is no longer a competing workspace interface.
 
 **Not yet production validated:** real RedJade compatibility/vendor approval, full visual/branch coverage, and director-graded accuracy calibration. Do not treat this build as automatic launch approval. Hosted multi-user authentication is not implemented; the server must remain loopback-only.
 
@@ -31,13 +31,15 @@ After installing dependencies below, install Chromium with `.venv/bin/python -m 
 open http://127.0.0.1:8765/local.html
 ```
 
-Choose **Try the saved-work flow with a sample** to test without technical files or external access. It runs local checks and explicitly leaves AI unchecked. Alternatively import a SurveyCoach JSON snapshot (developer-assisted), or use an approved clean HTTPS RedJade test link. Normal Start review / Check again includes AI through the fixed Wibey model, with a visible notice before submission; never a fake provider in normal usage. The one-click sample remains local-only. Start review proceeds directly without a checkbox or confirmation dialog. The inline test-link notice remains; automated response writes and final submission are still blocked.
+Choose **Try the worked example** to explore a worked example without external access. Use an approved clean HTTPS RedJade test link for your own survey. **Check survey / Check again** includes approved AI review; the wording/privacy and reader-behaviour notices appear at the action. JSON import remains a developer/test interface, not the primary researcher path.
 
-Choices, keep reasons, and manually marked changes persist on this computer. Copying does not mark a fix resolved. Import an updated snapshot or reread the approved link to compare versions. The summary packet contains survey wording: save/share it only through approved internal channels.
+Reader behaviour depends on `SURVEYCOACH_PARTICIPANT_MODE`: unset blocks answer writes; `1` permits synthetic answers, advancement and Submit/Finish on owner-approved test links. Both may create participant records. The UI fetches the actual configured mode before reading. Never use member invitation links; exclude synthetic test responses from research results.
+
+Choices and keep reasons persist on this computer. Historical snapshots and stored reviews stay immutable: current code checks are projected on read. Historical AI concerns remain visible, but old reviews without per-criterion evidence receive no invented AI passing credit; newly completed reviews retain that evidence. **Use this** records a choice and copies wording, but is not proof of a fix in RedJade. **Check again** compares rounds conservatively: carried decisions remain acknowledgements, and no-longer-flagged issues are not automatically certified fixed. The sign-off report contains survey wording: share only through approved internal channels.
 
 ### Reader boundaries
 
-The reader can passively extract a known questionnaire definition from already permitted same-origin GET responses, preserving question and answer wording without submitting answers. Otherwise it captures the initial visible page; external progression is disabled because a button called Next can submit the final response. Definition wording is not proof of image, layout, or path correctness. Coverage and stop reasons remain visible in the review/packet. Unsupported URLs, authentication, widget types and missing payloads fail closed or remain explicitly partial.
+The reader can passively extract a known questionnaire definition from already permitted same-origin GET responses, preserving question and answer wording without submitting answers. Otherwise it captures visible screens subject to the configured participant mode. Write-blocking mode prevents external answer progression; participant mode may answer, advance and finish an approved test response. Definition wording is not proof of image, layout, or path correctness. Coverage and stop reasons remain visible in the review/packet. Unsupported URLs, authentication, widget types and missing payloads fail closed or remain explicitly partial.
 
 Read `surveycoach/reader/README.md` and `surveycoach/server/README.md` for technical contracts. Browser captures use private temporary directories outside the repository; retention/cleanup is operator-managed. Do not put member responses/PII in this tool.
 
@@ -59,8 +61,7 @@ uv pip install --python .venv/bin/python -e ".[dev]" \
 `SurveySnapshot` (reader-independent) goes through pure checks registered by rubric ID
 (`surveycoach/checks/`). Each check returns a score fraction plus plain-English findings.
 `surveycoach/data/rubric-v2.yaml` is the only place points live; scoring is a weighted sum
-over active criteria totaling exactly 100. A test keeps the YAML in sync with the approved
-markdown rubric.
+over active criteria totaling exactly 100. Only assessed, applicable criteria earn checked credit; unchecked and not-applicable criteria are reported separately, never strengths. A test keeps the YAML in sync with the approved markdown rubric.
 
 Honest by design: criteria that need the AI judge are reported as unchecked, the score is
 flagged provisional, and a survey cannot be called Ready to launch while AI-judged blockers

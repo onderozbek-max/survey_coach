@@ -1,45 +1,46 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="review-studio.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="review-studio.css"><link rel="stylesheet" href="workflow.css"></head>
 <body class="review-studio">
 <a class="skip" href="#workspace">Skip to review</a>
 <header class="app-header"><a href="local.html" class="app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a><nav aria-label="Workspace"><a href="local.html">← My surveys</a><span class="pill">Private workspace</span></nav></header>
 <main id="workspace" class="workspace-shell">
-  <div class="workspace-heading"><div><p class="studio-eyebrow">THE MEMBER EXPERIENCE</p><h1 id="review-title">Opening your survey…</h1><p id="review-status" role="status" aria-live="polite"></p></div>
-    <details class="studio-tools"><summary>Review tools <span aria-hidden="true">↗</span></summary><div id="review-toolbar" class="actions"></div></details>
-  </div>
+  <div class="workspace-heading"><div><h1 id="review-title">Opening your survey…</h1><div id="title-tools"></div><p id="review-status" role="status" aria-live="polite"></p></div></div>
   <header id="topbar" class="topbar" aria-label="Review overview"><p>Loading review details…</p></header>
-  <div class="workspace-tabs" role="tablist" aria-label="Review views">
-    <button id="tab-survey" role="tab" aria-selected="true" aria-controls="survey-view" tabindex="0">Survey &amp; recommendations</button>
-    <button id="tab-issues" role="tab" aria-selected="false" aria-controls="issues-view" tabindex="-1">All issues</button>
-  </div>
-  <section id="survey-view" role="tabpanel" aria-labelledby="tab-survey">
+  <p id="decision-verdict" class="decision-verdict" role="status"></p>
+  <section id="survey-view" aria-label="Survey and contextual coach">
     <div class="studio">
-      <div class="screen-navigator"><div class="section-kicker"><span>01 / EXPLORE</span><h2>Survey screens</h2><p>Walk through it like a member.</p></div><nav id="rail" class="rail" aria-label="Survey screens"></nav></div>
+      <div class="screen-navigator"><div class="section-kicker"><h2>Survey screens</h2></div><nav id="rail" class="rail" aria-label="Survey screens"></nav></div>
       <section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"><p>Preparing the phone preview…</p></section>
-      <aside id="coach" class="coach" aria-labelledby="coach-h"><p>Opening your recommendations…</p></aside>
+      <aside id="coach" class="coach" aria-labelledby="coach-h"><p>Opening your issues…</p></aside>
     </div>
-    <p class="reconstruction-note">Preview, not a live survey. Layout is reconstructed; imagery uses labelled placeholders. Verify the actual survey on a mobile device.</p>
+    <p class="reconstruction-note">Reconstructed preview, not a live survey. Verify layout and imagery on a mobile device in RedJade.</p>
     <p id="strip" class="strip"></p>
   </section>
-  <section id="issues-view" role="tabpanel" aria-labelledby="tab-issues" hidden>
-    <h2 id="fixes-h">Your fix checklist</h2><p>Copy usable fixes into RedJade. Findings without a rewrite explain the action needed.</p><div id="fix-list"></div>
-  </section>
-  <details class="workflow-panel review-details"><summary>Coverage, checks &amp; source evidence</summary><section id="review-summary" aria-label="Review summary"></section></details>
-  <section id="version-changes" aria-label="Changes since previous version"></section>
-  <details class="workflow-panel review-details"><summary>Check your updated survey</summary>
-  <section id="recheck-panel" class="workflow-panel" aria-labelledby="recheck-h">
-    <h2 id="recheck-h">Check your updated survey</h2>
-    <p>Make changes in RedJade first. Then reread the same approved test link or import an updated snapshot. Nothing is marked verified just because you copied a fix.</p>
-    <form id="recheck-form">
-      <label for="survey-link">Updated RedJade preview link</label><input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
-      <p>Use an approved test link, not a member invitation. Opening it may create a test-participant record. Participant mode answers, advances, and clicks Submit/Finish to complete test responses and read subsequent pages. Unsupported controls stop the read.</p>
-      <label for="snapshot">Or updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json">
-      <p>Includes AI review through Wibey. Survey wording is sent to the approved AI service.</p>
-      <button class="btn" type="submit">Check again</button>
-    </form><p id="import-status" role="status" aria-live="polite"></p>
-  </section></details>
+  <details id="issues-view" class="review-details issue-drawer"><summary>All issues · jump to a screen</summary><p>Review and decide beside the phone. This list is just your navigator.</p><div id="fix-list"></div></details>
+  <details class="review-details checked-summary"><summary>What we checked</summary><section id="review-summary" aria-label="What we checked"></section></details>
+  <section id="version-changes" class="review-details" aria-label="Review rounds"></section>
+  <div id="change-sheet"></div>
+  <details id="recheck-details" class="review-details">
+    <summary>Check again</summary>
+    <section id="recheck-panel" aria-labelledby="recheck-h">
+      <h2 id="recheck-h">Check your updated survey</h2>
+      <p>Apply your changes in RedJade first. Checking again creates the next round; copying a rewrite does not verify it.</p>
+      <form id="recheck-form">
+        <label for="survey-link">Updated RedJade preview link</label><input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
+        <details class="advanced-recheck"><summary>Advanced · local snapshot import</summary><label for="snapshot">Updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json"></details>
+        <p>Use an approved test link, not a member invitation. Checking sends survey wording to Walmart’s approved AI service. Never include member responses or personal information.</p><p id="reader-mode">Opening a link may create a test participant. Exclude test responses from results.</p>
+        <button class="btn" type="submit">Start next round</button>
+      </form><p id="import-status" role="status" aria-live="polite"></p>
+    </section>
+  </details>
+  <footer class="review-actionbar" aria-label="Finish this round">
+    <button id="copy-all" class="btn" type="button" disabled>Copy all changes (0)</button>
+    <button id="check-again" class="btn" type="button">Check again</button>
+    <a id="sign-off" class="btn" target="_blank" rel="noopener">Share for sign-off</a>
+    <p id="action-status" role="status" aria-live="polite"></p>
+  </footer>
 </main>
 <p id="status" class="sr-only" role="status" aria-live="polite"></p>
-<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="model.js"></script><script src="phone.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
+<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="phone.js"></script><script src="journey.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
 </body></html>

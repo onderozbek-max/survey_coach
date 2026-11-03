@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from builders import (INTRO_TEXT, context, intro, one_question_survey, page, question, survey, thank_you)
 
 from surveycoach.checks import structure
@@ -26,26 +28,36 @@ def test_b4_passes_with_an_intro_first():
 
 
 # B5 broken time promise
-def test_b5_flags_a_survey_far_longer_than_promised():
-    snapshot = long_text_survey(12, intro_text="Thanks! This takes about 2 minutes.")   # 12 x ~50s = ~10 min
-    assert [f.severity for f in run(structure.broken_time_promise, snapshot).findings] == ["must_fix"]
+def test_b5_flags_a_calibrated_route_far_longer_than_promised():
+    snapshot = long_text_survey(12, intro_text="Thanks! This takes about 2 minutes.")
+    ctx = context(snapshot)
+    ctx = replace(ctx, timing=ctx.timing.model_copy(update={"calibrated": True}))
+    assert [f.severity for f in structure.broken_time_promise(ctx).findings] == ["must_fix"]
 
 
 def test_b5_needs_both_50_percent_and_3_minutes_over():
     snapshot = long_text_survey(4, intro_text="This takes about 2 minutes.")   # ~3.3 min: 65% over but < 3 min over
-    assert run(structure.broken_time_promise, snapshot).findings == []
+    ctx = context(snapshot)
+    ctx = replace(ctx, timing=ctx.timing.model_copy(update={"calibrated": True}))
+    assert structure.broken_time_promise(ctx).findings == []
+    assert structure.broken_time_promise(ctx).assessed
 
 
 def test_b5_is_silent_when_no_time_is_promised():
-    assert run(structure.broken_time_promise, long_text_survey(12, intro_text="Thanks for helping!")).findings == []
+    ctx = context(long_text_survey(12, intro_text="Thanks for helping!"))
+    ctx = replace(ctx, timing=ctx.timing.model_copy(update={"calibrated": True}))
+    assert structure.broken_time_promise(ctx).findings == []
+    assert structure.broken_time_promise(ctx).assessed
 
 
 # B3 late screen-out
-def test_b3_flags_a_screen_out_after_two_minutes_of_effort():
+def test_b3_flags_a_verified_route_screen_out_after_two_minutes_of_effort():
     pages = [intro()] + [page(i + 1, question(f"q{i}", "Tell us", "text_long", options=())) for i in range(4)]
     pages += [page(5, kind="screen_out", text="Sorry, you don't qualify."), thank_you()]
-    result = run(structure.late_screen_out, survey(*pages))
-    assert any("minutes" in f.explanation for f in result.findings)
+    ctx = context(survey(*pages))
+    # Explicitly verified single route; a raw capture with alternatives cannot prove effort.
+    ctx = replace(ctx, timing=ctx.timing.model_copy(update={"calibrated": True, "path_uncertain": False}))
+    assert any("minutes" in f.explanation for f in structure.late_screen_out(ctx).findings)
 
 
 def test_b3_flags_a_screen_out_that_does_not_thank_the_member():

@@ -23,9 +23,11 @@ def test_all_full_marks_is_100_and_ready():
     assert not card.provisional
 
 
-def test_no_results_is_provisional_full_credit_with_unchecked_points():
+def test_no_results_is_provisional_with_no_earned_credit():
     card = score(RUBRIC, {})
-    assert card.score == 100
+    assert card.score == 0
+    assert card.checked_points == 0
+    assert card.strengths == []
     assert card.provisional
     assert card.unchecked_points == 100
 
