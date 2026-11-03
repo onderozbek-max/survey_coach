@@ -13,7 +13,8 @@ from .policy import SIGNIN_PATH, UnsafeSurveyURL, origin, public_addresses, requ
 from .definition import adapt_definition, find_definition
 from .proxy import corporate_proxy
 
-FINAL_ENDPOINT = re.compile(r"submit|finish|complet|finaliz|terminate", re.I)
+# RedJade's per-answer save is "answer_submit_events"; that is not survey completion.
+FINAL_ENDPOINT = re.compile(r"(?<!answer_)submit|finish|complet|finaliz|terminate", re.I)
 PARTICIPANT_WRITES = {"POST", "PUT", "PATCH"}
 MAX_WRITE_BYTES = 256 * 1024
 
@@ -45,7 +46,8 @@ class GuardedTransport:
             if not public_addresses(addresses):
                 raise UnsafeSurveyURL("Survey host did not resolve exclusively to public addresses.")
             self.address = addresses[0]
-        self.deadline = time.monotonic() + 90
+        # Large assets via the corporate proxy alone take ~45s; give that route room.
+        self.deadline = time.monotonic() + (300 if self.proxy else 90)
         self.requests = 0
         self.bytes = 0
         self.definition = None

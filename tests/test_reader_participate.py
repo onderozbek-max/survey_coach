@@ -33,10 +33,14 @@ def _transport(monkeypatch, *, participate):
 @pytest.mark.parametrize("method,path", [
     ("POST", "/online_sign_in_events"), ("POST", "/responses"), ("PUT", "/responses/42"),
     ("PATCH", "/participants/7"), ("GET", "/current_participant?lite=true&page=3"),
+    # Observed RedJade per-answer save: "submit" here is not survey completion.
+    ("PUT", "https://app.redjade.net/api/v1/answer_submit_events/1347073403"),
+    ("POST", "https://app.redjade.net/api/v1/page_start_events"),
 ])
 def test_participant_requests_are_forwarded(monkeypatch, method, path):
     guard, connection = _transport(monkeypatch, participate=True)
-    route = _route(method, API + path, b'{"answer": 1}' if method != "GET" else None)
+    route = _route(method, path if path.startswith("https") else API + path,
+                   b'{"answer": 1}' if method != "GET" else None)
     guard(route)
     route.fulfill.assert_called_once()
     if method != "GET":
@@ -46,6 +50,7 @@ def test_participant_requests_are_forwarded(monkeypatch, method, path):
 
 @pytest.mark.parametrize("method,url", [
     ("POST", API + "/complete"), ("POST", API + "/responses/submit"), ("PUT", API + "/finalize"),
+    ("POST", API + "/survey_submit_events"), ("POST", API + "/survey_complete_events"),
     ("POST", "https://other.redjade.net/api/v1/surveys/responses"),
     ("POST", "https://evil.example/collect"), ("DELETE", API + "/responses/42"),
 ])

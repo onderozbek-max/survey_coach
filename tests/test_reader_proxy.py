@@ -38,3 +38,15 @@ def test_arbitrary_proxy_configuration_is_rejected(monkeypatch, proxy):
     monkeypatch.setenv("SURVEYCOACH_CORPORATE_PROXY", proxy)
     with pytest.raises(UnsafeSurveyURL):
         GuardedTransport("https://app.redjade.net/test", local=False, approval=True, coverage=Coverage())
+
+
+def test_corporate_route_gets_more_patience_than_direct(monkeypatch):
+    """Fonts/assets via the corporate proxy take seconds; 3s screenshot waits flaked."""
+    import time
+    from surveycoach.reader.session import patience
+    monkeypatch.setenv("SURVEYCOACH_CORPORATE_PROXY", "http://proxy-intlho.wal-mart.com:8080")
+    proxied = GuardedTransport("https://app.redjade.net/surveys/a/b/", local=False, approval=True, coverage=Coverage())
+    local = GuardedTransport("http://127.0.0.1:9000/start", local=True, approval=False, coverage=Coverage())
+    assert patience(proxied) == 5 and patience(local) == 1
+    assert proxied.deadline - time.monotonic() > 250
+    assert local.deadline - time.monotonic() < 100

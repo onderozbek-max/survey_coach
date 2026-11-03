@@ -1,6 +1,7 @@
 """Bounded asynchronous Playwright reader with a synchronous public entry point. No live reads happen at import time."""
 import asyncio
 import json
+import logging
 import re
 import tempfile
 import time
@@ -17,6 +18,19 @@ from .transport import GuardedTransport
 
 FINAL = re.compile(r"\b(submit|finish|complete|done)\b", re.I)
 NEXT = re.compile(r"^(next|continue|begin|start)$", re.I)
+LINK = re.compile(r"\w+://\S+")
+logger = logging.getLogger(__name__)
+
+
+def describe_error(error: BaseException) -> str:
+    """Type plus first message line, links removed: diagnosable, never token-bearing."""
+    first = (str(error).splitlines() or [""])[0]
+    return f"{type(error).__name__}: {LINK.sub('[link]', first)}"[:200]
+
+
+def patience(transport) -> int:
+    """Timeout multiplier: the corporate proxy route is ~5x slower for assets and fonts."""
+    return 5 if transport.proxy else 1
 
 
 def external_progression_stop(*, allow_test_local: bool, participate: bool = False) -> bool:
@@ -51,6 +65,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     coverage = Coverage()
     transport = GuardedTransport(url, local=allow_test_local, approval=approval, coverage=coverage,
                                  participate=participate)
+    slow = patience(transport)
     directory = Path(tempfile.mkdtemp(prefix="surveycoach-reader-"))
     result = ReadResult(snapshot=SurveySnapshot(title="", source_url=url, pages=[]),
                         coverage=coverage, capture_dir=directory)
@@ -67,7 +82,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
         model = extract_page(observed, number)
         png = directory / f"page-{number:02d}.png"
         observation = directory / f"page-{number:02d}.json"
-        await page.screenshot(path=str(png), timeout=3000)
+        await page.screenshot(path=str(png), timeout=3000 * slow)
         observation.write_text(json.dumps(observed, ensure_ascii=False, indent=2), encoding="utf-8")
         png.chmod(0o600)
         observation.chmod(0o600)
@@ -92,12 +107,12 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                 context = await browser.new_context(viewport={"width": 393, "height": 852},
                                               is_mobile=True, has_touch=True, service_workers="block",
                                               accept_downloads=False, permissions=[])
-                context.set_default_timeout(3000)
+                context.set_default_timeout(3000 * slow)
                 await context.route("**/*", transport.handle_async)
                 await context.route_web_socket("**/*", close_socket)
                 page = await context.new_page()
                 page.on("dialog", dismiss_dialog)
-                await page.goto(url, wait_until="domcontentloaded", timeout=60000 if transport.proxy else 10000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=12000 * slow)
                 await page.wait_for_timeout(200)
                 if transport.proxy:
                     try:
@@ -150,7 +165,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                     await page.locator(f'[data-surveycoach-id="{nav[0]["id"]}"]').click()
                     try:
                         await page.wait_for_function(
-                            "old => document.body.innerText.trim() !== old", arg=observed["text"], timeout=2000)
+                            "old => document.body.innerText.trim() !== old", arg=observed["text"], timeout=2000 * slow)
                     except Exception:
                         coverage.stop_reason = "blocked"
                         break
@@ -162,7 +177,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     except TimeoutError:
         coverage.stop_reason = "time_limit"
         coverage.warnings.append("Browser read reached its time limit; unavailable content was not inferred.")
-    except Exception:
+    except Exception as error:
+        logger.warning("Reader stopped: %s", describe_error(error))
         coverage.stop_reason = "reader_error"
         coverage.warnings.append("Browser read could not finish; no unavailable content was inferred.")
     if transport.definition is not None:
