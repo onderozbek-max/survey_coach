@@ -73,9 +73,9 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     result = ReadResult(snapshot=SurveySnapshot(title="", source_url=url, pages=[]),
                         coverage=coverage, capture_dir=directory)
     if participate and not allow_test_local:
-        coverage.warnings.append("Participant mode: this read answered questions as a test respondent and left an "
-                                 "incomplete response in the survey tool (text answers say 'SurveyCoach test'). "
-                                 "It stops before the final Submit/Finish.")
+        coverage.warnings.append("Participant mode permits synthetic answer saves and advancement "
+                                 "(text answers say 'SurveyCoach test'). Explicit Submit/Finish controls "
+                                 "are not clicked, but Next or app-generated requests may complete responses.")
     elif not allow_test_local:
         coverage.warnings.append("Approved external read: page loads can create partial participant data. All writes are blocked.")
     from playwright.async_api import async_playwright
@@ -165,6 +165,16 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         await capture(page, revealed)
                         coverage.stop_reason = "same_page_change"
                         break
+                    # OBSERVE reassigns DOM IDs. Typing can reveal Clear buttons before
+                    # Next, so the pre-answer nav ID may now point at a different action.
+                    if any(FINAL.search(button["label"]) for button in revealed["nav"]):
+                        coverage.stop_reason = "final_control"
+                        break
+                    nav = [button for button in revealed["nav"]
+                           if NEXT.fullmatch(button["label"]) and not button["disabled"]]
+                    if len(nav) != 1:
+                        coverage.stop_reason = "unsupported"
+                        break
                     await page.locator(f'[data-surveycoach-id="{nav[0]["id"]}"]').click()
                     try:
                         await page.wait_for_function(READY, arg=observed["text"], timeout=2000 * slow)
@@ -217,6 +227,9 @@ async def _answer_groups(page, observation: dict) -> None:
                 # Type key by key: RedJade tracks answers from key events and ignores a bulk fill.
                 await locator.fill("")
                 await locator.press_sequentially("SurveyCoach test")
+                # RedJade's text component records selected_answers 200ms after
+                # the final input event. Next validates that model, not the DOM value.
+                await page.wait_for_timeout(300)
             elif kind == "numeric":
                 low, high = float(item["min"] or 1), float(item["max"] or item["min"] or 10)
                 await locator.fill(str(int((low + high) // 2)))

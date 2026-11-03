@@ -149,6 +149,30 @@ def test_invalid_page_budget_is_rejected_before_launch(limit):
         read_survey("http://127.0.0.1:1/test", allow_test_local=True, max_pages=limit)
 
 
+def test_appearing_clear_button_does_not_steal_the_next_button_id(zoo):
+    """Rescanning after typing reassigns nav IDs; click the newly observed Next, not Clear."""
+    base, requests = zoo
+    result = read_survey(base + "/clear-button", allow_test_local=True)
+    assert ("GET", "/cleared") not in requests
+    assert result.coverage.stop_reason == "final_control"
+    assert result.coverage.pages_captured == 2
+    assert ("GET", "/submitted") not in requests
+
+
+def test_redjade_clear_control_for_existing_text_field_is_not_navigation(zoo):
+    base, requests = zoo
+    result = read_survey(base + "/prefilled-clear-button", allow_test_local=True)
+    assert result.coverage.stop_reason == "final_control"
+    assert result.coverage.pages_captured == 2
+    assert ("GET", "/cleared") not in requests
+
+
+def test_text_answer_debounce_finishes_before_clicking_next(zoo):
+    result = read_survey(zoo[0] + "/debounced-text", allow_test_local=True)
+    assert result.coverage.stop_reason == "final_control"
+    assert result.coverage.pages_captured == 2
+
+
 def test_text_answers_are_typed_like_a_person(zoo):
     """RedJade keeps text answers in its own state from key events; a programmatic fill is ignored."""
     result = read_survey(zoo[0] + "/keyup", allow_test_local=True)

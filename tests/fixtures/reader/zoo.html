@@ -29,6 +29,21 @@ else if(stage==='redjade') root.innerHTML=`<div class="q"><div aria-label="Which
 <div><button type="button" id="prev-button" aria-hidden="true" style="display:none">Back</button><button type="button" id="next-button" onclick="location.href='/final'">Next</button></div>`;
 else if(stage==='flash') root.innerHTML=`<h1>Transition fixture.</h1><button onclick="root.innerHTML='';setTimeout(()=>{root.innerHTML='<p>Loading...</p>'},150);setTimeout(()=>{location.href='/final'},500)">Next</button>`;
 else if(stage==='keyup') {let typed='';root.innerHTML=`<fieldset><legend>Describe your evening.</legend><textarea id="t"></textarea></fieldset><button id="n">Next</button>`;document.getElementById('t').onkeyup=e=>{typed=e.target.value;};document.getElementById('n').onclick=()=>{const t=document.getElementById('t');if(!typed){t.value='';t.focus();return;}location.href='/final';};}
+else if(['clear-button','prefilled-clear-button'].includes(stage)) {
+  root.innerHTML=`<fieldset><legend>Describe a synthetic activity.</legend><textarea id="response"></textarea><button type="button" id="clear" aria-label="Clear" style="display:none"></button></fieldset><button id="next-button">Next</button>`;
+  const field=document.getElementById('response'), clear=document.getElementById('clear');
+  field.oninput=()=>{clear.style.display=field.value?'inline-block':'none';};
+  clear.style.cssText+=';width:24px;height:24px';
+  if(stage==='prefilled-clear-button'){field.value='Synthetic previous answer';clear.id='input-clear-response';clear.style.display='inline-block';}
+  clear.onclick=()=>{field.value='';field.focus();fetch('/cleared');};
+  document.getElementById('next-button').onclick=()=>{if(field.value)location.href='/final';};
+}
+else if(stage==='debounced-text') {
+  let saved='', pending;
+  root.innerHTML=`<fieldset><legend>Describe a synthetic activity.</legend><textarea id="response"></textarea></fieldset><button id="next-button">Next</button>`;
+  document.getElementById('response').oninput=e=>{clearTimeout(pending);pending=setTimeout(()=>{saved=e.target.value;},200);};
+  document.getElementById('next-button').onclick=()=>{if(saved)location.href='/final';};
+}
 else if(stage==='empty') root.innerHTML='<p>Still loading.</p>';
 else if(stage==='unlabeled') root.innerHTML='<input type="radio" name="x"><input type="radio" name="x"><button>Next</button>';
 else if(stage==='disabled') root.innerHTML='<label>Pick a size.<select><option value="">Choose</option><option disabled value="x">Unavailable</option></select></label><button>Next</button>';

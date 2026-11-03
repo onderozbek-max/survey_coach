@@ -9,7 +9,7 @@ coverage = result.coverage       # pages_captured, stop_reason, warnings, blocke
 captures = result.captures       # page_id, viewport_png, observation_json (Path objects)
 ```
 
-`read_survey(url, *, allow_test_local=False, approval=False, max_pages=30)` is
+`read_survey(url, *, allow_test_local=False, approval=False, max_pages=30, participate=False)` is
 synchronous. Policy violations raise `UnsafeSurveyURL` without echoing input;
 invalid budgets raise `ValueError`. Browser/interaction errors return captured
 content and a generic `reader_error`. No unavailable question is inferred.
@@ -17,11 +17,15 @@ content and a generic `reader_error`. No unavailable question is inferred.
 
 ## Managed Mac corporate connection
 
-On the owner's Mac, the configured corporate PAC routes this survey host through `proxy-intlho.wal-mart.com:8080`. Start the local server with `SURVEYCOACH_CORPORATE_PROXY=http://proxy-intlho.wal-mart.com:8080` to use that approved route. The opt-in supports only `app.redjade.net`; arbitrary proxy URLs/credentials are rejected. The corporate proxy owns upstream DNS/network policy on this route; direct mode still validates/pins public DNS. TLS verification against the survey hostname remains enabled. GET/HEAD, same-origin, response-size, deadline, no-redirect, no-final-endpoint and no-answer-write guards remain in force.
+On the owner's Mac, the configured corporate PAC routes this survey host through `proxy-intlho.wal-mart.com:8080`. Start the local server with `SURVEYCOACH_CORPORATE_PROXY=http://proxy-intlho.wal-mart.com:8080` to use that approved route. The opt-in supports only `app.redjade.net`; arbitrary proxy URLs/credentials are rejected. The corporate proxy owns upstream DNS/network policy on this route; direct mode still validates/pins public DNS. TLS verification against the survey hostname remains enabled. Same-origin, response-size, deadline and no-redirect guards remain in force. Default mode blocks writes and completion-looking endpoints; participant mode explicitly permits survey writes.
 
-## Approved test-participant start (off by default)
+## Approved participant mode (off by default)
 
-Some RedJade links show questions only after an anonymous participant sign-in. With the survey owner's approval, start the server with `SURVEYCOACH_ALLOW_TEST_SESSION=1`. Each read may then send **one** `POST /api/v1/surveys/online_sign_in_events`, accepted only when the JSON has exactly the observed keys, `company_token`/`static_url` match the input link, and `participant_code`, `verification_code`, `external_id` and `enc` are all null. **Every read creates one test-participant record in RedJade.** All other writes (answers, progression, completion) remain blocked. Read-only startup GETs with query strings are limited to the `READONLY_QUERIES` table in `policy.py`. The survey app's own same-origin session token and cookies are forwarded (fresh browser context, so no personal credentials exist); proxy credentials never are.
+With the survey owner's permission to submit synthetic answers, start the local server with `SURVEYCOACH_PARTICIPANT_MODE=1`, or call `read_survey(..., approval=True, participate=True)`. The old `SURVEYCOACH_ALLOW_TEST_SESSION` setting is no longer used.
+
+Participant mode forwards same-origin POST/PUT/PATCH bodies up to 256 KiB, including RedJade startup, answer saves and questionnaire submissions. It accepts app-generated same-origin queries and advances through one deterministic path. Each read may create participant records and synthetic responses. Text answers say `SurveyCoach test`; choice-only responses are not separately tagged. Exclude these test responses from research results.
+
+The reader never clicks explicitly labeled Submit/Finish/Complete/Done controls, but **Next and app-generated requests may complete responses**. There is no transport-level completion guarantee in participant mode. Unknown controls, uploads, photos and unsupported widgets stop the read. Fresh browser contexts contain no personal profile; app-issued session cookies/tokens are forwarded only to the same origin. Proxy credentials and cross-origin traffic remain blocked.
 
 ## Supported, intentionally narrow
 
@@ -49,7 +53,7 @@ Survey type uses the existing model's default; it is not inferred by the reader.
 
 ## Safety policy
 
-- No live crawl was used to build or test this module.
+- Automated tests use synthetic loopback fixtures. Owner-approved live diagnostics have also been run; real captures remain private temporary files.
 - External URLs need `approval=True`, HTTPS/443 and a `redjade.net` host or
   subdomain. Queries, fragments, credentials, ambiguous URL syntax, arbitrary
   hosts, private/literal IPs and metadata destinations are denied.
@@ -60,11 +64,12 @@ Survey type uses the existing model's default; it is not inferred by the reader.
   vetted IP while retaining TLS hostname/certificate verification. Chromium does
   not resolve network destinations. No environment proxy is used.
 - Every browser HTTP request is intercepted and checked again. Only same-origin
-  GET/HEAD are forwarded. POST/PUT/etc., token-bearing URLs, cross-origin assets,
-  **all redirects**, and known submit/finish/complete/finalize endpoints are blocked.
+  GET/HEAD are forwarded by default. Participant mode additionally permits bounded
+  POST/PUT/PATCH requests and app-generated queries, including submit endpoints.
+  Cross-origin traffic, deletes and **all redirects** remain blocked.
   Service workers, WebSockets, downloads, permissions and nonproxied WebRTC are
   disabled/blocked. Fresh browser context for every read; no saved profile.
-- **External progression is always disabled, even with a definition.**
+- **External progression is disabled unless participant mode is explicitly enabled.**
   RedJade's final control may say “Next.” External mode captures its initial
   visible state and stops (`external_progression_unverified`) if it would need
   to advance. A passively captured definition stops immediately after the first
@@ -80,9 +85,12 @@ Survey type uses the existing model's default; it is not inferred by the reader.
   query-free survey URL is preserved as snapshot provenance; page wording is
   preserved verbatim, not scrubbed or rewritten.
 
-Bounds: 1–30 captures, 90-second session transport deadline, 150 requests,
-2 MiB per response, approximately 20 MiB aggregate responses, 3-second socket and
-interaction timeouts, 10-second initial navigation timeout. Screenshot/DOM sizes
+Bounds: 1–30 captures, 150 requests, approximately 20 MiB aggregate responses,
+2 MiB per response (8 MiB for JavaScript/CSS). Direct connections have a 90-second
+deadline and 3-second socket/interaction timeouts. The approved corporate proxy
+has a 300-second deadline, 20-second socket and 15-second interaction timeouts.
+Downloads retry once on network errors; writes never retry. Text entry allows
+RedJade's observed 200 ms debounce to finish before advancement. Screenshot/DOM sizes
 and a hostile browser process are not hard OS-level resource-sandboxed. This is
 not a general-purpose untrusted-web execution service; deploy behind a proper
 network/process sandbox for adversarial use.

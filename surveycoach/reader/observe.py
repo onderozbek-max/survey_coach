@@ -5,9 +5,14 @@ OBSERVE = r"""() => {
   const text = e => e ? e.innerText.trim() : '';
   const answerRole = '[role=radio],[role=checkbox]';
   const controls = [...document.querySelectorAll('input:not([type=hidden]),textarea,select,' + answerRole)].filter(visible);
+  // RedJade's field-local Clear control is not a navigation action. Require
+  // its exact ID convention and a corresponding text field; unknown buttons still stop.
+  const fieldClear = e => e.tagName==='BUTTON' && e.type==='button' &&
+    e.id.startsWith('input-clear-') &&
+    document.getElementById(e.id.slice('input-clear-'.length))?.matches('textarea,input[type=text]');
   // ARIA answer controls may be <button>s (RedJade); they are answers, never navigation.
   const buttons = [...document.querySelectorAll('button,input[type=submit],input[type=button],a[href],[role=button]')]
-    .filter(e => visible(e) && !e.matches(answerRole));
+    .filter(e => visible(e) && !e.matches(answerRole) && !fieldClear(e));
   const tag = (e,id) => {e.setAttribute('data-surveycoach-id',id); return id;};
   const label = e => e.getAttribute('aria-label') || (e.labels?.length ? text(e.labels[0]) : text(e));
   const nav = buttons.map((e,i)=>({id:tag(e,'nav-'+i), label:label(e)||e.value||'',
