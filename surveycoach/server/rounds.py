@@ -94,7 +94,8 @@ def valid_decisions(detail):
         if not finding:
             continue
         if decision.get("action") == "pick" and decision.get("picked_text") not in allowed_texts(finding):
-            output[key] = dict(decision, action="open", picked_text=None, manual_done=False)
+            output[key] = dict(decision, action="open", picked_text=None, manual_done=False,
+                               stale_pick=True, previous_text=decision.get("picked_text"))
         else:
             output[key] = decision
     return output
