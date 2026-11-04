@@ -6,7 +6,10 @@
   SC.wordDiff = (before, after) => {
     const tokens = s => (s || '').split(/(\s+|[.,!?;:]+(?=\s|$))/).filter(Boolean);
     const a = tokens(before), b = tokens(after), n = a.length, m = b.length;
-    if (n * m > 40000) return [{type:'del', text:before}, {type:'ins', text:after}];
+    if (!n) return m ? [{type:'ins', text:after}] : [];
+    if (!m) return [{type:'del', text:before}];
+    // Include the boundary row and column in the allocation budget.
+    if ((n + 1) * (m + 1) > 40000) return [{type:'del', text:before}, {type:'ins', text:after}];
     const dp = Array.from({length:n + 1}, () => new Uint16Array(m + 1));
     for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
       dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);

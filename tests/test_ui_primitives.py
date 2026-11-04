@@ -72,6 +72,59 @@ def test_word_diff_large_input_falls_back_without_losing_text(page):
         {'type': 'del', 'text': before}, {'type': 'ins', 'text': after}]
 
 
+def diff_with_allocations(page, before, after):
+    """Count real DP row allocations, restoring the browser constructor even on failure."""
+    return page.evaluate('''([before, after]) => {
+        const original = window.Uint16Array;
+        let rows = 0, cells = 0;
+        window.Uint16Array = new Proxy(original, {
+            construct(target, args) {
+                rows++;
+                cells += args[0];
+                return Reflect.construct(target, args);
+            }
+        });
+        try {
+            return {segments:SC.wordDiff(before, after), rows, cells};
+        } finally {
+            window.Uint16Array = original;
+        }
+    }''', [before, after])
+
+
+@pytest.mark.parametrize('empty', ['', None])
+@pytest.mark.parametrize('reverse', [False, True])
+def test_word_diff_empty_side_never_allocates_dp(page, empty, reverse):
+    text = 'word, \n' * 10000
+    before, after = (text, empty) if reverse else (empty, text)
+    result = diff_with_allocations(page, before, after)
+    assert result['segments'] == [{'type': 'del' if reverse else 'ins', 'text': text}]
+    assert result['rows'] == result['cells'] == 0
+
+
+def test_word_diff_both_empty_never_allocates_dp(page):
+    assert diff_with_allocations(page, '', None) == {'segments': [], 'rows': 0, 'cells': 0}
+
+
+@pytest.mark.parametrize(('before', 'after'), [
+    ('x', 'x ' * 10000),
+    ('x ' * 10000, 'x'),
+    ('x ' * 99 + 'x', 'x ' * 100),
+    ('x ' * 100, 'x ' * 99 + 'x'),
+])
+def test_word_diff_bounds_actual_table_cells_without_allocating(page, before, after):
+    result = diff_with_allocations(page, before, after)
+    assert result['segments'] == [
+        {'type': 'del', 'text': before}, {'type': 'ins', 'text': after}]
+    assert result['rows'] == result['cells'] == 0
+
+
+def test_word_diff_at_cell_limit_keeps_exact_lcs_behavior(page):
+    text = 'x ' * 99 + 'x'  # 199 tokens: (199 + 1) ** 2 == 40,000 cells.
+    assert diff_with_allocations(page, text, text) == {
+        'segments': [{'type': 'same', 'text': text}], 'rows': 200, 'cells': 40000}
+
+
 def test_render_diff_uses_semantic_elements_and_literal_text(page):
     require(page, 'renderDiff')
     result = page.evaluate('''() => {
