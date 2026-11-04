@@ -130,7 +130,7 @@ def test_job_provider_gets_chosen_type(tmp_path, monkeypatch):
 def test_prompt_and_cache_are_style_aware(tmp_path):
     rubric = load_rubric()
     assert rubric.length_targets_minutes["community_pulse"] == (5, 8)
-    assert PROMPT_VERSION == "8"
+    assert PROMPT_VERSION == "9"
     assert ("If the survey type is community_pulse, emoji, exclamation marks and playful wording are part of "
             "the community voice; flag them only when they hide meaning.") in system_prompt(BATCHES[0], rubric)
     cache = JudgeCache(tmp_path)
