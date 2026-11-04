@@ -50,16 +50,17 @@ def test_link_start_to_saved_review_preserves_partial_coverage(browser, studio, 
         jump.wait_for(state='visible')
         jump.click()
         page.locator('#coach .card').wait_for()
-        page.locator('.checked-summary > summary').click()
-        summary = page.locator('#review-summary')
+        page.locator('#about-review').click()
+        summary = page.get_by_role('dialog', name='About this review')
         assert '3 captured screens checked' in summary.inner_text()
         assert 'Reached the end of the observed path.' in summary.inner_text()
-        assert 'Unvisited paths are not checked' in summary.inner_text()
+        assert 'Unvisited branches and uncaptured screens were not checked.' in summary.inner_text()
         assert 'not launch approval' in summary.inner_text()
         assert 'path_end' not in summary.inner_text()
         summary.get_by_text('Technical details & source evidence', exact=True).click()
         assert 'Reader stop code: path_end' in summary.inner_text()
         assert summary.get_by_role('link', name='Captured screen').count() == 3
+        page.keyboard.press('Escape')
     assert len(calls) == 1
     options = calls[0]
     assert options['approval'] is True and options['participate'] is True

@@ -86,7 +86,14 @@ textarea { color:var(--text); background:var(--surface); border:1px solid var(--
 .workspace-shell .review-details { margin:16px 0; padding:12px 18px; }
 .review-details > summary { display:flex; align-items:center; cursor:pointer; font-weight:700; }
 .review-details .workflow-panel { border:0; background:transparent; padding:12px 0; }
-.reconstruction-note { color:var(--muted); font-size:13px; margin:8px 0 14px; }
+.about-sheet { margin:auto; width:min(680px, calc(100% - 32px)); max-height:calc(100dvh - 48px); overflow:auto; overscroll-behavior:contain; padding:24px; border:1px solid var(--line-strong); border-radius:var(--r-lg); background:var(--surface); color:var(--text); box-shadow:var(--shadow-3); }
+.about-sheet::backdrop { background:var(--phone-frame); opacity:.65; }
+.about-sheet h2 { font-size:var(--fs-22); margin:16px 0; }
+.about-sheet h3 { font-size:var(--fs-16); margin:20px 0 8px; }
+.about-sheet p,.about-sheet li,.about-sheet summary,.about-sheet a { font-size:var(--fs-14); overflow-wrap:anywhere; }
+.about-sheet p { margin:8px 0; }
+.about-sheet ul { padding-left:20px; }
+.about-sheet a { display:block; min-height:44px; padding:10px 0; }
 .image-reminder { color:var(--attention); background:var(--attention-soft); border:1px solid var(--attention); padding:10px; border-radius:8px; font-size:12px; margin:8px 0 16px; }
 .media-wrap .media { width:100%; box-sizing:border-box; overflow:hidden; display:grid; place-items:center; }
 .media-wrap .media > span { text-align:center; padding:8px; font-size:12px; overflow-wrap:anywhere; }

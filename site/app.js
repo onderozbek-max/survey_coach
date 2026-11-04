@@ -18,7 +18,7 @@
       const [metadata, detail] = await Promise.all(responses.map((r) => r.json()));
       if (!detail.review) throw new Error("Review is not finished. Open My surveys to check its progress.");
       localDetail = detail;
-      DATA = { ...metadata, surveys: [detail], disclaimer: "Private local review. Preview is a reconstruction, not verified RedJade rendering. Copy fixes into RedJade yourself.", disclaimer_short: "Local review · reconstructed preview · changes are manual" };
+      DATA = { ...metadata, surveys: [detail] };
       // The canonical workspace owns app navigation and version controls.
     } catch (error) {
       mount($("topbar"), h("p", { role: "alert" }, error.message), h("a", { href: "local.html" }, "My surveys"));
@@ -274,7 +274,6 @@
     lastPage = pageKey;
     renderTop();
     mount($('improve-bar'), queue.renderBar(state.mode, value => { state.mode = value; renderAll(); }, pageItem().page.id));
-    if ($('strip')) mount($("strip"), h("span", { class: "long" }, DATA.disclaimer), h("span", { class: "short" }, DATA.disclaimer_short));
     renderStage();
     if (comparing) {
       const screens = [...document.querySelectorAll('.comparison-phones .phone-screen')];

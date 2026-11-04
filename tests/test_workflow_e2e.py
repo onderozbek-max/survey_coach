@@ -65,7 +65,9 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
     assert page.locator('#copy-all').is_disabled()
     assert page.locator('#stage .phone-screen').is_visible()
-    assert 'Local review' in page.locator('#strip').inner_text()
+    page.locator('#about-review').click()
+    assert 'saved locally' in page.get_by_role('dialog', name='About this review').inner_text()
+    page.keyboard.press('Escape')
     page.locator('#check-again').click()
     page.locator('.advanced-recheck > summary').click()
     before = page.url

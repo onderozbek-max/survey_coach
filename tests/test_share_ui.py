@@ -64,8 +64,9 @@ def test_share_zero_changes_and_honest_version_evidence(browser, base_url):
     assert '1 no longer flagged' in page.locator('#version-changes').inner_text()
     assert 'not blanket verification' in page.locator('#version-changes').inner_text()
     assert '#share' in page.locator('.round-timeline a').first.get_attribute('href')
-    page.locator('#share-details > summary').click()
-    assert 'Nothing here is launch approval' in page.locator('#share-details').inner_text()
+    page.locator('#about-review').click()
+    assert 'not launch approval' in page.get_by_role('dialog', name='About this review').inner_text()
+    page.keyboard.press('Escape')
     assert page.locator('#survey-link').input_value() == detail['snapshot']['source_url']
     assert "The next check compares with the latest saved version, not necessarily the version displayed here." in page.locator('#recheck-form').inner_text()
     timeline = page.get_by_role('navigation', name='Review versions', exact=True)

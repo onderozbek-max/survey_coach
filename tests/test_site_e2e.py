@@ -284,15 +284,16 @@ def test_copy_puts_only_the_suggested_text_on_the_clipboard(browser, base_url):
 def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_url):
     from tests.test_issue_loop_ui import open_review
     context, page, detail, writes, errors = open_review(browser, base_url)
-    page.locator('.checked-summary > summary').click()
-    text = page.locator('#review-summary').inner_text()
-    assert 'Imported survey screens checked' in text
+    page.locator('#about-review').click()
+    summary = page.get_by_role('dialog', name='About this review')
+    text = summary.inner_text()
+    assert 'Imported screens; capture completeness not independently verified.' in text
     assert 'AI advice needs your judgment' in text
-    assert 'Unvisited paths are not checked' in text
+    assert 'Unvisited branches and uncaptured screens were not checked.' in text
     assert 'not launch approval' in text
-    page.locator('#review-summary > details').first.locator(':scope > summary').click()
     for unchecked in detail['review']['unchecked']:
-        assert unchecked in page.locator('#review-summary').inner_text()
+        assert unchecked in summary.inner_text()
+    page.keyboard.press('Escape')
     page.locator('[data-chapter=share]').click()
     assert page.locator('#download-summary').get_attribute('href').endswith('/versions/2/summary?download=1')
     assert not writes and not errors
@@ -302,12 +303,12 @@ def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_ur
 def test_unchecked_points_are_disclosed_as_unknown_not_earned(browser, base_url):
     from tests.test_issue_loop_ui import open_review
     context, page, detail, writes, errors = open_review(browser, base_url)
-    page.locator('.checked-summary > summary').click()
+    page.locator('#about-review').click()
     page.get_by_text('Technical details & source evidence', exact=True).click()
     card = detail['review']['scorecard']
     checked = card.get('checked_points', 100 - card['unchecked_points'])
     earned = card['score'] if 'checked_points' in card else card['score'] - card['unchecked_points']
-    text = page.locator('#review-summary').inner_text()
+    text = page.get_by_role('dialog', name='About this review').inner_text()
     assert f"{int(earned + .5)} of {checked} checked points earned" in text
     assert f"{card['unchecked_points']} points unchecked" in text
     assert not errors

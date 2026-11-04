@@ -3,7 +3,7 @@
   'use strict';
   const SC=window.SC, {h}=SC;
   fetch('/api/reader/mode').then(response=>response.ok?response.json():null).then(mode=>{
-    if(mode && document.getElementById('reader-mode')) document.getElementById('reader-mode').textContent=mode.notice;
+    if(typeof mode?.notice === 'string' && mode.notice.trim() && document.getElementById('reader-mode')) document.getElementById('reader-mode').textContent=mode.notice;
   }).catch(()=>{});
   // Rechecks retain their existing captured preview; Task 8 changes Home only.
   function recheckPreview(job, jobId, output) {

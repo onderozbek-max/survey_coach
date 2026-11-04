@@ -104,11 +104,29 @@ def valid_decisions(detail):
 def scope(detail):
     review = detail.get("review") or {}
     coverage = detail.get("coverage")
-    return {"summary": (f"{coverage['pages_captured']} captured screens; only observed paths checked."
+    results = review.get("results")
+    applicable = {cid: result for cid, result in (results or {}).items()
+                  if result.get("applies", True)}
+    checked = {cid for cid, result in applicable.items()
+               if result.get("assessed", True)
+               and (result.get("fraction") is not None or cid.startswith("B"))}
+    from surveycoach.rubric import load_rubric
+    rubric = load_rubric()
+    # Some unassessed criteria have no result entry; retain them in the denominator.
+    missing = {c.id for c in rubric.criteria if c.active and c.id not in (results or {})
+               and c.title in review.get("unchecked", [])}
+    titles = {c.id: c.title for c in [*rubric.criteria, *rubric.blockers]}
+    unchecked = list(dict.fromkeys([*review.get("unchecked", []),
+                                   *(titles.get(cid, cid) for cid in sorted(applicable.keys() - checked))]))
+    # Counts describe assessed evidence, never points, findings or passing credit.
+    # Older payloads without criterion results cannot establish a denominator.
+    return {"checked_count": len(checked) if results is not None else None,
+            "total_count": len(applicable) + len(missing) if results is not None else None,
+            "summary": (f"{coverage['pages_captured']} captured screens; only observed paths checked."
                         if coverage else "Imported screens; capture completeness not independently verified."),
             "unchecked_paths": ([] if coverage and coverage.get("full_branching_coverage") else
                                 ["Unvisited branches and uncaptured screens were not checked."]),
-            "unchecked_checks": review.get("unchecked", []),
+            "unchecked_checks": unchecked,
             "review_available": bool(detail.get("review"))}
 
 

@@ -104,29 +104,6 @@
     mount($("survey-list"), data.surveys.length ? data.surveys.map(surveyCard)
       : h("p", { class: "empty" }, h("strong", null, "Nothing reviewed yet"), "Paste a link above, or try the sample survey to see what a review looks like."));
   }
-  function renderSummary() {
-    const r = detail.review, card = r.scorecard, coverage = detail.coverage;
-    const stops = {
-      definition_captured: 'Read the available survey definition.', final_control: 'Reached the final survey control.',
-      path_end: 'Reached the end of the observed path.', screen_out: 'Reached a screening exit.',
-      unsupported: 'Stopped at a control the reader could not safely use.', unmet_requirement: 'Could not meet a page requirement.',
-      time_limit: 'Stopped at the time limit.', page_limit: 'Stopped at the screen limit.', loop: 'Stopped after a repeated screen.',
-      blocked: 'A safety restriction stopped the read.', reader_error: 'The reader could not finish.',
-      external_progression_unverified: 'Could not verify progress in the survey.', same_page_change: 'The screen changed without confirmed progress.',
-      not_started: 'The read has not started.'
-    };
-    mount($("review-summary"), h('p', null, coverage
-      ? `${coverage.pages_captured} captured screens checked. ${stops[coverage.stop_reason] || 'The read stopped before all paths could be verified.'}`
-      : 'Imported survey screens checked; capture completeness was not independently verified.'),
-      h('p', null, `${!r.ai ? 'AI wording checks have not run. ' : Object.keys(r.ai.failed || {}).length ? 'Some AI checks did not finish. ' : 'AI advice needs your judgment. '}Unvisited paths are not checked. This is not launch approval.`),
-      r.unchecked?.length > 0 && h('details', null, h('summary', null, `${r.unchecked.length} checks not completed`), h('ul', null, r.unchecked.map(name => h('li', null, name)))),
-      r.projection?.score_limitations?.map(text => h('p',{class:'note'},text)),
-      h('details', null, h('summary', null, 'Technical details & source evidence'),
-        h('p', null, `${Math.round(window.SC.scoreDisplay(card).earned)} of ${window.SC.scoreDisplay(card).checked} checked points earned. ${card.unchecked_points} points unchecked.`),
-        coverage && h('p', null, `Reader stop code: ${coverage.stop_reason}`),
-        coverage && h('ul', null, (coverage.warnings || []).map(w => h('li', null, w))),
-        coverage && Array.from({length:coverage.pages_captured}, (_, i) => h('a', {href:`${endpoint()}/captures/${i}`, target:'_blank', rel:'noopener'}, `Captured screen ${i + 1} `))));
-  }
   function refreshDecisions() {
     window.SC.workspaceDetail = detail;
     mount($('fix-list'), window.SC.renderIssueList(detail));
@@ -166,7 +143,7 @@
     detail = updated;
     detail.decisions ||= {};
     message('review-title', detail.title);
-    titleEditor(); renderSummary(); refreshDecisions();
+    titleEditor(); refreshDecisions();
     window.SC.renderOverview(detail);
     window.dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail}));
     return detail;
@@ -180,7 +157,7 @@
     }
     if (!detail.review) { message('review-status', detail.job?.error || 'No completed review. Try checking again below.'); return; }
     message('review-status', `Round ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
-    titleEditor(); renderSummary(); refreshDecisions();
+    titleEditor(); refreshDecisions();
     $('survey-link').value = window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
     $('check-again').onclick = revealRecheck;
     window.SC.loadWorkspace(detail);

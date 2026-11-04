@@ -143,3 +143,40 @@ def test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry(t
         assert repo.detail(first["id"])["plan"]["counts"]["open_must_fix"] == 1
     finally:
         repo.close()
+
+
+def test_scope_counts_assessed_checks_not_points_or_findings_without_mutation():
+    from surveycoach.server.rounds import scope
+    data = {'review': {'checked_criteria': ['4.1', '4.1', 'B1'],
+                       'unchecked': ['Unchecked wording'],
+                       'results': {'4.1': {'applies': True, 'assessed': True, 'fraction': 0},
+                                   'B1': {'applies': True, 'assessed': True, 'fraction': None},
+                                   '4.2': {'applies': True, 'assessed': False, 'fraction': None},
+                                   '4.3': {'applies': False, 'assessed': True, 'fraction': 1}}}}
+    before = deepcopy(data)
+    actual = scope(data)
+    assert actual['checked_count'] == 2  # Failed assessed checks still count as checked.
+    assert actual['total_count'] == 3  # Non-applicable checks are not unchecked checks.
+    assert actual['unchecked_checks'] == ['Unchecked wording', load_rubric().criterion('4.2').title]
+    assert data == before
+    assert scope({})['checked_count'] is None
+    assert scope({})['total_count'] is None
+
+
+def test_scope_available_for_offline_demo_and_enriched_payloads():
+    for detail in build_demo_data()['surveys']:
+        scope = detail['presentation']['scope']
+        results = detail['review']['results']
+        applicable = [r for r in results.values() if r['applies']]
+        checked = [r for r in applicable if r['assessed'] and
+                   (r['fraction'] is not None or r['criterion_id'].startswith('B'))]
+        assert scope['checked_count'] == len(checked)
+        rubric = load_rubric()
+        missing = [c for c in rubric.criteria if c.active and c.id not in results
+                   and c.title in detail['review']['unchecked']]
+        assert scope['total_count'] == len(applicable) + len(missing)
+        assert set(detail['review']['unchecked']) <= set(scope['unchecked_checks'])
+        for blocker in rubric.blockers:
+            result = results.get(blocker.id)
+            if result and result['applies'] and not result['assessed']:
+                assert blocker.title in scope['unchecked_checks']

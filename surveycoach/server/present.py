@@ -100,4 +100,6 @@ def enrich(data: dict, rubric) -> dict:
         data["plan"] = build_plan(findings, decisions, points, data["screens"])
         data["overview"] = build_overview(
             snapshot, data["review"], decisions, data["screens"], data["plan"], rubric)
+    from surveycoach.server.rounds import presentation
+    data["presentation"] = presentation(data)
     return data
