@@ -105,3 +105,35 @@ git diff --check
 node --check site/app.js && node --check site/coach.js && node --check site/improve-actions.js && node --check site/queue.js
 ```
 Both commands exit 0 with no output. Every changed code file remains below 600 lines; largest is app.js (362). No CSS changes: token-only styling preserved. Explicit action, save-before-copy, required Keep reasons, accepted-risk wording, individual pattern writes and guarded Undo remain covered. No delegation, push, external calls, live database access or protected-asset edits. Pre-existing untracked `review/` and `uglyhome.png` untouched.
+
+## B5 completion-route follow-up — base `5be8a90`
+
+Owner: `code-puppy-309bb3`. Remaining finding in `b5-review.md` addressed.
+
+- [x] Tab-only Overview entry selects the first undecided server item or no active item; a fully completed Must-fix tier renders its completion heading and both continuation actions, never a decided card.
+- [x] Decided fallback remains available for explicit page/fingerprint inspection. Direct screen inspection is unchanged. Shared filtering and server pattern membership/order remain unchanged.
+- [x] Added focused regressions for both real Overview buttons and explicit page, fingerprint and screen inspection of decided items.
+
+Exact commands below ran from `/Users/o0o02dn/Documents/adminAI/survey-coach`.
+
+RED before production edit:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py -k 'completed_must_fix_route or explicit_completed_item_route' -q --tb=short > /tmp/b5-completion-red.log 2>&1
+FAILED tests/test_improve_ui.py::test_overview_completed_must_fix_route_shows_completion[#start-improving]
+FAILED tests/test_improve_ui.py::test_overview_completed_must_fix_route_shows_completion[#plan-summary button:first-of-type]
+2 failed, 3 passed, 13 deselected in 2.44s
+```
+An earlier fixture attempt dispatched the screen event while still in Overview (which intentionally does not switch chapters). Corrected the test to enter Improve before inspecting a screen; no production change was needed for that setup issue.
+
+GREEN after the minimal queue fallback correction:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py tests/test_improve_navigation_ui.py tests/test_overview_ui.py -q --tb=short > /tmp/b5-completion-green.log 2>&1
+......................................                                   [100%]
+38 passed in 16.43s
+```
+
+Static verification:
+```text
+git diff --check && node --check site/queue.js
+```
+Exit 0, no output. No full-suite rerun claimed. Local synthetic intercepted browser fixtures only; no delegation, push, live/external access or protected-asset edits. Pre-existing untracked files left untouched. Changed code files remain below 600 lines.

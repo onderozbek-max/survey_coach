@@ -183,6 +183,45 @@ def test_signal_route_intersects_page_and_fingerprints_and_stays_scoped(browser,
     context.close()
 
 
+def completed_must_fixes(detail):
+    for finding in curated(detail):
+        detail['decisions'][finding['fingerprint']] = dict(action='keep', reason='Tracker')
+    for item in detail['plan']['must_fix']:
+        item['decided'] = True
+    detail['plan']['counts']['open_must_fix'] = 0
+
+
+@pytest.mark.parametrize('entry', ['#start-improving', '#plan-summary button:first-of-type'])
+def test_overview_completed_must_fix_route_shows_completion(browser, base_url, entry):
+    context, page, detail, writes, errors = open_review(
+        browser, base_url, chapter='overview', prepare=completed_must_fixes)
+    page.locator(entry).click()
+    assert page.get_by_role('heading', name='All 3 must-fixes handled', exact=True).is_visible()
+    assert page.locator('#coach .card').count() == 0
+    assert page.get_by_role('button', name='Continue to quick wins', exact=True).is_visible()
+    assert page.get_by_role('button', name='Go to Share', exact=True).is_visible()
+    assert not writes and not errors
+    context.close()
+
+
+@pytest.mark.parametrize('route', ['page', 'fingerprints', 'screen'])
+def test_explicit_completed_item_route_still_allows_inspection(browser, base_url, route):
+    context, page, detail, writes, errors = open_review(
+        browser, base_url, chapter='overview', prepare=completed_must_fixes)
+    item = detail['plan']['must_fix'][0]
+    finding = next(f for f in detail['review']['findings'] if f['fingerprint'] == item['id'])
+    if route == 'screen':
+        page.locator('#start-improving').click()
+        page.evaluate("id => dispatchEvent(new CustomEvent('surveycoach-screen', {detail:id}))", finding['page_id'])
+    else:
+        options = dict(page_id=finding['page_id']) if route == 'page' else dict(fingerprints=[item['id']])
+        page.evaluate("o => SC.goChapter('improve', o)", options)
+    assert page.locator('#coach h3.headline').inner_text() == item['headline']
+    assert page.locator('#coach .card').is_visible()
+    assert not writes and not errors
+    context.close()
+
+
 def hold_puts(page):
     page.evaluate("""() => {
       window.pendingPuts = []; window.putCalls = [];

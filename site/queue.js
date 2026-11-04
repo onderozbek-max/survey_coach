@@ -54,7 +54,8 @@
         if (tabs.some(([name]) => name === options.tab)) tab = options.tab;
         const constrainedTabs = options.tab ? tabs.filter(([name]) => name === tab) : tabs;
         const all = constrainedTabs.flatMap(([name]) => detail.plan[name].filter(allowed).map(item => ({name,item})));
-        const hit = all.find(({item}) => !decided(item)) || all[0];
+        const inspection = options.page_id || Object.hasOwn(options, 'fingerprints');
+        const hit = all.find(({item}) => !decided(item)) || (inspection ? all[0] : null);
         if (hit) { tab = hit.name; show(hit.item); }
         else show(items().find(item => !decided(item)));
       },
