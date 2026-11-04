@@ -179,9 +179,11 @@ def test_dialog_keyboard_trap_close_and_reopen_has_no_duplicate_clock(browser, b
 @pytest.mark.parametrize('width', [390, 1280])
 def test_long_signal_summary_has_keyboard_details(browser, base_url, width):
     summary = 'Supplied evidence, not rewritten. ' * 40 + 'Final evidence remains available.'
+    support = 'Captured evidence: Exact saved words, with no invented conclusion.'
 
     def prepare(detail):
         detail['overview']['signals'][0]['summary'] = summary
+        detail['overview']['signals'][0]['details'] = [support, 'Not assessed: Branch-specific pacing']
     context, page, detail, writes, errors = overview(browser, base_url, width=width, prepare=prepare)
     tile = page.locator('#signals > li').first
     preview = tile.locator('.signal-summary')
@@ -193,13 +195,34 @@ def test_long_signal_summary_has_keyboard_details(browser, base_url, width):
     assert not expansion.get_attribute('open')
     control.focus()
     page.keyboard.press('Enter')
-    full = expansion.locator('p')
-    assert full.is_visible() and full.inner_text() == summary
+    full = expansion.locator('p').first
+    assert full.is_visible() and full.inner_text() == support
+    assert summary not in expansion.inner_text()
+    assert 'Not assessed: Branch-specific pacing' in expansion.inner_text()
     assert full.evaluate('el => el.clientHeight >= el.scrollHeight')
     assert not preview.is_visible()
     assert control.evaluate('el => el === document.activeElement')
     page.keyboard.press('Space')
     assert not full.is_visible() and preview.is_visible()
+    assert not writes and not errors
+    context.close()
+
+
+def test_evidence_details_escape_saved_text_and_do_not_guess_legacy_evidence(browser, base_url):
+    quote = 'Captured evidence: <img src=x onerror="window.injected=true">'
+
+    def prepare(detail):
+        detail['overview']['signals'][1]['details'] = [quote, 'Not assessed: One idea per question']
+        detail['overview']['signals'][2].pop('details', None)
+    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
+    clarity = page.locator('[data-signal=clarity]')
+    clarity.locator('summary').click()
+    assert clarity.locator('.signal-details p').first.inner_text() == quote
+    assert clarity.locator('.signal-details img').count() == 0
+    assert not page.evaluate('Boolean(window.injected)')
+    honest = page.locator('[data-signal=honest]')
+    honest.locator('summary').click()
+    assert honest.locator('.signal-details p').inner_text() == 'No supporting check details were saved.'
     assert not writes and not errors
     context.close()
 

@@ -91,7 +91,8 @@
         h('span', {class:'signal-state', 'data-tone':tones[signal.state]}, icon(symbols[signal.state]), signal.label),
         h('p', {class:'signal-summary'}, signal.summary),
         h('details', {class:'signal-details'}, h('summary', null, 'Details'),
-          h('p', null, signal.summary)),
+          (signal.details?.length ? signal.details : ['No supporting check details were saved.'])
+            .map(text => h('p', null, text))),
         h('button', {type:'button', class:'signal-link btn-text', onclick:() => route({signal:signal.id,
           page_id:signal.pages[0], fingerprints:signal.findings})}, `See ${SC.plural(signal.pages.length, 'screen')}`)))),
       h('h3', null, 'Energy map', SC.energyInfoButton(detail)), h('div', {id:'energy-map'}, SC.renderEnergy(detail, page_id => route({page_id}))),

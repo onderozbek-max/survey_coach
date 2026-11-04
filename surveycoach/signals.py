@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from math import floor
 
+from surveycoach.labels import finding_label
 from surveycoach.rubric import Rubric
 from surveycoach.snapshot import SurveySnapshot
 from surveycoach.timing import Timing, estimate
@@ -21,11 +22,13 @@ SIGNALS = (
 )
 STATE_LABELS = {"strong": "Looking good", "mixed": "Room to improve", "needs_work": "Needs attention",
                 "unknown": "Not checked yet"}
-STRONG_SUMMARY = {"clarity": "Questions read clearly in what we checked.",
-                  "honest": "Every member can answer honestly in what we checked.",
-                  "energy": "The flow keeps members engaged in what we checked.",
-                  "tone": "Warm, community voice in what we checked.",
-                  "phone": "Comfortable on a phone in what we checked."}
+MISSING_SUMMARY = {
+    "clarity": "Clarity is unassessed: wording, instructions and consistency need review.",
+    "honest": "Honest answers are unassessed: answer coverage, scales and bias need review.",
+    "energy": "Energy & flow are unassessed: relevance, variety and pacing need review.",
+    "tone": "Tone & fun are unassessed: the welcome, community voice and closing need review.",
+    "phone": "Phone comfort is unassessed: layout, tapping and image readability need review.",
+}
 POSITIVES = {"3.4": "Clean grammar and spelling", "4.2": "Answer choices don't overlap",
              "6.2": "Short, tappable answers", "6.4": "Easy to tap with a thumb", "8.1": "An easy, on-topic opener",
              "8.2": "A nice mix of question types", "8.3": "An insider moment members will enjoy",
@@ -115,6 +118,61 @@ def _strengths(results: dict, findings: list, rubric: Rubric) -> list[str]:
     return [POSITIVES[c.id] for c in sorted(candidates, key=lambda c: (-c.points, c.id))[:3]]
 
 
+def _evidence(sid: str, ids: set, results: dict, findings: list,
+              screens: list, rubric: Rubric, decisions: dict) -> dict:
+    """Describe assessed checks, not the whole member experience or unverified fixes."""
+    criteria = [c for c in rubric.criteria if c.active and c.id in ids]
+    checked = [c for c in criteria if _assessed(results.get(c.id) or {})]
+    not_applicable = [c for c in criteria if (results.get(c.id) or {}).get("assessed") is True
+                      and (results.get(c.id) or {}).get("applies") is False]
+    missing = [c for c in criteria if c not in checked and c not in not_applicable]
+    coverage = {"checked": len(checked), "total": len(criteria),
+                "missing": [c.id for c in missing],
+                "not_applicable": [c.id for c in not_applicable]}
+    # sorted is stable: captured order breaks equal-severity ties.
+    priority = {"must_fix": 0, "worth_improving": 1, "nice_to_have": 2}
+    ordered = sorted(findings, key=lambda f: priority.get(f.get("severity"), 3))
+    lead = ordered[0] if ordered else None
+    assessed = f"{len(checked)} of {len(criteria)} checks assessed"
+    if lead:
+        summary = f"{finding_label(lead, screens)}: {lead['headline']}"
+    elif checked:
+        weakest = min(checked, key=lambda c: results[c.id]["fraction"])
+        fraction = results[weakest.id]["fraction"]
+        verdict = "full credit" if fraction == 1 else f"{fraction:.0%} credit"
+        summary = f"{weakest.title}: {verdict} in saved assessment ({assessed})."
+    else:
+        summary = MISSING_SUMMARY.get(sid, "No saved check assessments for timing.")
+    details = [f"{assessed}; states describe checked evidence only, not a full-survey pass."]
+    if ordered:
+        count = len(ordered)
+        details.append(f"{count} recorded {'finding' if count == 1 else 'findings'} in this dimension.")
+        for label, field in (("Captured evidence", "evidence"), ("Why it matters", "explanation")):
+            if lead.get(field):
+                details.append(f"{label}: {lead[field]}")
+        if not lead.get("evidence"):
+            details.append("No supporting quote was saved for the leading finding.")
+        if len(ordered) > 1:
+            details.append("Also recorded: " + "; ".join(
+                f"{finding_label(f, screens)}: {f['headline']}" for f in ordered[1:]))
+        if any(not _open(f, decisions) for f in ordered):
+            details.append("Chosen changes and kept risks are not verified fixes.")
+        if any(f.get("absorbed_by") for f in ordered):
+            details.append("Grouped findings remain evidence; navigation opens the primary issue.")
+    if checked:
+        details.append("Assessed checks: " + "; ".join(
+            f"{c.title} ({results[c.id]['fraction']:.0%} credit)" for c in checked))
+    if missing:
+        details.append("Not assessed: " + "; ".join(c.title for c in missing))
+    if not_applicable:
+        details.append("Not applicable: " + "; ".join(c.title for c in not_applicable))
+    unchecked_blockers = [b.title for b in rubric.blockers if b.id in ids
+                          and not _assessed(results.get(b.id) or {})]
+    if unchecked_blockers:
+        details.append("No complete blocker assessment: " + "; ".join(unchecked_blockers))
+    return {"summary": summary, "coverage": coverage, "details": details}
+
+
 def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
                    screens: list, plan: dict, rubric: Rubric) -> dict:
     """Project six signals and a per-screen energy map, without changing inputs.
@@ -143,15 +201,18 @@ def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
                 minutes = timing.total_seconds / 60
                 length_state = "strong" if minutes <= low else "mixed" if minutes <= high else "needs_work"
                 state = max((state, length_state), key=_STATE_ORDER.get)
-        elif state == "strong":
-            summary = STRONG_SUMMARY[sid]
-        elif state == "unknown":
-            summary = "Not checked yet."
+        evidence = _evidence(sid, assessed_ids, results,
+                             [f for f in all_findings if f["criterion_id"] in assessed_ids],
+                             screens, rubric, decisions)
+        if sid != "time":
+            summary = evidence["summary"]
         else:
-            summary = "There is room to improve in what we checked."
+            evidence["details"].insert(0, "Timing is estimated from captured reading and interaction effort; "
+                                       "it is not observed member completion time.")
         affected = {_page_id(f, question_pages, page_ids) for f in related}
         signals.append({"id": sid, "name": name, "state": state, "label": STATE_LABELS[state],
-                        "summary": summary,
+                        "summary": summary, "coverage": evidence["coverage"],
+                        "details": evidence["details"],
                         "findings": list(dict.fromkeys(f["fingerprint"] for f in related)),
                         "pages": [s["page_id"] for s in screens if s["page_id"] in affected]})
     counts = plan.get("counts", {})
