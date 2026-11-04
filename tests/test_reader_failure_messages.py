@@ -3,21 +3,27 @@ from fastapi.testclient import TestClient
 from types import SimpleNamespace
 from surveycoach.snapshot import SurveySnapshot, Page
 
+import pytest
+
 from surveycoach.reader.policy import UnsafeSurveyURL
+from surveycoach.reader import transport, proxy
 from surveycoach.server import create_app
 
 
 def test_dns_failure_is_actionable_and_does_not_leak_link(tmp_path):
     app = create_app(tmp_path / "db")
     def unavailable(*args, **kwargs):
-        raise UnsafeSurveyURL("Survey host could not be safely resolved.")
+        raise transport.ReaderDNSFailure("Survey host could not be safely resolved.")
     app.state.reader = unavailable
     with TestClient(app, base_url="http://localhost") as client:
         started = client.post("/api/reader/jobs", json={"url": "https://sample.redjade.net/private-preview", "approval": True}).json()
         job = client.get(f"/api/jobs/{started['job_id']}").json()
         assert job["status"] == "failed"
-        assert "connect" in job["error"].lower()
-        assert "VPN" in job["error"]
+        assert "local reader" in job["error"].lower()
+        assert "DNS" in job["error"]
+        assert "SURVEYCOACH_CORPORATE_PROXY=http://proxy-intlho.wal-mart.com:8080" in job["error"]
+        assert "README" in job["error"]
+        assert "off VPN" not in job["error"]
         assert "private-preview" not in job["error"]
         assert "previous review" not in job["error"]  # no previous survey exists
 
@@ -43,3 +49,42 @@ def test_unexpected_failure_exposes_only_reference_not_exception(tmp_path):
         job = client.get(f"/api/jobs/{started['job_id']}").json()
         assert "reference" in job["error"].lower()
         assert "sensitive" not in job["error"]
+
+
+@pytest.mark.parametrize('failure,expected,absent', [
+    (lambda: UnsafeSurveyURL('Survey host did not resolve exclusively to public addresses.'),
+     'safely', 'SURVEYCOACH_CORPORATE_PROXY'),
+    (lambda: proxy.ReaderProxyConfigurationError('untrusted secret proxy'),
+     'proxy configuration', 'untrusted secret'),
+    (lambda: TimeoutError('sensitive path'), 'timed out', 'sensitive'),
+    (lambda: transport.ReaderNetworkFailure('timeout'), 'timed out', 'DNS lookup'),
+    (lambda: transport.ReaderNetworkFailure('connection'), 'connection failed', 'DNS lookup'),
+])
+def test_failure_categories_remain_distinct(tmp_path, failure, expected, absent):
+    app = create_app(tmp_path / 'db')
+    def unavailable(*args, **kwargs):
+        raise failure()
+    app.state.reader = unavailable
+    with TestClient(app, base_url='http://localhost') as client:
+        started = client.post('/api/reader/jobs', json={
+            'url': 'https://app.redjade.net/private-preview', 'approval': True}).json()
+        job = client.get(f"/api/jobs/{started['job_id']}").json()
+        assert job['status'] == 'failed'
+        assert expected in job['error']
+        assert absent not in job['error']
+        assert 'private-preview' not in job['error']
+        assert client.get('/api/surveys').json()['surveys'] == []
+
+
+@pytest.mark.parametrize('kind,expected', [('timeout', 'timed out'), ('connection', 'connection failed')])
+def test_initial_connection_failure_from_transport_coverage_is_actionable(tmp_path, kind, expected):
+    app = create_app(tmp_path / 'db')
+    app.state.reader = lambda *a, **k: SimpleNamespace(
+        coverage=SimpleNamespace(warnings=[f'Reader initial connection failed: {kind}.']),
+        snapshot=SurveySnapshot(title='', pages=[]))
+    with TestClient(app, base_url='http://localhost') as client:
+        started = client.post('/api/reader/jobs', json={
+            'url': 'https://app.redjade.net/test', 'approval': True}).json()
+        job = client.get(f"/api/jobs/{started['job_id']}").json()
+        assert expected in job['error']
+        assert client.get('/api/surveys').json()['surveys'] == []

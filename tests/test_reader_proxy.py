@@ -50,3 +50,19 @@ def test_corporate_route_gets_more_patience_than_direct(monkeypatch):
     assert patience(proxied) == 5 and patience(local) == 1
     assert proxied.deadline - time.monotonic() > 250
     assert local.deadline - time.monotonic() < 100
+
+
+@pytest.mark.parametrize('host', ['sample.redjade.net', 'redjade.net', 'app.redjade.net.evil.example'])
+def test_explicit_proxy_never_broadens_target_allowlist(monkeypatch, host):
+    from surveycoach.reader.proxy import corporate_proxy
+    monkeypatch.setenv('SURVEYCOACH_CORPORATE_PROXY', 'http://proxy-intlho.wal-mart.com:8080')
+    with pytest.raises(UnsafeSurveyURL):
+        corporate_proxy(host)
+
+
+def test_generic_proxy_environment_does_not_select_reader_route(monkeypatch):
+    from surveycoach.reader.proxy import corporate_proxy
+    monkeypatch.delenv('SURVEYCOACH_CORPORATE_PROXY', raising=False)
+    for name in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy']:
+        monkeypatch.setenv(name, 'http://evil.example:8080')
+    assert corporate_proxy('app.redjade.net') is None

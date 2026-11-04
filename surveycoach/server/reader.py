@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
 from surveycoach.reader import read_survey
 from surveycoach.reader.policy import UnsafeSurveyURL, validate_url
+from surveycoach.reader.proxy import APPROVED_PROXY, ReaderProxyConfigurationError
+from surveycoach.reader.transport import ReaderDNSFailure, ReaderNetworkFailure
 
 logger = logging.getLogger(__name__)
 from surveycoach.server.service import run_job
@@ -73,6 +75,9 @@ def router(repository, app):
                         db.execute("UPDATE reader_jobs SET stage='reading',pages_captured=? WHERE id=?", (position+1,job_id))
                 options['on_capture'] = on_capture
             captured = reader(body.url, **options)
+            for kind in ("timeout", "connection"):
+                if f"Reader initial connection failed: {kind}." in captured.coverage.warnings:
+                    raise ReaderNetworkFailure(kind)
             with repository.transaction() as db:
                 db.execute("UPDATE reader_jobs SET stage='checking',pages_captured=? WHERE id=?", (len(captured.snapshot.pages),job_id))
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
@@ -110,13 +115,32 @@ def router(repository, app):
                 run_job(repository, created["job_id"], app.state.provider)
             checked = repository.job(created["job_id"])
             update(job_id, checked["status"], created["id"], created["version"], checked.get("error"))
-        except UnsafeSurveyURL as error:
-            # Policy errors are deliberately URL-free; never echo an arbitrary exception.
-            if "resolved" in str(error):
-                message = "Could not connect to the survey website. Check your network/VPN and make sure the preview link opens in your browser, then try again."
-            else:
-                message = "This preview link could not be opened safely. Use an approved RedJade test link; do not use a member invitation link."
-            update(job_id, "failed", body.survey_id, error=message)
+        except ReaderDNSFailure:
+            update(job_id, "failed", body.survey_id, error=(
+                "The local reader's DNS lookup failed before connecting. A browser can use macOS PAC "
+                "while this Python reader uses direct DNS; browser connectivity does not verify the reader route. "
+                "For app.redjade.net only, restart the local server with "
+                f"SURVEYCOACH_CORPORATE_PROXY={APPROVED_PROXY} as shown in README → Managed-network reader setup. "
+                "Use your approved corporate network/VPN; other hosts require direct public DNS. "
+                "No completed review was created."))
+        except ReaderProxyConfigurationError:
+            update(job_id, "failed", body.survey_id, error=(
+                "The reader proxy configuration was rejected. Only "
+                f"SURVEYCOACH_CORPORATE_PROXY={APPROVED_PROXY} is supported, for app.redjade.net only. "
+                "See README → Managed-network reader setup. No completed review was created."))
+        except (ReaderNetworkFailure, TimeoutError) as error:
+            timed_out = isinstance(error, TimeoutError) or error.kind == "timeout"
+            reason = "timed out" if timed_out else "connection failed"
+            update(job_id, "failed", body.survey_id, error=(
+                f"The local reader {reason}. Check the approved corporate network/VPN and reader proxy "
+                "setup in README → Managed-network reader setup, then retry an approved test link. "
+                "This is not a survey-link safety rejection. No completed review was created."))
+        except UnsafeSurveyURL:
+            # Never infer DNS failure from policy exception text or echo arbitrary details.
+            update(job_id, "failed", body.survey_id, error=(
+                "This preview link could not be opened safely: the URL or resolved addresses were blocked "
+                "by reader policy. Use an approved RedJade test link; do not use a member invitation link. "
+                "Do not bypass address checks with a proxy. No completed review was created."))
         except Exception as error:
             reference = job_id[:8]
             logger.error("Reader failure reference=%s type=%s", reference, type(error).__name__)

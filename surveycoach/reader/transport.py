@@ -21,6 +21,18 @@ PARTICIPANT_WRITES = {"POST", "PUT", "PATCH"}
 MAX_WRITE_BYTES = 256 * 1024
 
 
+class ReaderDNSFailure(UnsafeSurveyURL):
+    """Local target DNS failed before a browser or upstream connection was opened."""
+
+
+class ReaderNetworkFailure(OSError):
+    """URL-free network category, distinct from safety-policy rejection."""
+
+    def __init__(self, kind):
+        self.kind = kind if kind in {"timeout", "connection"} else "connection"
+        super().__init__(f"Reader network failure: {self.kind}.")
+
+
 class GuardedTransport:
     """Same-origin only, pinned public DNS (or approved proxy), no redirects, bounded.
 
@@ -46,8 +58,12 @@ class GuardedTransport:
             try:
                 addresses = sorted({entry[4][0] for entry in socket.getaddrinfo(
                     self.parts.hostname, 443, type=socket.SOCK_STREAM)})
+            except socket.gaierror:
+                raise ReaderDNSFailure("Local reader DNS lookup failed.") from None
+            except TimeoutError:
+                raise ReaderNetworkFailure("timeout") from None
             except OSError:
-                raise UnsafeSurveyURL("Survey host could not be safely resolved.") from None
+                raise ReaderNetworkFailure("connection") from None
             if not public_addresses(addresses):
                 raise UnsafeSurveyURL("Survey host did not resolve exclusively to public addresses.")
             self.address = addresses[0]
@@ -137,6 +153,12 @@ class GuardedTransport:
                 except (OSError, http.client.HTTPException) as error:
                     logger.warning("Reader request failed (attempt %d): %s", attempt + 1, type(error).__name__)
                     if write or attempt:
+                        if request.url == self.start_url and request.method == "GET":
+                            kind = "timeout" if isinstance(error, TimeoutError) else "connection"
+                            warning = f"Reader initial connection failed: {kind}."
+                            with self.lock:
+                                if warning not in self.coverage.warnings:
+                                    self.coverage.warnings.append(warning)
                         return self.block(route)
             if status is None:
                 return self.block(route)

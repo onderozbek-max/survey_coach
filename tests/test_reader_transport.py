@@ -28,7 +28,7 @@ def test_private_dns_is_rejected_before_browser_launch(monkeypatch):
 
 def test_dns_failure_is_url_free(monkeypatch):
     def unavailable(*args, **kwargs):
-        raise OSError("secret DNS diagnostics")
+        raise socket.gaierror("secret DNS diagnostics")
     monkeypatch.setattr(socket, "getaddrinfo", unavailable)
     with pytest.raises(UnsafeSurveyURL) as error:
         GuardedTransport("https://sensory.redjade.net/survey/example", local=False,
@@ -70,3 +70,39 @@ def test_denied_requests_never_open_a_socket(url, method, monkeypatch):
     guard(route)
     assert route.blocked
     assert coverage.blocked_requests == 1
+
+
+@pytest.mark.parametrize('failure,expected', [
+    (socket.gaierror('secret'), 'ReaderDNSFailure'),
+    (TimeoutError('secret'), 'ReaderNetworkFailure'),
+    (OSError('secret'), 'ReaderNetworkFailure'),
+])
+def test_resolution_errors_have_typed_url_free_diagnostics(monkeypatch, failure, expected):
+    monkeypatch.delenv('SURVEYCOACH_CORPORATE_PROXY', raising=False)
+    def unavailable(*args, **kwargs):
+        raise failure
+    monkeypatch.setattr(socket, 'getaddrinfo', unavailable)
+    with pytest.raises(Exception) as caught:
+        GuardedTransport('https://app.redjade.net/private-preview', local=False,
+                         approval=True, coverage=Coverage())
+    assert type(caught.value).__name__ == expected
+    assert 'secret' not in str(caught.value)
+    assert 'private-preview' not in str(caught.value)
+
+
+@pytest.mark.parametrize('failure,kind', [
+    (TimeoutError('secret'), 'timeout'), (OSError('secret'), 'connection'),
+])
+def test_initial_document_network_failure_is_retained_in_coverage(monkeypatch, failure, kind):
+    from unittest.mock import Mock
+    guard = GuardedTransport('http://127.0.0.1:9000/start', local=True,
+                             approval=False, coverage=Coverage())
+    monkeypatch.setattr(guard, '_exchange', Mock(side_effect=failure))
+    route = Mock()
+    route.request.url = guard.start_url
+    route.request.method = 'GET'
+    route.request.headers = {}
+    guard(route)
+    route.abort.assert_called_once()
+    assert f'Reader initial connection failed: {kind}.' in guard.coverage.warnings
+    assert 'secret' not in str(guard.coverage.warnings)

@@ -37,6 +37,45 @@ Reader behaviour depends on `SURVEYCOACH_PARTICIPANT_MODE`: unset blocks answer 
 
 Choices and keep reasons persist on this computer. Historical snapshots and stored reviews stay immutable: current code checks are projected on read. Historical AI concerns remain visible, but old reviews without per-criterion evidence receive no invented AI passing credit; newly completed reviews retain that evidence. **Use this** records a choice and copies wording, but is not proof of a fix in RedJade. **Check again** compares rounds conservatively: carried decisions remain acknowledgements, and no-longer-flagged issues are not automatically certified fixed. The sign-off report contains survey wording: share only through approved internal channels.
 
+### Managed-network reader setup
+
+A browser working through macOS PAC does **not** mean the local Python reader can
+resolve the same host. The reader does not execute/download PAC JavaScript, inspect
+macOS proxy settings, or use `HTTP_PROXY`, `HTTPS_PROXY` or `ALL_PROXY`. An enabled
+managed PAC URL alone does not establish which route its rules select for RedJade,
+so there is no automatic PAC-based proxy selection.
+
+For an approved clean test link on **app.redjade.net only**, launch a new local
+server process from this repository with the existing approved corporate proxy:
+
+```bash
+SURVEYCOACH_CORPORATE_PROXY=http://proxy-intlho.wal-mart.com:8080 \
+  .venv/bin/python -m surveycoach.server \
+  --db "$HOME/Library/Application Support/SurveyCoach/mvp.sqlite3" --port 8765
+```
+
+Stop an existing local server normally before starting the replacement. This inline
+variable affects only that new process: it does not change shell profiles, macOS
+settings, or an already running server. Do not add participant mode just to diagnose
+connectivity. Open `http://127.0.0.1:8765/local.html` afterward. Without that variable,
+the normal startup command above keeps the direct route. Other RedJade hosts require
+direct public DNS; do not broaden the approved proxy host restriction.
+
+Use the approved corporate network/VPN. Only the exact proxy value above is accepted
+(no credentials or alternate proxies); the proxy resolves the fixed upstream host.
+Target HTTPS certificate/SNI verification, URL/origin allowlists, write restrictions,
+redirect blocking and transport bounds remain enforced. Direct DNS must resolve
+exclusively to public addresses. A private/mixed/empty DNS response is a **policy
+block**, not a reason to bypass address checks with a proxy.
+
+Reader errors distinguish local DNS lookup failure, rejected proxy configuration,
+blocked URL/address policy, and connection failure/timeout. DNS failure is not proof
+you are disconnected from VPN. If the approved setup still fails, ask corporate
+network support to check the route; do not disable TLS verification or use arbitrary
+proxy/tunnel fallbacks. Startup configuration is not proof of connectivity: this
+change was verified with mocked transports and DNS-only diagnostics, not a live
+survey or participant session.
+
 ### Reader boundaries
 
 The reader can passively extract a known questionnaire definition from already permitted same-origin GET responses, preserving question and answer wording without submitting answers. Otherwise it captures visible screens subject to the configured participant mode. Write-blocking mode prevents external answer progression; participant mode may answer, advance and finish an approved test response. Definition wording is not proof of image, layout, or path correctness. Coverage and stop reasons remain visible in the review/packet. Unsupported URLs, authentication, widget types and missing payloads fail closed or remain explicitly partial.
