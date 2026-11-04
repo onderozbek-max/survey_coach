@@ -25,7 +25,6 @@
       return;
     }
   }
-  const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model, queue, projectionRevision = 0;
   const improveOperation = {busy:false, recovery:null};
@@ -178,7 +177,6 @@
 
   function renderTop() {
     const { review } = survey(), card = review.scorecard;
-    const {checked,earned} = SC.scoreDisplay(card);
     const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.filter(f=>f.severity !== 'must_fix' && SC.issueTier?.(f) !== 'polish').length;
     const promised = review.promised_minutes ? `intro promises ${review.promised_minutes}` : "";
     const ai = review.ai, failed = ai ? Object.keys(ai.failed) : [];
@@ -197,18 +195,13 @@
           h('strong', null, remaining ? `${remaining} must-fix ${remaining === 1 ? 'issue' : 'issues'}` : acknowledged ? 'Remaining risks acknowledged · not verified fixes' : unknown ? 'No blockers found · some checks incomplete' : 'No blockers found in what we checked'),
           h('span', {class:'verdict-limit'}, `${plural(worth,'idea')}${SC.issueCounts ? ` · ${SC.issueCounts(localDetail).polish} nice to have` : ''}`)),
         h('div', {class:'review-metrics'},
-          h('span', null, survey().overview.subline)));
+          h('span', null, survey().overview.subline), SC.renderQualityCompact(survey().quality)));
       return;
     }
     const aiBrief = !ai ? "AI check pending" : `${failed.length ? "AI partly checked" : "AI checked"}${card.unchecked_points ? `, ${card.unchecked_points} pts unchecked` : ""}`;
-    // The ring shows all 100 points: earned, lost, and not checked yet. Unchecked points are never drawn as earned.
     mount($("topbar"),
       h("div", { class: "brand" }, "Survey", h("span", null, "Coach")),
-      h("div", { class: "ring-block" },
-        h("div", { class: `ring ${TONE[card.readiness]}`, role: "img", style: `--e:${earned * 3.6}deg;--k:${checked * 3.6}deg`,
-          "aria-label": `${earned.toFixed(0)} of the ${checked} points checked so far were earned. ${waiting}.` },
-        h("div", { class: "ring-in" }, earned.toFixed(0))),
-        h("span", { class: "ring-cap" }, `of ${checked} points checked`)),
+      SC.renderQualityCompact(survey().quality),
       h("div", { class: "head-text" },
         h(SC.workspaceDetail ? "h2" : "h1", null, headline(review)),
         h("p", { class: "sub" }, `${survey().title} \u2022 ${waiting}`),

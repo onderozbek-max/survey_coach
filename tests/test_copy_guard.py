@@ -86,3 +86,14 @@ def test_missing_python_source_is_not_hidden_by_an_earlier_claim(tmp_path):
     (site / "app.js").write_text("", encoding="utf-8")
     with pytest.raises(FileNotFoundError):
         _find_claims(tmp_path)
+
+
+def test_approved_normalized_quality_copy_does_not_exempt_outcome_claims(tmp_path):
+    approved = 'Survey Quality · 82/100 · Provisional · 76% coverage'
+    for relative in ('site/local.html', 'site/quality.js', 'surveycoach/server/report.py', 'surveycoach/signals.py'):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(approved, encoding='utf-8')
+    assert _find_claims(tmp_path) == []
+    (tmp_path / 'site/quality.js').write_text(approved + '\nwill finish', encoding='utf-8')
+    assert _find_claims(tmp_path) == ['site/quality.js:2: will finish']

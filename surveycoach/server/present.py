@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import asdict
+
+from surveycoach.quality import build_quality
+from surveycoach.timing import TimingConstants
 import re
 
 from surveycoach.labels import screen_labels
@@ -91,6 +95,8 @@ def enrich(data: dict, rubric) -> dict:
         data["snapshot"], survey_type=data.get("survey_type")
         or data["snapshot"].get("survey_type", "non_ihut_product")))
     data["screens"] = screen_labels(snapshot)
+    data["quality"] = build_quality(data.get("review") or {}, rubric)
+    data["effort_method"] = asdict(TimingConstants())
     if data.get("review"):
         titles = {c.id: c.title for c in rubric.criteria} | {b.id: b.title for b in rubric.blockers}
         points = {c.id: c.points for c in rubric.criteria}

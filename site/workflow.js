@@ -91,6 +91,7 @@
     const label = must ? `${s.must_fix} must-fixes` : ready ? 'Ready to share' : 'Checking…';
     return h('a', {class:'survey-card', href:`review.html?id=${encodeURIComponent(s.id)}#overview`},
       h('h3', null, s.title?.trim() || 'Untitled survey'),
+      window.SC.renderQualityCompact(s.quality),
       h('span', {class:'chip', 'data-state':must ? 'needs_work' : ready ? 'strong' : 'unknown'},
         window.SC.icon(must ? 'alert' : ready ? 'check' : 'clock'), label),
       h('div', {class:'signals', role:'img', 'aria-label':signals.map(v => `${v.name}: ${v.label}`).join(', ')},

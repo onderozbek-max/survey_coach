@@ -33,6 +33,9 @@
     };
     const open = (detail.plan?.must_fix || []).filter(item => !item.fingerprints.length || !item.fingerprints.every(handled)).length;
     $('share-summary').textContent = `${changes.length} changes chosen · ${kept.length} kept on purpose · ${open} must-fixes still open`;
+    let quality = $('share-quality');
+    if (!quality) { quality = h('div', {id:'share-quality'}); $('share-summary').after(quality); }
+    mount(quality, SC.renderQualityCompact(detail.quality));
     const groups = new Map();
     for (const f of changes) {
       const item = place(f, detail);

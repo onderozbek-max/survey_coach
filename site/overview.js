@@ -63,11 +63,22 @@
     const first = model.items.find(item => item.worst === 'must_fix') || model.items[0];
     const mini = first && h('div', {class:'overview-mini', inert:true, 'aria-hidden':'true'},
       SC.renderPhone(first, SC.overviewPhoneContext(detail, first)));
-    const styleStatus = h('p', {class:'meta'}, 'Sets length targets and how we treat playful voice.');
+    const styleStatus = h('p', {class:'meta'}, 'Updates local length targets and tone checks; does not rerun saved AI advice. Recheck the survey for fresh AI review.');
     mount($('chapter-overview'),
       h('div', {class:'overview-hero'}, h('div', {class:'overview-intro'},
         h('p', {class:'meta'}, `Version ${detail.version || 1} · checked ${relative(detail.created_at || detail.versions?.find(version => version.version === detail.version)?.created_at)}`),
         h('h2', {id:'overview-h', tabindex:'-1'}, detail.title), nameEditor(),
+        h('fieldset', {id:'survey-style', disabled:!SC.updateSurvey}, h('legend', null, 'Survey style'),
+        h('div', {class:'survey-style-options'}, types.map(([value, label]) => h('label', null,
+          h('input', {type:'radio', name:'survey-style', value, checked:(detail.survey_type || detail.snapshot.survey_type) === value,
+            onchange:async event => {
+              const fieldset = event.target.closest('fieldset'); fieldset.disabled = true;
+              await update({survey_type:value}, 'Survey style saved');
+              fieldset.disabled = false;
+              if (fieldset.isConnected) SC.renderOverview(detail);
+              document.querySelector(`#survey-style input[value="${value}"]`)?.focus({preventScroll:true});
+            }}), label))), styleStatus),
+        SC.renderQuality(detail.quality),
         h('p', {id:'overview-headline'}, overview.headline), h('p', {id:'overview-subline'}, overview.subline),
         h('div', {class:'overview-actions'},
           h('button', {id:'start-improving', type:'button', class:'btn btn-primary', onclick:() => route({tab:'must_fix'})}, 'Start improving', icon('arrow-right')),
@@ -83,22 +94,12 @@
           h('p', null, signal.summary)),
         h('button', {type:'button', class:'signal-link btn-text', onclick:() => route({signal:signal.id,
           page_id:signal.pages[0], fingerprints:signal.findings})}, `See ${SC.plural(signal.pages.length, 'screen')}`)))),
-      h('h3', null, 'Energy map'), h('div', {id:'energy-map'}, SC.renderEnergy(detail, page_id => route({page_id}))),
+      h('h3', null, 'Energy map', SC.energyInfoButton(detail)), h('div', {id:'energy-map'}, SC.renderEnergy(detail, page_id => route({page_id}))),
       h('div', {class:'overview-bottom'}, overview.strengths.length > 0 && h('section', null,
         h('h3', null, 'What members will like'), h('ul', {id:'strengths'}, overview.strengths.slice(0,3).map(text => h('li', null, icon('check'), text)))),
         h('section', {id:'plan-summary'}, h('h3', null, 'Your plan'),
           [['must_fix','Must-fix'], ['quick_wins','Quick wins'], ['more','More ideas']].map(([tab, label]) =>
-            h('button', {type:'button', class:'btn-text', onclick:() => route({tab})}, `${label} ${detail.plan.counts[tab]}`)))),
-      h('fieldset', {id:'survey-style', disabled:!SC.updateSurvey}, h('legend', null, 'What kind of survey is this?'),
-        h('div', {class:'survey-style-options'}, types.map(([value, label]) => h('label', null,
-          h('input', {type:'radio', name:'survey-style', value, checked:(detail.survey_type || detail.snapshot.survey_type) === value,
-            onchange:async event => {
-              const fieldset = event.target.closest('fieldset'); fieldset.disabled = true;
-              await update({survey_type:value}, 'Survey style saved');
-              fieldset.disabled = false;
-              if (fieldset.isConnected) SC.renderOverview(detail);
-              document.querySelector(`#survey-style input[value="${value}"]`)?.focus({preventScroll:true});
-            }}), label))), styleStatus));
+            h('button', {type:'button', class:'btn-text', onclick:() => route({tab})}, `${label} ${detail.plan.counts[tab]}`)))));
     actionSize.observe(document.querySelector('.overview-actions'));
     if (restoreHeading) $('overview-h').focus({preventScroll:true});
   };

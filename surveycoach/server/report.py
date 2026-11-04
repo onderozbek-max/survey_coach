@@ -1,10 +1,32 @@
 """Escaped, director-readable sign-off packet; technical detail is opt-in."""
 from difflib import SequenceMatcher
 from html import escape
+from math import floor
 import re
 
 from surveycoach.server.rounds import change_sheet, presentation, valid_decisions
 from surveycoach.signals import SIGNALS
+from surveycoach.quality import build_quality
+from surveycoach.rubric import load_rubric
+
+
+def quality_section(detail):
+    """Self-contained methodology stays available in offline downloads too."""
+    q = detail.get("quality") or build_quality(detail.get("review") or {}, load_rubric())
+    value = f"{floor(q['score'] + .5)}/100" if q['score'] is not None else "Not assessed"
+    status = "Provisional" if q["provisional"] else "Assessed"
+    return (f"<section><h2>Survey Quality · {value}</h2>"
+            f"<p>{status} · {floor(q['coverage_percent'] + .5)}% coverage of applicable rubric weight · "
+            f"{q['blockers']['flagged']} must-fix risks · {q['blockers']['unchecked']} risk checks unverified.</p>"
+            "<details><summary>Quality methodology</summary>"
+            "<p>Earned assessed applicable points / assessed applicable points × 100. "
+            "Criterion weights come from the rubric. N/A weight is excluded; missing checks are unknown. "
+            "Coverage is assessed weight / applicable weight, separate from quality. "
+            "The old raw score used all 100 rubric points; it is not this normalized score. "
+            "Display values are rounded, not extra precision. A high score is not readiness or launch approval. "
+            "AI checks may be missing or fallible; unverified risk checks keep the score provisional. "
+            "Choices and acknowledged risks cannot improve assessed quality before rechecking. "
+            "Member outcomes were not measured.</p></details></section>")
 
 
 def summary_packet(detail, *, download=False):
@@ -28,6 +50,7 @@ def summary_packet(detail, *, download=False):
              f"<h2>{text(summary['verdict'])}</h2>",
              f"<p>About {minutes} minutes for members (estimate).</p>",
              f"<p><strong>What we checked:</strong> {text(summary['scope']['summary'])}</p>"]
+    parts.append(quality_section(detail))
     parts.extend(f"<p>{text(line)}</p>" for line in summary["scope"]["unchecked_paths"])
     parts.append("<p>Keep as is acknowledges a risk; it is not evidence that an issue was corrected. "
                  "SurveyCoach does not edit RedJade. Manual completion is not verified.</p>")
@@ -164,7 +187,7 @@ def stakeholder_packet(detail):
                               for _, name, _ in SIGNALS]:
         parts.append(f"<tr><td>{_text(signal['name'])}</td><td>{_text(signal['label'])}</td>"
                      f"<td>{_text(signal['summary'])}</td></tr>")
-    parts.append("</tbody></table></section><section><h2>Changes chosen</h2>"
+    parts.append("</tbody></table></section>" + quality_section(detail) + "<section><h2>Changes chosen</h2>"
                  "<p>Chosen changes are not verified source edits. SurveyCoach does not edit RedJade. "
                  "Manual completion is not verified.</p><ul>")
     lines = change_sheet(projected)

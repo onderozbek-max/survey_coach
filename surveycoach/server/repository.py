@@ -179,7 +179,8 @@ class Repository:
             detail = self.detail(item["id"], item["version"])
             signals = detail.get("overview", {}).get("signals", [])
             item.update({key: detail[key] for key in ("title", "survey_type", "survey_type_chosen")})
-            item.update(signals=signals, job=detail.get("job"), readiness=None, must_fix=None, score_checked=None)
+            item.update(signals=signals, quality=detail["quality"], job=detail.get("job"),
+                        readiness=None, must_fix=None, score_checked=None)
             review = detail.get("review") or {}
             if review:
                 card = review["scorecard"]

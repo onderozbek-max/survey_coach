@@ -1,0 +1,22 @@
+/* Understated evidence card; quality never takes a readiness colour. */
+.quality-card { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); padding:var(--s-5); margin:var(--s-5) 0; }
+.quality-card h3 { font-size:var(--fs-16); margin:0 0 var(--s-2); }
+.quality-card p { margin:var(--s-2) 0; }
+.quality-card .quality-value { font-size:var(--fs-40); font-weight:650; letter-spacing:-.03em; font-variant-numeric:tabular-nums; line-height:1.2; }
+.quality-value span { font-size:var(--fs-18); font-weight:400; color:var(--muted); }
+.quality-context,.quality-compact { color:var(--muted); font-size:var(--fs-14); overflow-wrap:anywhere; }
+.quality-compact { display:block; font-variant-numeric:tabular-nums; }
+.quality-card > p:not(.quality-value) { font-size:var(--fs-14); }
+.quality-dialog { background:var(--surface); color:var(--text); border:1px solid var(--line-strong); border-radius:var(--r-lg); padding:var(--s-5); width:min(640px,calc(100vw - 32px)); max-height:85dvh; overflow:auto; box-shadow:var(--shadow-3); }
+.quality-dialog::backdrop { background:var(--phone-frame); opacity:.45; }
+.quality-dialog h2 { font-size:var(--fs-22); }
+.quality-dialog > button { float:right; min-width:70px; }
+.quality-dialog p,.quality-dialog li { overflow-wrap:anywhere; }
+.quality-footer { padding:var(--s-4) 0; }
+.energy-info { min-width:44px; min-height:44px; font-size:var(--fs-22); vertical-align:middle; }
+#survey-style { border:0; padding:0; margin:var(--s-4) 0; min-width:0; }
+#survey-style legend { font-size:var(--fs-14); font-weight:650; }
+#survey-style .survey-style-options { gap:var(--s-2); }
+#survey-style label { font-size:var(--fs-14); }
+#survey-style .meta { max-width:65ch; }
+@media (max-width:759px) { .quality-card { padding:var(--s-4); } }
