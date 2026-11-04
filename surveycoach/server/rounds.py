@@ -140,7 +140,7 @@ def presentation(detail):
                     and decisions[f["fingerprint"]].get("reason", "").strip()]
     count = len(blockers) - len(acknowledged)
     return {"verdict": ("Review not available" if not detail.get("review") else
-                        f"{count} issues to fix before launch" if count else
+                        f"{count} must-fix issues" if count else
                         "No blockers found in what we checked"),
             "open_blockers": count, "acknowledged_risks": len(acknowledged),
             "scope": scope(detail), "launch_approval": False}

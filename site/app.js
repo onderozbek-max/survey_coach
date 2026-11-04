@@ -153,8 +153,8 @@
     const { readiness, open_blockers } = review.scorecard;
     const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.length - must;
     if (readiness === "needs_work") return `Needs work. Fix ${plural(must || open_blockers.length, "thing")} first.`;
-    if (readiness === "ready") return review.unchecked.length ? `Ready to launch, but ${plural(review.unchecked.length, "check")} have not run.` : "Ready to launch.";
-    if (worth) return `Almost ready. ${plural(worth, "improvement")} to consider.`;
+    if (readiness === "ready") return 'No blockers found in what we checked.';
+    if (worth) return `${plural(worth, "idea")} to consider.`;
     return review.ai && !Object.keys(review.ai.failed).length ? "Nothing to fix." : "Nothing to fix yet. The AI step still has to run.";
   }
 
@@ -176,11 +176,10 @@
       const unknown = review.unchecked.length || card.pending_blockers.length;
       mount($('topbar'),
         h('div', {class:'verdict-line'}, h('span', {class:`readiness-dot ${remaining ? 'needs_work':'ready'}`, 'aria-hidden':'true'}),
-          h('strong', null, remaining ? `${plural(remaining,'issue')} to fix before launch` : acknowledged ? 'Remaining risks acknowledged · not verified fixes' : unknown ? 'No blockers found · some checks incomplete' : 'No blockers found in what we checked'),
-          h('span', {class:'verdict-limit'}, `${plural(worth,'issue')} worth a look${SC.issueCounts ? ` · ${SC.issueCounts(localDetail).polish} polish` : ''}`)),
+          h('strong', null, remaining ? `${remaining} must-fix ${remaining === 1 ? 'issue' : 'issues'}` : acknowledged ? 'Remaining risks acknowledged · not verified fixes' : unknown ? 'No blockers found · some checks incomplete' : 'No blockers found in what we checked'),
+          h('span', {class:'verdict-limit'}, `${plural(worth,'idea')}${SC.issueCounts ? ` · ${SC.issueCounts(localDetail).polish} nice to have` : ''}`)),
         h('div', {class:'review-metrics'},
-          h('span', null, `About ${review.est_minutes} min on the captured path`),
-          h('span', {class:'scope-flag'}, 'Scope-limited review · not launch approval')));
+          h('span', null, survey().overview.subline)));
       return;
     }
     const aiBrief = !ai ? "AI check pending" : `${failed.length ? "AI partly checked" : "AI checked"}${card.unchecked_points ? `, ${card.unchecked_points} pts unchecked` : ""}`;
@@ -195,8 +194,8 @@
       h("div", { class: "head-text" },
         h(SC.workspaceDetail ? "h2" : "h1", null, headline(review)),
         h("p", { class: "sub" }, `${survey().title} \u2022 ${waiting}`),
-        h("p", { class: "brief" }, `${must} must fix \u2022 ${worth} worth improving \u2022 ${review.est_minutes} min \u2022 ${aiBrief}`)),
-      h("dl", { class: "stats" }, stat(must, "must fix", "red"), stat(worth, "worth improving", "amber"),
+        h("p", { class: "brief" }, `${must} must-fix \u2022 ${worth} ideas \u2022 ${review.est_minutes} min \u2022 ${aiBrief}`)),
+      h("dl", { class: "stats" }, stat(must, "must-fix", "red"), stat(worth, "ideas", "amber"),
         stat(`${review.est_minutes} min`, promised ? `for members, ${promised}` : "for members", "plain")),
       h("label", { class: "pick" }, h("span", null, localDetail ? "Your survey" : "Sample survey"),
         h("select", { "data-fk": "survey-picker", onchange: (e) => chooseSurvey(Number(e.target.value)) },

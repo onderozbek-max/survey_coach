@@ -19,7 +19,7 @@ def test_root_is_launchpad_and_assets_revalidate(tmp_path):
 def test_export_embeds_shared_components_without_external_dependencies():
     html = summary_packet({'title': '<script>unsafe</script>', 'version': 1, 'review': None, 'snapshot': {'title': 'Synthetic', 'pages': []}, 'decisions': {}})
     assert '<style>' in html and '<main>' in html
-    assert 'Share for sign-off' in html and 'not launch approval' in html
+    assert 'Share with stakeholders' in html and 'not launch approval' in html
     assert 'Review not available' in html and 'No readiness judgement has been made' in html
     assert '<script>unsafe' not in html
     assert '&lt;script&gt;unsafe' in html

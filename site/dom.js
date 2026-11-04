@@ -23,6 +23,6 @@
   SC.plural = (n, noun) => `${n} ${noun}${n === 1 ? "" : "s"}`;
   SC.clock = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   SC.clip = (text, n) => (text.length <= n ? text : `${text.slice(0, n - 1).trimEnd()}\u2026`);
-  SC.SEVERITY = { must_fix: "Must fix", worth_improving: "Worth improving" };
-  SC.READINESS = { ready: "Ready to launch", almost_ready: "Almost ready", needs_work: "Needs work" };
+  SC.SEVERITY = { must_fix: "Must-fix", worth_improving: "Idea" };
+  SC.READINESS = { ready: "No blockers found in what we checked", almost_ready: "Ideas to consider", needs_work: "Needs work" };
 })();

@@ -5,7 +5,7 @@
   const POLISH = new Set(['9.1', '9.2']);
   SC.issueTier = f => f.severity === 'must_fix' ? 'blocker'
     : f.triage === 'polish' || f.severity === 'polish' || POLISH.has(f.criterion_id) ? 'polish' : 'worth';
-  SC.ISSUE_TIERS = {blocker: 'Fix before launch', worth: 'Worth a look', polish: 'Polish'};
+  SC.ISSUE_TIERS = {blocker: 'Must-fix', worth: 'Idea', polish: 'Nice to have'};
   SC.issueLocation = (f, snapshot) => {
     let questionNumber = 0;
     for (const [index, page] of (snapshot?.pages || []).entries()) {
@@ -44,6 +44,6 @@
   };
   SC.issueVerdict = detail => {
     const c = SC.issueCounts(detail);
-    return `${c.blocker ? `${c.blocker} to fix before launch` : 'No unacknowledged blockers in what we checked'} · ${c.worth} worth a look · ${c.polish} polish${c.kept ? ` · ${c.kept} kept on purpose (accepted risk, not verified fixes)` : ''}`;
+    return `${c.blocker ? `${c.blocker} must-fix` : 'No unacknowledged blockers in what we checked'} · ${c.worth} ideas · ${c.polish} nice to have${c.kept ? ` · ${c.kept} kept on purpose (accepted risk, not verified fixes)` : ''}`;
   };
 })();

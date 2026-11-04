@@ -18,18 +18,18 @@ def summary_packet(detail, *, download=False):
     minutes = max(1, round(detail.get("total_seconds", 0) / 60))
     parts = ["<!doctype html><html lang='en'><meta charset='utf-8'>",
              "<meta name='viewport' content='width=device-width,initial-scale=1'>",
-             "<title>SurveyCoach sign-off summary</title><style>",
+             "<title>SurveyCoach stakeholder summary</title><style>",
              "body{font:16px/1.5 system-ui;color:#18332e;max-width:850px;margin:2rem auto;padding:1rem}"
              "h1,h2,h3{line-height:1.2}section{break-inside:avoid}li{margin:.5rem 0}"
              "details{border-top:1px solid #bbb;margin-top:2rem;padding-top:1rem}"
              "@media print{body{font-size:11pt;margin:0}details{break-before:page}}",
-             "</style><body><main><p>SurveyCoach · Share for sign-off · not launch approval</p>",
-             f"<h1>{text(detail['title'])}</h1><p>Round {detail['version']}</p>",
+             "</style><body><main><p>SurveyCoach · Share with stakeholders · not launch approval</p>",
+             f"<h1>{text(detail['title'])}</h1><p>Version {detail['version']}</p>",
              f"<h2>{text(summary['verdict'])}</h2>",
              f"<p>About {minutes} minutes for members (estimate).</p>",
              f"<p><strong>What we checked:</strong> {text(summary['scope']['summary'])}</p>"]
     parts.extend(f"<p>{text(line)}</p>" for line in summary["scope"]["unchecked_paths"])
-    parts.append("<p>Keep mine acknowledges a risk; it is not evidence that an issue was corrected. "
+    parts.append("<p>Keep as is acknowledges a risk; it is not evidence that an issue was corrected. "
                  "SurveyCoach does not edit RedJade. Manual completion is not verified.</p>")
     lines = detail.get("change_sheet") or change_sheet(detail)
     for action, title in (("pick", "Chosen changes"), ("keep", "Kept risks")):
@@ -52,11 +52,11 @@ def summary_packet(detail, *, download=False):
             parts.append("</li>")
         parts.append("</ul></section>")
     changes = detail.get("round_changes", {})
-    parts.append("<section><h2>What changed since the previous round</h2>")
+    parts.append("<section><h2>What changed since the previous version</h2>")
     if not changes.get("compared_to_round"):
-        parts.append("<p>First round: no previous comparison.</p>")
+        parts.append("<p>First version: no previous comparison.</p>")
     else:
-        parts.append(f"<p>Compared with Round {text(changes['compared_to_round'])}: "
+        parts.append(f"<p>Compared with Version {text(changes['compared_to_round'])}: "
                      f"{len(changes.get('fixed', []))} no longer flagged, "
                      f"{len(changes.get('still', []))} still flagged, "
                      f"{len(changes.get('new', []))} newly flagged, "
@@ -152,8 +152,8 @@ def stakeholder_packet(detail):
              "<meta name='viewport' content='width=device-width,initial-scale=1'>",
              "<title>SurveyCoach stakeholder summary</title>",
              f"<style>{_LIGHT_CSS}</style></head><body><main>",
-             "<p class='meta'>SurveyCoach · Share for sign-off · not launch approval</p>",
-             f"<h1>{_text(detail['title'])}</h1><p>Round {_text(detail['version'])}</p>",
+             "<p class='meta'>SurveyCoach · Share with stakeholders · not launch approval</p>",
+             f"<h1>{_text(detail['title'])}</h1><p>Version {_text(detail['version'])}</p>",
              "<section><h2>Headline</h2>",
              f"<p><strong>{_text(headline or 'Review not available')}</strong></p>",
              f"<p>{_text(overview.get('subline', 'No readiness judgement has been made.'))}</p>",

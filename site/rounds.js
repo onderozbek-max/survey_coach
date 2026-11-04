@@ -23,7 +23,7 @@
               (item.resolution || item.reason) && h('p', null, item.resolution || item.reason),
               (item.old_wording || item.before_text) && h('blockquote', null, `Before: ${item.old_wording || item.before_text}`),
               (item.new_wording || item.after_text) && h('blockquote', null, `Now: ${item.new_wording || item.after_text}`)))))))
-        : h('p', {class:'note'}, detail.version > 1 ? 'Detailed version comparison is not available for this review. Nothing is claimed fixed.' : 'First version: choose changes, apply them in RedJade, then check again.')];
+        : h('p', {class:'note'}, detail.version > 1 ? 'Detailed version comparison is not available for this review. Nothing is claimed fixed.' : 'First version: choose changes, apply them in RedJade, then choose Check updated survey.')];
   };
   SC.changeSheetText = detail => {
     const entries = detail.review.findings.filter(f => {
@@ -37,7 +37,7 @@
       const d = SC.issueDecision(f, detail), place = SC.issueLocation(f, detail.snapshot);
       return `${place.label} · ${place.target}\n${f.headline}\n${d.action === 'pick'
         ? f.edit_kind === 'add_answer' ? `Keep question: ${f.current_text}\nAdd answer option: ${d.picked_text}\n${f.explanation}` : `Find: ${f.current_text || 'No exact source text; locate using the guidance above'}\nReplace with: ${d.picked_text}`
-        : `Keep mine: ${d.reason}\nAccepted risk, not a verified fix.`}`;
+        : `Keep as is: ${d.reason}\nAccepted risk, not a verified fix.`}`;
     }).join('\n\n');
   };
   SC.renderChangeSheet = detail => {

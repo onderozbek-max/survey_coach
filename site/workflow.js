@@ -156,7 +156,7 @@
       await waitForJob(detail.job.id, 'review-status'); return review();
     }
     if (!detail.review) { message('review-status', detail.job?.error || 'No completed review. Try checking again below.'); return; }
-    message('review-status', `Round ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
+    message('review-status', `Version ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
     titleEditor(); refreshDecisions();
     $('survey-link').value = window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
     $('check-again').onclick = revealRecheck;

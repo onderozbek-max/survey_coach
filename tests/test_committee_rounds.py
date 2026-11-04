@@ -160,7 +160,7 @@ def test_report_plain_words_escaped_and_csp(tmp_path):
         response = client.get(url + "/summary")
         assert "default-src 'none'" in response.headers["content-security-policy"]
         assert "&lt;script&gt;" in response.text and "<script>unsafe()" not in response.text
-        for text in ("Round 1", "What we checked", "Chosen changes", "Kept risks", "Technical appendix"):
+        for text in ("Version 1", "What we checked", "Chosen changes", "Kept risks", "Technical appendix"):
             assert text in response.text
         for raw in ("must_fix", "almost_ready", "pending_blockers", "content_hash"):
             assert raw not in response.text

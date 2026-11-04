@@ -27,7 +27,7 @@ DISCLAIMER = ("Sample data: two made-up surveys. SurveyCoach never reads or chan
 DISCLAIMER_SHORT = "Sample data. SurveyCoach never reads or edits RedJade; you copy fixes yourself."
 SAMPLES = [
     ("boxer-briefs", "A deliberately flawed sample. Shows what a review catches and how it explains each fix."),
-    ("coffee-pods", "A clean sample. It still cannot be called Ready to launch, because the AI step has not run."),
+    ("coffee-pods", "A clean sample with reviewed, cached AI suggestions. Unchecked paths and checks remain unknown."),
 ]
 
 
