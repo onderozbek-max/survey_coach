@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from surveycoach.server.report import attachment_filename
 from surveycoach.server.repository import Repository
 from surveycoach.server.security import LocalRequestGuard
 from surveycoach.server.service import metadata, run_job, summary_packet
@@ -182,9 +183,14 @@ def create_app(db_path, provider=None) -> FastAPI:
         return repository.save_decision(survey_id, version, fingerprint, body.model_dump())
 
     @app.get("/api/surveys/{survey_id}/versions/{version}/summary", response_class=HTMLResponse)
-    def summary(survey_id: str, version: int):
-        html = summary_packet(repository.detail(survey_id, version))
-        return HTMLResponse(html, headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"})
+    def summary(survey_id: str, version: int, download: bool = False):
+        detail = repository.detail(survey_id, version)
+        html = summary_packet(detail, download=download)
+        headers = {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"}
+        if download:
+            filename = attachment_filename(detail["title"], detail["version"])
+            headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return HTMLResponse(html, headers=headers)
 
     from surveycoach.server.ask import router as ask_router
     app.include_router(ask_router(repository, provider))
