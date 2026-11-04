@@ -81,12 +81,26 @@ button { cursor: pointer; }
 .q.selected { border-color: var(--phone-accent); box-shadow:var(--shadow-1); }
 .q-text, .intro { font-weight: 600; margin-bottom: 8px; }
 .help, .page-note { color: var(--muted); font-size: .85em; margin: 4px 0; }
-mark { border-radius: 4px; padding: 0 3px; }
-mark.must_fix { background: var(--critical-soft); color: var(--critical); outline: 2px dashed var(--critical); }
-mark.worth_improving { background: var(--attention-soft); color: var(--attention); outline: 2px dashed var(--attention); }
-.pin { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; margin: 0 2px 0 4px; vertical-align: middle; font: 700 12px/1 sans-serif; }
-.pin.must_fix { background: var(--critical); color:var(--on-accent); } .pin.worth_improving { background: var(--attention); color:var(--on-accent); }
-.pin.done { background: var(--positive); color:var(--on-accent); } .pin.on { box-shadow:var(--shadow-2); }
+mark { border-radius:4px; background:var(--mark); color:inherit; border-bottom:2px solid var(--attention); }
+mark.must_fix { border-bottom-color:var(--critical); }
+.phone-marked-block { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; width:100%; align-items:start; }
+.phone-block-copy { min-width:0; overflow-wrap:anywhere; }
+.phone-gutter { display:grid; gap:4px; }
+.phone-marker { display:grid; place-items:center; width:24px; min-height:24px; padding:0; border:1px solid currentColor; border-radius:50%; background:var(--surface); color:var(--attention); font-size:12px; font-weight:700; }
+.phone-marker.must_fix { color:var(--critical); }
+.phone-marker.on { box-shadow:var(--shadow-1); }
+.opts li.suggested-option { border:2px dashed var(--line-strong); }
+.phone-controls { display:flex; align-items:start; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.phone-settings-wrap { position:relative; }
+#phone-settings-panel { position:absolute; z-index:5; top:48px; left:0; width:260px; padding:8px; background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r-sm); box-shadow:var(--shadow-2); }
+#phone-settings, .preview-settings select { min-height:44px; border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); padding:6px 12px; }
+.preview-settings label { display:inline-flex; align-items:center; gap:8px; font-size:12px; }
+.preview-tools { margin-bottom:8px; font-size:12px; }
+.preview-tools summary { min-height:24px; cursor:pointer; }
+@media(max-width:700px) {
+  .phone-controls { margin-bottom:0; }
+  #phone-settings { min-height:24px; padding:2px 12px; }
+}
 .opts { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 8px; }
 .opts li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border: 1px solid var(--phone-line); border-radius: 10px; padding: 10px 12px; background: var(--phone-bg); position: relative; }
 .opts li::before { content: ""; flex: none; width: 18px; height: 18px; border: 2px solid var(--line-strong); border-radius: 50%; }
@@ -97,7 +111,7 @@ mark.worth_improving { background: var(--attention-soft); color: var(--attention
 .media { position: relative; display: grid; place-items: center; width: 100%; min-height: 70px; margin: 6px 0; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--muted); font-size: 12px; text-align: center; padding: 6px;
   background:var(--surface-2); }
 .media.broken { background: var(--critical-soft); border: 2px dashed var(--critical); color: var(--critical); font-weight: 700; min-height: 96px; }
-.media-wrap { position: relative; } .media-wrap .pin { position: absolute; top: 12px; left: 6px; margin: 0; }
+.media-wrap { position: relative; }
 .dropdown, .textbox { display: flex; justify-content: space-between; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px; color: var(--muted); margin: 8px 0; }
 .textbox { min-height: 84px; }
 .scale { display: flex; gap: 4px; margin: 8px 0 4px; } .scale span { flex: 1; text-align: center; border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 0; font-size: .85em; }

@@ -2,7 +2,6 @@
   "use strict";
   const SC = window.SC;
   const { h } = SC;
-  const KIND = { intro: "Welcome", info: "Information", question: "Question", thank_you: "Thank you", screen_out: "Screen-out" };
   const SCALE_CRITERIA = ["4.4", "6.3"];
 
   const fixedText = (text, ctx) => (ctx.plan ? SC.applyFixes(text, ctx.plan, null, { page_id: ctx.pageId, question_id: ctx.questionId }) : text);
@@ -10,29 +9,33 @@
   const dimensions = (m) => m.rendered_w > 0 && m.rendered_h > 0
     ? [m.rendered_w, m.rendered_h] : [m.natural_w, m.natural_h];
 
-  /** A numbered pin: the same number is on the coach card, so each problem is findable both ways. */
-  function pin(entry, ctx) {
-    const done = ctx.applied(entry);
+  /** An annotation in the block's right gutter, never in the member's sentence. */
+  function marker(entry, ctx) {
+    const tier = entry.f.severity === 'must_fix' ? 'Must-fix' : 'Worth improving';
     return h("button", {
       type: "button", "data-fk": `pin-${entry.key}`, "data-pin": entry.key,
-      class: `pin ${done ? "done" : entry.f.severity}${ctx.selected === entry.key ? " on" : ""}`,
-      "aria-label": `Issue ${entry.n}${done ? ", fixed in preview" : ""}: ${entry.f.headline}`,
+      class: `phone-marker ${entry.f.severity}${ctx.selected === entry.key ? " on" : ""}`,
+      "aria-label": `${tier}: ${entry.f.headline}`,
       onclick: () => ctx.onPin(entry.key),
-    }, String(entry.n));
+    }, h('span', {'aria-hidden':'true'}, '!'));
   }
 
-  /** Text with the faulty phrase marked and its pin beside it; pins with no phrase to mark go at the end. */
+  const flaggedBlock = (copy, entries, ctx) => h('div', {class:'phone-marked-block'},
+    h('div', {class:'phone-block-copy'}, copy),
+    h('div', {class:'phone-gutter'}, entries.map(entry => marker(entry, ctx))));
+
+  /** Highlight only the evidence; controls live outside the text flow. */
   function marked(text, entries, ctx) {
-    const parts = [], tail = [];
+    const parts = [];
     let rest = text;
     for (const entry of entries) {
       const phrase = entry.f.highlight;
       const at = phrase && !ctx.applied(entry) ? rest.toLowerCase().indexOf(phrase.toLowerCase()) : -1;
-      if (at < 0) { tail.push(entry); continue; }
-      parts.push(rest.slice(0, at), h("mark", { class: entry.f.severity }, rest.slice(at, at + phrase.length)), pin(entry, ctx));
+      if (at < 0) continue;
+      parts.push(rest.slice(0, at), h("mark", { class: entry.f.severity }, rest.slice(at, at + phrase.length)));
       rest = rest.slice(at + phrase.length);
     }
-    return [...parts, rest, tail.map((entry) => pin(entry, ctx))];
+    return [...parts, rest];
   }
 
   function targetOf(entry, q) {
@@ -59,19 +62,31 @@
       landscape ? "This horizontal image may be hard to read on a phone. Review the actual survey on a mobile device for tiny content, cropping or distortion. Orientation alone is not a failure."
         : "Placeholder only—not the actual image. Verify the image in the survey on a mobile device.");
     const mine = entries.filter((e) => e.f.element_id && e.f.element_id === m.element_id);
-    // pins sit beside the image, not inside it: an image's children are invisible to screen readers
-    return h("div", { class: "media-wrap" }, box, note, mine.map((e) => pin(e, ctx)));
+    // Controls sit outside the image: role=img descendants are not interactive.
+    return flaggedBlock(h('div', {class:'media-wrap'}, box, note), mine, ctx);
   }
 
   function optionList(q, by, mine, ctx) {
     const hidden = q.options_below_fold || 0, items = [];
     q.options.forEach((o, i) => {
       if (hidden && i === q.options.length - hidden) items.push(h("li", { class: "fold" }, "Below the fold on a phone"));
-      items.push(h("li", null, o.media ? mediaBox(o.media, mine, ctx) : null, h("span", null, fixedText(o.label, ctx)),
-        by.option.filter((e) => e.f.highlight === o.label).map((e) => pin(e, ctx))));
+      items.push(h("li", null, flaggedBlock([
+        o.media ? mediaBox(o.media, mine, ctx) : null, h("span", null, fixedText(o.label, ctx)),
+      ], by.option.filter((e) => e.f.highlight === o.label), ctx)));
     });
+    items.push(...suggestedAnswers(mine, ctx));
     const kinds = [q.kind === "multi_choice" && "multi", q.options.some((o) => o.media) && "grid-opts"].filter(Boolean);
     return h("ul", { class: ["opts", ...kinds].join(" ") }, items);
+  }
+
+  function suggestedAnswers(entries, ctx) {
+    return entries.filter(e => e.f.edit_kind === 'add_answer' && ctx.plan !== null
+      && ctx.choiceOf(e.key) !== 'original')
+      .flatMap(e => {
+        const choice = SC.chosenChoice(e.f, ctx.choiceOf(e.key) === 'open' ? undefined : ctx.choiceOf(e.key));
+        return choice ? [h('li', {class:'suggested-option'},
+          h('span', {class:'sr-only'}, 'Suggested answer: '), h('span', null, choice.text))] : [];
+      });
   }
 
   function scaleEnds(scale, ctx) {
@@ -80,19 +95,20 @@
   }
 
   function questionBody(q, by, mine, ctx) {
-    const scale = q.scale, scalePins = by.scale.map((e) => pin(e, ctx));
+    const scale = q.scale; // Scale markers share the question gutter.
     switch (q.kind) {
-      case "dropdown": return h("div", { class: "dropdown" }, h("span", null, "Select one"), h("span", null, `${q.options.length} choices`));
+      case "dropdown": return [h("div", { class: "dropdown" }, h("span", null, "Select one"), h("span", null, `${q.options.length} choices`)),
+        h('ul', {class:'opts'}, suggestedAnswers(mine, ctx))];
       case "text_short": case "text_long": return h("div", { class: "textbox" }, "Type your answer here");
       case "rating": case "slider":
         if (!scale) return h('p', {class:'help'}, 'Rating control not captured. Check the original survey.');
-        return [h("div", { class: "scale" }, scalePoints(scale).map((n) => h("span", null, String(n)))), scaleEnds(scale, ctx), scalePins];
+        return [h("div", { class: "scale" }, scalePoints(scale).map((n) => h("span", null, String(n)))), scaleEnds(scale, ctx)];
       case "grid_single": case "grid_multi":
         if (!scale) return h('div', {class:'textbox'}, 'Response grid · layout not captured');
         return [h("table", null,
         h("caption", null, `${scale.low_label || ""} to ${scale.high_label || ""}`),
         h("thead", null, h("tr", null, h("td", null), scalePoints(scale).map((n) => h("th", { scope: "col" }, String(n))))),
-        h("tbody", null, q.rows.map((r) => h("tr", null, h("th", { scope: "row" }, r), scalePoints(scale).map(() => h("td", null, h("span", { class: "dot" }))))))), scalePins];
+        h("tbody", null, q.rows.map((r) => h("tr", null, h("th", { scope: "row" }, r), scalePoints(scale).map(() => h("td", null, h("span", { class: "dot" })))))))];
       default:
         if (!q.options.length && q.kind === 'unknown') return h('div', {class:'unsupported-widget'},
           h('span', {'aria-hidden':'true'}, '＋'), h('strong', null, 'Response control not reconstructed'),
@@ -109,7 +125,7 @@
     const selected = mine.some((e) => e.key === ctx.selected);
     return h("div", { class: `q${mine.length ? " flagged" : ""}${selected ? " selected" : ""}` },
       q.media.map((m) => mediaBox(m, mine, ctx)),
-      h("p", { class: "q-text" }, marked(fixedText(q.text, ctx), by.text, ctx)),
+      flaggedBlock(h("p", { class: "q-text" }, marked(fixedText(q.text, ctx), by.text, ctx)), [...by.text, ...by.scale], ctx),
       q.help_text && h("p", { class: "help" }, fixedText(q.help_text, ctx)),
       questionBody(q, by, mine, ctx),
       q.required === false && h("p", { class: "help" }, "Optional"));
@@ -120,7 +136,7 @@
     return own.map((e) => (ctx.applied(e) && !e.f.current_text && e.f.suggested_text && e.f.source !== "ai"
       ? h("div", { class: "q added" }, h("p", { class: "tag-new" }, "New question (suggested)"),
         h("p", { class: "q-text" }, e.f.suggested_text), h("div", { class: "textbox" }, "Type your answer here"))
-      : h("p", { class: "page-note" }, pin(e, ctx), " ", e.f.headline)));
+      : flaggedBlock(h("p", { class: "page-note" }, e.f.headline), [e], ctx)));
   }
 
   function renderPage(item, ctx) {
@@ -130,10 +146,11 @@
         h('p', null, 'The earlier reader captured an upload or answer-validation error here. This is not evidence of the next survey screen. Run a fresh review to retry with the updated reader; later screens remain unverified.'));
     }
     if (page.kind === "intro") {
-      return [h("h3", null, "Welcome"), h("p", { class: "intro" }, marked(fixedText(page.intro_text || page.text || '', ctx), own, ctx)), h("div", { class: "next" }, "Start")];
+      return [h("h3", null, "Welcome"), flaggedBlock(h("p", { class: "intro" }, marked(fixedText(SC.cleanCopy(page.intro_text || page.text), ctx), own, ctx)), own, ctx), h("div", { class: "next" }, "Start")];
     }
-    if (page.kind !== "question") return h("div", { class: "survey-copy" },
-      h('p', null, marked(fixedText(page.text || page.intro_text || '', ctx), own, ctx)));
+    if (page.kind !== "question") return [flaggedBlock(h("div", { class: "survey-copy" },
+      h('p', null, marked(fixedText(SC.cleanCopy(page.text || page.intro_text), ctx), own, ctx))), own, ctx),
+      page.kind === 'info' && h('div', {class:'next'}, 'Next')];
 
     return [page.questions.map((q) => renderQuestion(q, entries, ctx)), pageNotes(own, ctx), h("div", { class: "next" }, "Next")];
   }
@@ -141,7 +158,7 @@
   SC.renderPhone = (item, ctx) =>
     h("div", { class: "phone-wrap" },
       h("div", { class: `phone${ctx.large ? " large" : ""}`, style: `--w:${ctx.device}px` },
-        h("div", { class: "phone-bar" }, h("span", null, `${item.name}${item.topic ? ` · ${item.topic}` : ""} · screen ${item.index + 1} of ${ctx.total}`), h("span", null, KIND[item.page.kind] || item.page.kind)),
+        h("div", { class: "phone-bar" }, `${item.name} · Screen ${item.index + 1} of ${ctx.total}`),
         h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" },
           (item.page.media || []).map((m) => mediaBox(m, item.entries, ctx)), renderPage(item, ctx))));
 })();

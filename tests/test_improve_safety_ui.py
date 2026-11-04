@@ -58,6 +58,6 @@ def test_same_chapter_options_are_consumed_and_absorbed_pin_is_not_rendered(brow
     assert target['name'] in page.locator('#stage .phone-bar').inner_text()
     focus(page, next(f for f in detail['review']['findings'] if f['fingerprint'] == detail['plan']['must_fix'][0]['fingerprints'][0]))
     hidden = detail['review']['findings'][-1]
-    assert page.locator(f'#stage .pin[data-pin="{len(detail["review"]["findings"]) - 1}"]').count() == 0
+    assert page.locator(f'#stage .phone-marker[data-pin="{len(detail["review"]["findings"]) - 1}"]').count() == 0
     assert not writes and not errors
     context.close()

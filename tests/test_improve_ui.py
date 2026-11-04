@@ -18,7 +18,7 @@ def test_queue_saves_copies_advances_and_undo_reopens(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=curated)
     assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Must-fix 0/3', 'Quick wins 0/0', 'More ideas']
     assert page.locator('#rail, .journey, #review-toolbar, .next-issue').count() == 0
-    assert page.locator('#coach .location').inner_text() in page.locator('#stage .phone-bar').inner_text()
+    assert page.locator('#coach .location').inner_text().split(' · ')[0] == page.locator('#stage .phone-bar').inner_text().split(' · ')[0]
     assert page.locator('#coach .pill').first.inner_text() == 'Must-fix'
     assert page.locator('#coach details.more').count() == 1
     assert page.locator('.studio').evaluate('e => getComputedStyle(e).columnGap') == '48px'

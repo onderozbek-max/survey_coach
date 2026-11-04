@@ -8,6 +8,17 @@
     checked:card.checked_points == null ? 100-card.unchecked_points : card.checked_points});
   SC.SPLIT = " ... ";   // joins a scale's two end labels into one fixable string
 
+  /** Read-time port of snapshot.clean_copy; captured strings and identities stay untouched. */
+  SC.cleanCopy = text => {
+    let copy = (text || '').replace(/\u00a0/g, ' ').trimEnd();
+    while (true) {
+      const trimmed = copy.replace(/(?:^|\n)[ \t]*(?:next|continue|back|start|begin|submit|finish|done)[ \t]*$/i, '').trimEnd();
+      if (trimmed === copy) break;
+      copy = trimmed;
+    }
+    return copy.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  };
+
   /** The versions a researcher can pick between: the AI's options, or the single code-made suggestion. */
   SC.choicesOf = (f) => (f.options && f.options.length
     ? f.options.map((o, i) => ({ value: String(i), label: o.label, text: o.text }))
@@ -31,7 +42,7 @@
   }, text);
 
   /** Every string the phone shows through the fixer for this page, so "fixed in preview" can be checked, not assumed. */
-  SC.pageTexts = (page) => [page.intro_text, page.text, ...(page.questions || []).flatMap((q) => [
+  SC.pageTexts = (page) => [SC.cleanCopy(page.intro_text), SC.cleanCopy(page.text), ...(page.questions || []).flatMap((q) => [
     q.text, q.help_text, ...q.options.map((o) => o.label),
     q.scale && `${q.scale.low_label || "(no label)"}${SC.SPLIT}${q.scale.high_label || "(no label)"}`]),
   ].filter(Boolean);
@@ -39,7 +50,7 @@
   SC.hitsOn = (page, plan) => {
     const hits = new Set();
     const target = { page_id: page.id };
-    [page.intro_text, page.text].filter(Boolean).forEach((text) => SC.applyFixes(text, plan, hits, target));
+    [page.intro_text, page.text].map(SC.cleanCopy).filter(Boolean).forEach((text) => SC.applyFixes(text, plan, hits, target));
     (page.questions || []).forEach((q) => {
       const texts = [q.text, q.help_text];
       if (!["dropdown", "grid_single", "grid_multi"].includes(q.kind)) {
@@ -53,11 +64,13 @@
 
   /** Which findings belong to which screen, numbered the way the phone pins and the coach cards will show them. */
   SC.buildModel = function buildModel(survey) {
-    const { snapshot, review } = survey;
-    for (const page of snapshot.pages) {   // exported snapshots omit empty lists; normalize once
-      page.questions = page.questions || [];
-      for (const q of page.questions) Object.assign(q, { options: q.options || [], rows: q.rows || [], media: q.media || [] });
-    }
+    const { review } = survey;
+    // Normalize a view, never the stored capture (exports omit empty lists).
+    const snapshot = { ...survey.snapshot, pages: survey.snapshot.pages.map(page => ({
+      ...page, questions: (page.questions || []).map(q => ({
+        ...q, options: q.options || [], rows: q.rows || [], media: q.media || [],
+      })),
+    })) };
     const pageIndex = new Map(snapshot.pages.map((page, i) => [page.id, i]));
     const questionPage = new Map();
     snapshot.pages.forEach((page, i) => (page.questions || []).forEach((q) => questionPage.set(q.id, i)));

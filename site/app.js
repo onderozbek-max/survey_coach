@@ -29,7 +29,7 @@
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model, queue;
   const improveOperation = {busy:false, recovery:null};
-  let comparing = false, playing = false, settingsOpen = false;
+  let comparing = false, playing = false, settingsOpen = false, toolsOpen = false;
   const playback = SC.createPlayback({
     seconds:() => survey().overview.energy.screens[pageItem().index]?.seconds || 1,
     advance:() => {
@@ -58,12 +58,12 @@
   function previewPlan(forComparison = false) {
     if (!forComparison && state.mode !== "fixes") return null;
     return survey().review.findings.flatMap((f, key) => {
-      const pick = f.current_text && chosen(f, key);
+      const pick = f.edit_kind !== 'add_answer' && f.current_text && chosen(f, key);
       return pick ? [{ key, from: f.current_text, to: pick.text, page_id: f.page_id, question_id: f.question_id, ai: f.source === "ai" }] : [];
     }).sort((a, b) => a.ai - b.ai);     // code-made fixes are facts (a true time promise), so they go first; the sort is stable
   }
 
-  const questionById = (id) => survey().snapshot.pages.flatMap((page) => page.questions).find((q) => q.id === id);
+  const questionById = (id) => model.items.flatMap(item => item.page.questions).find(q => q.id === id);
   /** The original as the researcher knows it. A bundle's original includes its answer choices, so the rewrite can be compared. */
   function originalOf(entry) {
     const { f } = entry, single = f.current_text && !f.current_text.includes("\n");   // a multi-line original already has its choices
@@ -214,17 +214,28 @@
     const item = pageItem(), s = survey(), seconds = s.timeline[item.index]?.seconds || 0;
     const changes = SC.hitsOn(item.page, previewPlan(true)).size;
     const comparison = state.mode === 'fixes'
-      ? changes ? `${plural(changes, 'text change')} previewed · hypothetical, not accepted or saved.` : 'No text changes on this screen. Layout and image fixes must be checked in RedJade.'
+      ? changes ? `${plural(changes, 'text change')} previewed · hypothetical, not accepted or saved.` : 'Hypothetical preview · not accepted or saved. No text replacements; suggested answers still need authoring and behavior checks in RedJade.'
       : changes ? `${plural(changes, 'text change')} available to preview. RedJade is unchanged.` : 'No text changes to preview here. See the coach for other actions.';
     $('stage').classList.toggle('comparing', comparing);
     const originalCtx = {...context(),plan:null,applied:()=>false,blocked:()=>false};
     const rewrittenCtx = {...context(),plan:previewPlan(true),applied:e=>SC.hitsOn(item.page,previewPlan(true)).has(e.key)};
     mount($("stage"),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
-      h('details', {class:'preview-settings',open:settingsOpen,ontoggle:event => { settingsOpen = event.currentTarget.open; }}, h('summary', null, 'Preview settings'),
-        h('button', {type:'button', 'aria-pressed':String(state.large), 'data-fk':'large', onclick:() => { state.large = !state.large; renderAll(); }}, 'Larger preview text'),
+      h('div', {class:'phone-controls'}, h('div', {class:'phone-settings-wrap'},
+        h('button', {id:'phone-settings', type:'button', 'data-fk':'phone-settings',
+          'aria-label':'Phone preview settings', 'aria-controls':'phone-settings-panel', 'aria-expanded':String(settingsOpen),
+          onclick:() => { settingsOpen = !settingsOpen; renderAll(); }}, 'Aa'),
+        h('div', {id:'phone-settings-panel', class:'preview-settings', hidden:!settingsOpen,
+          role:'group', 'aria-label':'Phone preview settings', onkeydown:event => {
+            if (event.key === 'Escape') { settingsOpen = false; renderAll(); $('phone-settings').focus(); }
+          }},
+          h('button', {type:'button', 'aria-pressed':String(state.large), 'data-fk':'large', onclick:() => { state.large = !state.large; renderAll(); }}, 'Large text'),
+          h('label', null, 'Device size', h('select', {'aria-label':'Device size', 'data-fk':'device-size',
+            onchange:event => { state.device = Number(event.target.value); renderAll(); }},
+            [320,390,430].map(size => h('option', {value:size, selected:state.device === size}, `${size}px`)))))),
+      h('details', {class:'preview-tools', open:toolsOpen, ontoggle:event => { toolsOpen = event.currentTarget.open; }}, h('summary', null, 'Preview tools'),
         h('button', {type:'button',disabled:!changes && !comparing,onclick:() => { comparing = !comparing; renderAll(); }}, comparing ? 'Close comparison' : 'Compare wording'),
-        h('button', {type:'button',onclick:() => playing ? playback.pause() : playback.play()}, playing ? 'Pause walkthrough' : 'Play as a member')),
+        h('button', {type:'button',onclick:() => playing ? playback.pause() : playback.play()}, playing ? 'Pause walkthrough' : 'Play as a member'))),
       comparing ? h('div', {class:'comparison-phones'},
         h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
         h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
@@ -246,7 +257,7 @@
     if (!key) return;
     const target = document.querySelector(`[data-fk="${key}"]`);
     const usable = target && !target.disabled ? target : null;
-    if (usable?.closest('.preview-settings')) usable.closest('.preview-settings').open = true;
+    if (usable?.closest('[hidden]')) return;
     if (usable) usable.focus({ preventScroll: true });
   }
 

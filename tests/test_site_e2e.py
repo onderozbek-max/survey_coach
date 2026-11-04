@@ -51,7 +51,7 @@ def stray_text(page) -> list[str]:
 def phone_text(page) -> str:
     """What a member would read on the phone: the numbered pins are our annotations, so they are left out."""
     text = page.evaluate("""() => {
-        const pins = [...document.querySelectorAll('#stage .phone-screen .pin')];
+        const pins = [...document.querySelectorAll('#stage .phone-screen .phone-marker')];
         pins.forEach((p) => { p.style.display = 'none'; });
         const text = document.querySelector('#stage .phone-screen').innerText;
         pins.forEach((p) => { p.style.display = ''; });
@@ -77,8 +77,8 @@ def card_with(page, text: str):
 
 
 def settings(page):
-    if not page.locator('.preview-settings').evaluate('e => e.open'):
-        page.locator('.preview-settings > summary').click()
+    if page.locator('#phone-settings').get_attribute('aria-expanded') == 'false':
+        page.locator('#phone-settings').click()
 
 
 def demo_finding(page, question_id: str, criterion_id: str) -> dict:
@@ -100,7 +100,7 @@ def test_it_opens_on_the_first_screen_with_a_must_fix_and_that_issue_selected(br
     assert page.locator('#coach .location').inner_text().startswith(shown)
     first = page.locator(".card").first
     assert "Must-fix" in first.inner_text()
-    assert page.locator("#stage .pin.on").get_attribute("aria-label").startswith("Issue 1")
+    assert page.locator("#stage .phone-marker.on").get_attribute("aria-label").startswith("Must-fix:")
     assert not stray_text(page) and errors == []
 
 
@@ -147,7 +147,7 @@ def test_ai_findings_are_marked_and_code_findings_are_not(browser, base_url):
 def test_clicking_a_pin_selects_its_card_and_moves_focus_there(browser, base_url):
     page, _ = open_page(browser, base_url)
     open_screen(page, "Q7")
-    page.locator('.pin[aria-label*="desktop word"]').click()
+    page.locator('#stage .phone-marker[aria-label*="desktop word"]').click()
     assert "desktop word" in page.locator(".card.selected").inner_text()
     assert page.evaluate("document.activeElement.className") == "headline"
     assert "desktop word" in page.evaluate("document.activeElement.textContent")
@@ -156,7 +156,7 @@ def test_clicking_a_pin_selects_its_card_and_moves_focus_there(browser, base_url
 def test_focus_stays_on_the_control_the_user_used(browser, base_url):
     page, _ = open_page(browser, base_url)
     settings(page)
-    page.get_by_role("button", name="Larger preview text").focus()
+    page.get_by_role("button", name="Large text").focus()
     page.keyboard.press("Enter")
     assert page.evaluate("document.activeElement.dataset.fk") == "large"
     page.locator('#all-screens').click()
@@ -337,7 +337,7 @@ def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base
     assert phone["y"] < 844 / 2 and phone["y"] < page.locator(".coach").bounding_box()["y"]   # the phone starts in the top half
     assert page.get_by_role("group", name="Device").is_hidden()
     assert page.locator('#queue-tabs [aria-selected=true]').inner_text().startswith('Must-fix')
-    pin, screen = page.locator('#stage .pin[aria-label^="Issue 1"]').bounding_box(), page.locator("#stage .phone-screen").bounding_box()
+    pin, screen = page.locator('#stage .phone-marker.on').bounding_box(), page.locator("#stage .phone-screen").bounding_box()
     assert screen["y"] <= pin["y"] and pin["y"] + pin["height"] <= screen["y"] + screen["height"]   # pin 1 is in view
 
 

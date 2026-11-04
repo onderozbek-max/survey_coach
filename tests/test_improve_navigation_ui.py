@@ -8,7 +8,7 @@ def test_pager_selects_first_open_plan_item_on_destination_screen(browser, base_
     page.locator('[data-fk=next]').click()
     location = page.locator('#coach .location').first
     if location.count():
-        assert location.inner_text() in page.locator('#stage .phone-bar').inner_text()
+        assert location.inner_text().split(' · ')[0] == page.locator('#stage .phone-bar').inner_text().split(' · ')[0]
     assert not writes and not errors
     context.close()
 
