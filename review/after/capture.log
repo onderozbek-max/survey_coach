@@ -1,0 +1,20 @@
+{
+  "home": "http://127.0.0.1:54572/local.html",
+  "overview": "http://127.0.0.1:54572/review.html?id=1232fa3655834ab59ac9b8b521841823#overview",
+  "improve": "http://127.0.0.1:54572/review.html?id=1232fa3655834ab59ac9b8b521841823#improve",
+  "pattern": "http://127.0.0.1:54572/review.html?id=f1bde29714fd4d73a8324a29dba5da45#improve",
+  "share": "http://127.0.0.1:54572/review.html?id=1232fa3655834ab59ac9b8b521841823#share"
+}
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-home.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-overview.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-improve.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-improve-pattern.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-share.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-preview-member.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/mobile-home.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/mobile-overview.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/mobile-improve.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/mobile-improve-pattern.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/mobile-share.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/mobile-preview-member.png
+/Users/o0o02dn/Documents/adminAI/survey-coach/review/after/evidence.json

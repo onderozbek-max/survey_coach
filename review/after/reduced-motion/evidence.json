@@ -1,0 +1,232 @@
+{
+  "status": "completed",
+  "visual_inspection": "NOT inspected",
+  "records": [
+    {
+      "file": "desktop-home.png",
+      "scenario": "empty-temp-db seeded with synthetic sample",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "primaryButtons": 0,
+        "aboutReachable": false
+      },
+      "sha256": "99daf7120893badcdc53a5ee8f7e9355fc2b4d43b47fbd0c82f9c6f515f2228d",
+      "visually_inspected": false
+    },
+    {
+      "file": "desktop-overview.png",
+      "scenario": "pinned offline sample",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "84a564c8fd38bbd95e3403fd61b94a4c4bd220869125769cc7a4fcd5f15b727e",
+      "visually_inspected": false
+    },
+    {
+      "file": "desktop-improve.png",
+      "scenario": "first sample must-fix",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "e3eb68d338f9e49e808d2541bf565275ebe963b27c5d79904e753bb7122aa0c0",
+      "visually_inspected": false
+    },
+    {
+      "file": "desktop-improve-pattern.png",
+      "scenario": "engine-generated group; fixture://board-pattern",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "772ce024eb34fa5c9f8d627e06cd94cd8620368eee985fac51f886b0b2d3d9b5",
+      "visually_inspected": false
+    },
+    {
+      "file": "desktop-share.png",
+      "scenario": "one synthetic decision chosen in UI; no launch verification",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "35484fb04608807fca6d18b66b6df7f310f0bf0baf4b0d2ee50ff5c2cdbeece8",
+      "visually_inspected": false
+    },
+    {
+      "file": "desktop-preview-member.png",
+      "scenario": "paused local reconstructed walkthrough, not RedJade",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "width": 1440,
+        "height": 900,
+        "scrollWidth": 1440,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "d5dccf331847f35ff1ba5b4cef23b2a62c385121b8da1cf2d7d8d36b25281cc3",
+      "visually_inspected": false
+    },
+    {
+      "file": "mobile-home.png",
+      "scenario": "empty-temp-db seeded with synthetic sample",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "primaryButtons": 0,
+        "aboutReachable": false
+      },
+      "sha256": "ff09f1690a3c059fd9ac66c2548917b97c534fb767d5f318f57aec46c2fa7422",
+      "visually_inspected": false
+    },
+    {
+      "file": "mobile-overview.png",
+      "scenario": "pinned offline sample",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "5b075a67903fee601e77a6152b2e31061d21e71ef1ace865aa8f2f479acd4371",
+      "visually_inspected": false
+    },
+    {
+      "file": "mobile-improve.png",
+      "scenario": "first sample must-fix",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "3bde0df743e76c01d03159913cfded459c57c1156e1ab090f0721bb0d9839d3a",
+      "visually_inspected": false
+    },
+    {
+      "file": "mobile-improve-pattern.png",
+      "scenario": "engine-generated group; fixture://board-pattern",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "a363dea2ba18a46fee41628cab6a6280d4792df6de970701d09159a2ecb60e72",
+      "visually_inspected": false
+    },
+    {
+      "file": "mobile-share.png",
+      "scenario": "one synthetic decision chosen in UI; no launch verification",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "65cc0a6951cc31bc335815951138dc9909eab2aac1ba0ee9cf8737a2d7872fa7",
+      "visually_inspected": false
+    },
+    {
+      "file": "mobile-preview-member.png",
+      "scenario": "paused local reconstructed walkthrough, not RedJade",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "primaryButtons": 1,
+        "aboutReachable": true
+      },
+      "sha256": "031342badfcb34ae36b4d7e9b27da3e5f3c41434fae1caa2785edbc51715756a",
+      "visually_inspected": false
+    }
+  ],
+  "sample_id": "88145ef5f5324f70ad899727c9342161",
+  "pattern_id": "fb3865f620324a99bfabb8522699bc94",
+  "group_fingerprints": [
+    "6b8b99cdf30a",
+    "c2e241dfb03e",
+    "b5d234298bd4"
+  ],
+  "reduced_motion": true,
+  "provenance": "Empty temporary DB; pinned offline boxer-briefs; engine-generated synthetic group; no overrides",
+  "browser_checks": [
+    {
+      "device": "desktop",
+      "page_errors": [],
+      "blocked_external_requests": []
+    },
+    {
+      "device": "mobile",
+      "page_errors": [],
+      "blocked_external_requests": []
+    }
+  ],
+  "server_cleanup": "owned process waited; temporary database removed"
+}
