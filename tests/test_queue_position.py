@@ -28,6 +28,13 @@ def test_position_follows_selected_item_and_tier(browser, base_url):
         focus(page, finding)
         assert selected.inner_text() == f'{label} {len(items)}/{len(items)}'
         assert page.locator('#coach h3').inner_text() == items[-1]['headline']
+    # A filtered inspection still reports its ordinal in the full tier.
+    third = detail['plan']['must_fix'][-1]
+    page.evaluate("o => SC.goChapter('improve', o)", {'fingerprints': third['fingerprints']})
+    assert selected.inner_text() == 'Must-fix 3/3'
+    page.evaluate("o => SC.goChapter('improve', o)", {'fingerprints': []})
+    assert selected.inner_text() == 'Must-fix 3'
+    assert page.locator('#queue-progress').inner_text() == '0 of 3 handled'
     assert not writes and not errors
     context.close()
 
