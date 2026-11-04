@@ -54,3 +54,35 @@ Commands use the existing `.venv`; no package installation or external services.
 - Tests use intercepted synthetic detail or temporary fixture databases and localhost servers only.
   No live DB, model services, original/protected images, untracked `review/` or `uglyhome.png` touched.
 - No delegation, worktree creation, push or external calls performed.
+
+## B3 review fixes (base `c44f9af`)
+
+Owner: `code-puppy-b04d3a`. Both P2 findings addressed; scope limited to routing,
+playback invalidation and focused regression tests.
+
+- [x] Read B3 review, brief and original report; trace both state transitions.
+- [x] Add regressions and observe the expected failures before changing production code.
+- [x] Intercept the skip shortcut without changing hash/history or dispatching a chapter
+  event; explicitly focus and scroll the existing workspace. Invalid chapter fallback is unchanged.
+- [x] Mark Improve dirty only when chapter exit stops active playback, so reentry renders
+  the actual stopped action while ordinary non-playing DOM retention remains intact.
+- [x] Verify keyboard Enter from Improve/Share in both saved-review and static shells,
+  including workspace focus, visibility, unchanged route/history and no writes/errors.
+- [x] Verify playback exits to Overview/Share, no advance while away or after reentry,
+  correct Play/Pause labels, and actual resumed advance with a deterministic browser clock.
+- [x] Run relevant tests and whitespace check; commit only scoped files.
+
+Exact commands/results (localhost synthetic intercepts and temporary fixture DB only):
+
+1. RED: `.venv/bin/python -m pytest tests/test_chapters_ui.py tests/test_member_journey.py -k 'keyboard_skip or playback_stops' -q --tb=short`
+   — **6 failed, 11 deselected in 4.13s**. Four skip cases changed the route to
+   `#workspace` and displayed Overview; two playback cases retained Pause after reentry.
+2. GREEN: `.venv/bin/python -m pytest tests/test_chapters_ui.py tests/test_member_journey.py -k 'keyboard_skip or playback_stops' -q --tb=short`
+   — **6 passed, 11 deselected in 3.69s**.
+3. Relevant regression run: `.venv/bin/python -m pytest tests/test_chapters_ui.py tests/test_member_journey.py tests/test_issue_loop_ui.py tests/test_site_e2e.py tests/test_phone_first_workspace.py tests/test_unified_workspace.py -q --tb=short`
+   — **54 passed in 21.35s**.
+4. `git diff --check` — clean (exit 0).
+
+No dependencies, delegation, pushes, external services, live DB or protected assets
+were used/changed. Existing untracked `review/` and `uglyhome.png` remain untouched.
+All changed files remain below 600 lines. Full suite not rerun for this scoped fix.

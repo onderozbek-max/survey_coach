@@ -351,7 +351,10 @@
     return;
   }
   window.addEventListener('surveycoach-chapter', event => {
-    if (event.detail.name !== 'improve') { stopPlayback(); return; }
+    if (event.detail.name !== 'improve') {
+      if (playing) { stopPlayback(); improveDirty = true; }
+      return;
+    }
     if (improveDirty) renderAll();
   });
   chooseSurvey(0);

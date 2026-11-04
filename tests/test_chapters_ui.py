@@ -57,6 +57,29 @@ def test_hashchange_api_event_once_and_no_duplicate_history(browser, base_url):
     context.close()
 
 
+@pytest.mark.parametrize('chapter', ['improve', 'share'])
+@pytest.mark.parametrize('shell', ['review', 'sample'])
+def test_keyboard_skip_keeps_current_chapter_and_focuses_workspace(browser, base_url, chapter, shell):
+    context, page, detail, writes, errors = open_review(browser, base_url, chapter=chapter)
+    if shell == 'sample':
+        page.goto(base_url + f'index.html#{chapter}')
+        page.wait_for_function('SC.reviewReady === true')
+    before = page.url
+    history_length = page.evaluate('history.length')
+    page.evaluate("window.changes=[]; addEventListener('surveycoach-chapter', e => changes.push(e.detail))")
+    skip = page.get_by_role('link', name='Skip to review', exact=True)
+    skip.focus()
+    page.keyboard.press('Enter')
+    assert_chapter(page, chapter)
+    assert page.url == before
+    assert page.evaluate('history.length') == history_length
+    assert page.locator('#workspace').evaluate('(el) => el === document.activeElement')
+    assert page.locator('#workspace').bounding_box()['y'] >= 0
+    assert page.evaluate('changes') == []
+    assert not writes and not errors
+    context.close()
+
+
 def test_focus_finding_enters_improve_without_losing_selection(browser, base_url):
     context, page, detail, writes, errors = open_overview(browser, base_url)
     finding = detail['review']['findings'][-1]

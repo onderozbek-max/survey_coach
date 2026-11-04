@@ -38,6 +38,12 @@
     event.preventDefault();
     SC.goChapter(link.dataset.chapter);
   });
+  document.querySelector('a.skip[href="#workspace"]').addEventListener('click', event => {
+    event.preventDefault(); // A focus shortcut, not a chapter route or history entry.
+    const workspace = document.getElementById('workspace');
+    workspace.focus({preventScroll: true});
+    workspace.scrollIntoView({block: 'start', behavior: 'instant'});
+  });
   const sync = () => SC.showChapter(SC.currentChapter());
   window.addEventListener('popstate', sync);
   window.addEventListener('hashchange', sync);

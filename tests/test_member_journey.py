@@ -1,6 +1,35 @@
 """Local member journey estimates are visible, inspectable and never empirical claims."""
-from tests.test_site_e2e import browser
+import pytest
+
+from tests.test_issue_loop_ui import open_review
+from tests.test_site_e2e import base_url, browser
 from tests.test_workflow_e2e import studio
+
+
+@pytest.mark.parametrize('destination', ['overview', 'share'])
+def test_playback_stops_on_chapter_exit_and_reentry_shows_play(browser, base_url, destination):
+    context, page, detail, writes, errors = open_review(browser, base_url)
+    page.clock.install()
+    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
+    page.get_by_role('button', name='Play as a member', exact=True).click()
+    assert page.get_by_role('button', name='Pause walkthrough', exact=True).is_visible()
+    screen = page.locator('[data-fk=screen-picker]').input_value()
+    page.locator(f'[data-chapter={destination}]').click()
+    page.clock.run_for(3_600_000)
+    page.locator('[data-chapter=improve]').click()
+    assert page.locator('[data-fk=screen-picker]').input_value() == screen
+    assert page.get_by_role('button', name='Play as a member', exact=True).is_visible()
+    assert page.get_by_role('button', name='Pause walkthrough', exact=True).count() == 0
+    page.clock.run_for(3_600_000)
+    assert page.locator('[data-fk=screen-picker]').input_value() == screen
+    # The displayed action must actually resume playback, not merely change its label.
+    page.get_by_role('button', name='Play as a member', exact=True).click()
+    assert page.get_by_role('button', name='Pause walkthrough', exact=True).is_visible()
+    page.clock.run_for(3_600_000)
+    assert page.locator('[data-fk=screen-picker]').input_value() != screen
+    assert page.get_by_role('button', name='Play as a member', exact=True).is_visible()
+    assert not writes and not errors
+    context.close()
 
 
 def test_journey_comparison_and_question_stem_visible(browser, studio):
