@@ -10,7 +10,7 @@ from surveycoach.snapshot import Question, SurveySnapshot
 
 SENTINEL_OPEN = "<<<SURVEY_DATA"
 SENTINEL_CLOSE = "SURVEY_DATA>>>"
-PROMPT_VERSION = "8"          # bump when the wording of the prompts changes: it is part of the cache key
+PROMPT_VERSION = "9"          # bump when the wording of the prompts changes: it is part of the cache key
 
 
 def clean_line(text: str) -> str:
@@ -83,8 +83,15 @@ def system_prompt(batch: Batch, rubric: Rubric) -> str:
     rules += [
         "A rewrite changes wording only. Never change the question type (for example single choice to select all that "
         "apply), remove or replace images, or add routing. If the fix needs any of that, describe it in the explanation "
-        "and give no rewrite. When a rewrite includes answer choices, put the question text on the first line and one "
-        "answer choice per line, and keep every existing answer choice you are not fixing.",
+        "and give no rewrite. For question-only wording, return a plain single-line rewrite without labels. "
+        "When rewriting a question together with its answer choices (except missing-answer additions below), "
+        "use the exact labels Question: and Answer choices:, then one answer choice per line prefixed with '- '. "
+        "Use this format in suggested_text and each applicable option.text; keep every existing answer choice you are not fixing. "
+        "Format example only, not survey content to copy:\n"
+        "Question: Which flavours would you try?\nAnswer choices:\n- Vanilla\n- Chocolate",
+
+        "For missing-answer additions only, retain the unlabelled first-line question followed by one answer per line "
+        "without labels or bullet prefixes, so the additive edit can be verified against the captured answers. "
         "For a missing answer option, preserve the question and every existing answer exactly; append only the "
         "missing answer in the answer-choice bundle. Do not rewrite the stem or append instructions like 'select "
         "only that answer', 'choose the last answer' or 'select the option below'. Explain the authoring change "

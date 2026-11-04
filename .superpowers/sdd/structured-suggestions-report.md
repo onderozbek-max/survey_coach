@@ -62,6 +62,27 @@ Exact follow-up red/green runs:
 
 Follow-up `git diff --check` clean. Parser47 lines; tests158 lines. Only parser, owned tests, and this report in follow-up commit. Existing staged progress untouched. All verification remains synthetic browser assertions, not visual design judgment.
 
+## Generation contract integration — reviewer notification
+
+Parent identified that generation still requested the legacy unlabelled bundle. Reviewer: please review the prompt-generation contract alongside the conservative parser fixes, rather than treating UI-only explicit-format fixtures as proof of generated-format alignment.
+
+Read actual `judge/prompts.py`, `judge/grounding.py`, `judge/schemas.py`, `recommendations.py`, and prompt/grounding tests before editing. No existing typed question/answer discriminator exists in `AiFinding`; no speculative schema field added.
+
+- `surveycoach/judge/prompts.py` now instructs question-plus-answer rewrites to use exact `Question: …`, `Answer choices:`, and `- …` lines in suggested_text and applicable option.text. Single-line question rewrites stay plain. Missing-answer additions explicitly retain the old unlabelled first-line-question/one-answer-per-line contract consumed by `answer_edits.py`. No change to that normalization.
+- Prompt cache version bumped8→9, so old generation-cache keys do not masquerade as new-format output.
+- Existing grounding already accepts this format unchanged, derives structural=true from newlines, and prevents phone substitution. No production grounding change needed. New synthetic integration exercises schema validation → ground/guard → intercepted UI rendering → actual clipboard and decision payload assertions, including changed question and removed answer. Plain generation still yields a diff; missing-answer generation still yields add_answer.
+- No server/reader/persistence migrations or copy reconstruction. Explicit labels/bullets remain exactly in saved/copied text. Historical ambiguous unlabelled changed-answer bundles intentionally retain honest flat fallback.
+
+TDD exact runs:
+1. Before prompt edit: `.venv/bin/python -m pytest tests/test_judge_prompts.py -q --tb=short` → **1 failed, 16 passed in0.23s**, missing exact explicit-format example. Regression also checks plain/missing-answer instructions and version change.
+2. After prompt edit plus synthetic grounding/UI integration (no LLM):
+```sh
+.venv/bin/python -m pytest tests/test_judge_prompts.py tests/test_judge_grounding.py tests/test_structured_generation.py tests/test_structured_suggestions_ui.py tests/test_answer_additions.py tests/test_answer_addition_ui.py tests/test_judge_schemas.py tests/test_judge_run.py tests/test_recommendation_quality.py -q
+```
+→ **114 passed in6.45s**. Expanded integration to changed-stem and plain generation; final same command → **115 passed in6.85s**.
+
+`git diff --check` clean; prompt135 lines, prompt tests139, new integration tests75. Only prompt, prompt tests, new integration tests, and this owned report in contract follow-up commit. No fullsuite/delegation/live/push. Parent's concurrent fullsuite may have started before these prompt changes; rerun final integration gate after this commit. This report is the reviewer handoff; no delegated review initiated.
+
 ## Boundaries
 
 No delegation, live survey/external browsing, real database, deployment, push, or server/reader edits. Tests use the existing ephemeral static localhost fixture and synthetic intercepted API responses; actual clipboard assertions run in Chromium. No visual screenshot evaluation or manual aesthetic claims made; automated semantic/keyboard/no-overflow assertions at1280 and390px only. Other worker's signals/overview/data, staged progress, and parent plan excluded. Parent should independently review the conservative recognition rule and perform final integration/full nonlive validation.

@@ -103,6 +103,16 @@ def test_rewrites_may_only_change_wording_and_must_keep_the_answer_choices_it_is
     assert "one answer choice per line" in prompt and "keep every existing answer choice" in prompt
 
 
+def test_changed_answer_bundles_use_explicit_ui_contract_without_changing_plain_or_add_answer_edits():
+    for batch in (WORDING, STORY, FLOW):
+        prompt = system_prompt(batch, RUBRIC)
+        assert 'Question: Which flavours would you try?\nAnswer choices:\n- Vanilla\n- Chocolate' in prompt
+        assert 'For question-only wording, return a plain single-line rewrite without labels.' in prompt
+        assert 'For missing-answer additions only, retain the unlabelled first-line question followed by one answer per line' in prompt
+        assert 'append only the missing answer' in prompt
+    assert PROMPT_VERSION != '8'
+
+
 def test_rewrites_never_state_unknown_facts_or_use_fill_in_templates():
     prompt = system_prompt(STORY, RUBRIC)
     for unknown in ("research purpose", "why the member was invited", "what they bought", "what they will receive"):
