@@ -32,6 +32,24 @@ def test_playback_stops_on_chapter_exit_and_reentry_shows_play(browser, base_url
     context.close()
 
 
+def test_uncertain_captured_walkthrough_qualifies_total_timing(browser, base_url):
+    def prepare(detail):
+        detail['overview']['energy']['path_uncertain'] = True
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    timing = page.locator('#stage .timing')
+    assert 'Captured-screen walkthrough' in timing.inner_text()
+    assert 'route uncertain' in timing.inner_text()
+    assert 'Estimated time to this screen:' not in timing.inner_text()
+    assert timing.locator('.timebar').count() == 0
+    page.clock.install()
+    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
+    page.get_by_role('button', name='Play as a member', exact=True).click()
+    page.clock.run_for(5000)
+    assert 'route uncertain' in timing.inner_text()
+    assert not writes and not errors
+    context.close()
+
+
 def test_journey_comparison_and_question_stem_visible(browser, studio):
     page = browser.new_page(viewport={'width':1440,'height':1000})
     errors = []

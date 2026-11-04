@@ -36,3 +36,33 @@ Prescribed implementation/report commit: `Add the Overview chapter with signals,
 - Relative checked time uses available current-version metadata; missing sample timestamps honestly say time unavailable.
 - No screenshot capture or external accessibility service was run. Responsive layout, focus trap, sizing and overflow have Chromium DOM/browser coverage at mobile/tablet/desktop widths.
 - Pre-existing untracked review/ and uglyhome.png were left alone.
+
+## B4 review fixes (base cdee37f)
+
+All three important findings in `b4-review.md` addressed with test-first local fixes.
+
+- [x] Path uncertainty: energy captions explicitly identify a captured-screen walkthrough with an uncertain route. Member playback replaces cumulative elapsed timing with the supplied current-screen estimate when uncertain. Improve's existing total/time display also suppresses cumulative route timing and its progress bar in that case. Known-path elapsed timing remains unchanged; no branch duration is inferred.
+- [x] Stable scrubber focus: capture the focused page ID before replacement and restore its corresponding button afterward, for keyboard activation and automatic advancement. Pause/Close retain focus; existing timer disposal, Escape, trap boundaries and opener restoration remain intact.
+- [x] Full signal evidence: keep the default two-line summary and provide a visible native Details disclosure containing the unchanged supplied text. Opening hides the clipped duplicate; expanded text wraps without clipping. Uses token colours, existing type sizes and a 44px disclosure target, with no hover-only dependency or additional primary action.
+- [x] Regression coverage: synthetic uncertain path in Overview and Improve; long summary at 390px and 1280px with Enter/Space expansion/collapse; Enter/Space scrub plus Tab/Shift+Tab boundaries; auto-advance while scrubber/Pause/Close holds focus.
+
+### Exact commands and results
+
+Commands executed from `/Users/o0o02dn/Documents/adminAI/survey-coach`.
+
+1. RED, before production edits:
+   `PYTHONPATH=. .venv/bin/python -m pytest -q tests/test_overview_ui.py tests/test_member_journey.py -k 'long_signal or uncertain or keyboard_scrub or auto_advance'`
+   Result: **7 failed, 14 deselected in 67.22s**. Failures reproduced missing Details (locator timeout at both widths), missing uncertain-route captions/timing, and lost focused scrubber buttons on Enter/Space/auto-advance.
+2. GREEN, identical command after fixes:
+   `PYTHONPATH=. .venv/bin/python -m pytest -q tests/test_overview_ui.py tests/test_member_journey.py -k 'long_signal or uncertain or keyboard_scrub or auto_advance'`
+   Result: **7 passed, 14 deselected in 3.82s**.
+3. Focused existing journey/playback/integration and token regression run:
+   `PYTHONPATH=. .venv/bin/python -m pytest -q tests/test_overview_ui.py tests/test_member_journey.py tests/test_site_e2e.py tests/test_chapters_ui.py tests/test_issue_loop_ui.py tests/test_design_tokens.py`
+   Result: **74 passed in 22.25s**.
+4. `git diff --check`: clean.
+5. `wc -l site/energy.js site/overview.js site/overview.css site/app.js tests/test_overview_ui.py tests/test_member_journey.py`
+   Result: **121, 91, 81, 379, 293, 85** lines respectively; every touched code file remains below 600 lines.
+
+No redundant full-suite rerun. Browser tests used ephemeral Chromium contexts, intercepted synthetic detail, local static assets and the existing temporary SQLite/FakeProvider fixtures only. No delegation, push, live DB, live AI/external access, stored-survey edits or protected-asset modifications. Pre-existing untracked `review/` and `uglyhome.png` remain untouched.
+
+Fix commit subject: `Fix B4 uncertainty, scrubber focus and signal details`.

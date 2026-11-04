@@ -177,6 +177,106 @@ def test_dialog_keyboard_trap_close_and_reopen_has_no_duplicate_clock(browser, b
     context.close()
 
 
+@pytest.mark.parametrize('width', [390, 1280])
+def test_long_signal_summary_has_keyboard_details(browser, base_url, width):
+    summary = 'Supplied evidence, not rewritten. ' * 40 + 'Final evidence remains available.'
+
+    def prepare(detail):
+        detail['overview']['signals'][0]['summary'] = summary
+    context, page, detail, writes, errors = overview(browser, base_url, width=width, prepare=prepare)
+    tile = page.locator('#signals > li').first
+    preview = tile.locator('.signal-summary')
+    assert preview.inner_text() == summary
+    assert preview.evaluate('el => el.clientHeight <= 2 * parseFloat(getComputedStyle(el).lineHeight)')
+    expansion = tile.locator('details')
+    control = expansion.locator('summary')
+    assert control.inner_text() == 'Details'
+    assert not expansion.get_attribute('open')
+    control.focus()
+    page.keyboard.press('Enter')
+    full = expansion.locator('p')
+    assert full.is_visible() and full.inner_text() == summary
+    assert full.evaluate('el => el.clientHeight >= el.scrollHeight')
+    assert not preview.is_visible()
+    assert control.evaluate('el => el === document.activeElement')
+    page.keyboard.press('Space')
+    assert not full.is_visible() and preview.is_visible()
+    assert not writes and not errors
+    context.close()
+
+
+def test_uncertain_path_qualifies_energy_and_suppresses_elapsed_route(browser, base_url):
+    def prepare(detail):
+        detail['overview']['energy']['path_uncertain'] = True
+    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
+    caption = page.locator('#energy-map .energy-caption').inner_text()
+    assert 'Captured-screen walkthrough' in caption and 'route uncertain' in caption
+    page.locator('#preview-member').click()
+    dialog = page.locator('#member-preview')
+    page.get_by_role('button', name='Pause', exact=True).click()
+    dialog.locator('.energy-bar').nth(2).click()
+    timing = dialog.locator('.member-playback').inner_text()
+    assert 'route uncertain' in timing and 'Screen estimate:' in timing
+    assert 'Elapsed' not in timing
+    assert 'route uncertain' in dialog.locator('.energy-caption').inner_text()
+    assert 'seconds, estimate,' in dialog.locator('.energy-bar').nth(2).get_attribute('aria-label')
+    page.keyboard.press('Escape')
+    assert not writes and not errors
+    context.close()
+
+
+@pytest.mark.parametrize('key', ['Enter', 'Space'])
+def test_keyboard_scrub_restores_page_focus_and_tab_order(browser, base_url, key):
+    context, page, detail, writes, errors = overview(browser, base_url)
+    page.clock.install()
+    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
+    page.locator('#preview-member').click()
+    dialog = page.locator('#member-preview')
+    page.get_by_role('button', name='Pause', exact=True).click()
+    bars = dialog.locator('.energy-bar')
+    bars.nth(2).focus()
+    page.keyboard.press(key)
+    assert bars.nth(2).evaluate('el => el === document.activeElement')
+    assert bars.nth(2).get_attribute('aria-current') == 'step'
+    assert 'Elapsed estimate:' in dialog.locator('.member-playback').inner_text()
+    page.keyboard.press('Tab')
+    assert bars.nth(3).evaluate('el => el === document.activeElement')
+    page.keyboard.press('Shift+Tab')
+    assert bars.nth(2).evaluate('el => el === document.activeElement')
+    bars.last.focus()
+    page.keyboard.press('Tab')
+    assert page.get_by_role('button', name='Close preview').evaluate('el => el === document.activeElement')
+    page.keyboard.press('Shift+Tab')
+    assert bars.last.evaluate('el => el === document.activeElement')
+    page.keyboard.press('Escape')
+    assert page.locator('#preview-member').evaluate('el => el === document.activeElement')
+    assert not writes and not errors
+    context.close()
+
+
+def test_auto_advance_preserves_scrubber_focus_without_stealing_controls(browser, base_url):
+    context, page, detail, writes, errors = overview(browser, base_url)
+    page.clock.install()
+    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
+    page.locator('#preview-member').click()
+    dialog = page.locator('#member-preview')
+    bars = dialog.locator('.energy-bar')
+    bars.nth(2).focus()
+    page.clock.run_for(5000)
+    assert bars.nth(1).get_attribute('aria-current') == 'step'
+    assert bars.nth(2).evaluate('el => el === document.activeElement')
+    for control_name in ['Pause', 'Close preview']:
+        control = page.get_by_role('button', name=control_name, exact=True)
+        control.focus()
+        page.clock.run_for(15000)
+        assert control.evaluate('el => el === document.activeElement')
+    page.keyboard.press('Escape')
+    page.clock.run_for(100000)
+    assert page.locator('#member-preview').count() == 0
+    assert not writes and not errors
+    context.close()
+
+
 def test_style_reprojects_on_temp_server(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/local.html')

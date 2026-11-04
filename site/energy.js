@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   const SC = window.SC, {h} = SC;
+  SC.uncertainWalkthrough = 'Captured-screen walkthrough; route uncertain.';
   const zones = {fresh:'Fresh', fatigue_builds:'Getting tiring', high:'Tiring'};
   SC.renderEnergy = (detail, navigate, {compact = false, selected = null} = {}) => {
     const energy = detail.overview.energy, screens = energy.screens;
@@ -23,6 +24,7 @@
         h('span', null, h('i', {class:zone, 'aria-hidden':'true'}), label))),
       !compact && h('p', {class:'energy-swipe'}, 'Swipe for more'),
       h('p', {class:'energy-caption'}, heaviest && `Heaviest: ${heaviest.name} (about ${Math.round(heaviest.seconds)}s). `,
+        energy.path_uncertain && `${SC.uncertainWalkthrough} `,
         'Reading and tapping estimate; real completion is not measured.'));
   };
 
@@ -74,7 +76,7 @@
   SC.openMemberPreview = detail => {
     if (document.querySelector('#member-preview')) return;
     const opener = document.activeElement, model = SC.buildModel(detail);
-    const screens = detail.overview.energy.screens;
+    const {screens, path_uncertain:uncertain} = detail.overview.energy;
     if (!screens.length) return;
     let index = 0;
     const phone = h('div', {class:'member-phone'}), scrubber = h('div'), elapsed = h('p', {class:'meta'});
@@ -84,14 +86,18 @@
         h('button', {type:'button', class:'btn', autofocus:true, onclick:() => close()}, 'Close preview')),
       phone, h('div', {class:'member-playback'}, toggle, elapsed), scrubber);
     const render = () => {
+      const focusedPage = scrubber.contains(document.activeElement) ? document.activeElement.dataset.page : null;
       const screen = screens[index], item = model.items.find(item => item.page.id === screen.page_id);
       SC.mount(phone, SC.renderPhone(item, SC.overviewPhoneContext(detail, item)));
       // This is a reconstruction, not an answer-entry or submission surface.
       phone.inert = true;
-      elapsed.textContent = `Elapsed estimate: ${Math.round(screens.slice(0, index).reduce((sum, s) => sum + s.seconds, 0))} seconds`;
+      elapsed.textContent = uncertain
+        ? `${SC.uncertainWalkthrough} Screen estimate: ${Math.round(screen.seconds)} seconds`
+        : `Elapsed estimate: ${Math.round(screens.slice(0, index).reduce((sum, s) => sum + s.seconds, 0))} seconds`;
       SC.mount(scrubber, SC.renderEnergy(detail, pageId => {
         index = screens.findIndex(screen => screen.page_id === pageId); render(); playback.reset();
       }, {compact:true, selected:screen.page_id}));
+      if (focusedPage) [...scrubber.querySelectorAll('button')].find(button => button.dataset.page === focusedPage)?.focus({preventScroll:true});
     };
     const playback = SC.createPlayback({seconds:() => screens[index].seconds,
       advance:() => { if (index === screens.length - 1) return false; index++; render(); return true; },

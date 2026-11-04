@@ -66,6 +66,8 @@
         h('div', {class:'signal-name'}, icon(signal.id === 'time' ? 'clock' : 'sparkle'), h('strong', null, signal.name)),
         h('span', {class:'signal-state', 'data-tone':tones[signal.state]}, icon(symbols[signal.state]), signal.label),
         h('p', {class:'signal-summary'}, signal.summary),
+        h('details', {class:'signal-details'}, h('summary', null, 'Details'),
+          h('p', null, signal.summary)),
         h('button', {type:'button', class:'signal-link btn-text', onclick:() => route({signal:signal.id,
           page_id:signal.pages[0], fingerprints:signal.findings})}, `See ${SC.plural(signal.pages.length, 'screen')}`)))),
       h('h3', null, 'Energy map'), h('div', {id:'energy-map'}, SC.renderEnergy(detail, page_id => route({page_id}))),
