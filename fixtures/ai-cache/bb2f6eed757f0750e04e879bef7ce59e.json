@@ -85,20 +85,20 @@
    "explanation": "Keep the listed packs and add answers for another pack, no purchase and not remembering. Four questions share the problem of a required choice list without a suitable answer for some members. This finding also covers criteria 4.1 and 4.3.",
    "member_impact": "Members who bought a different pack, received the product without buying it or cannot remember must choose an inaccurate purchase to continue.",
    "current_text": "Which Member's Mark Boxer Briefs did you buy?\nNavy 3-pack\nBlack 3-pack\nGrey 6-pack",
-   "suggested_text": "Which Member's Mark Boxer Briefs did you buy?\nNavy 3-pack\nBlack 3-pack\nGrey 6-pack\nAnother pack\nI did not buy Member's Mark Boxer Briefs\nI don't remember",
+   "suggested_text": "Question: Which Member's Mark Boxer Briefs did you buy?\nAnswer choices:\n- Navy 3-pack\n- Black 3-pack\n- Grey 6-pack\n- Another pack\n- I did not buy Member's Mark Boxer Briefs\n- I don't remember",
    "highlight": "Which Member's Mark Boxer Briefs did you buy?",
    "options": [
     {
      "label": "Neutral",
-     "text": "Which Member's Mark Boxer Briefs did you buy?\nNavy 3-pack\nBlack 3-pack\nGrey 6-pack\nAnother pack\nI did not buy Member's Mark Boxer Briefs\nI don't remember"
+     "text": "Question: Which Member's Mark Boxer Briefs did you buy?\nAnswer choices:\n- Navy 3-pack\n- Black 3-pack\n- Grey 6-pack\n- Another pack\n- I did not buy Member's Mark Boxer Briefs\n- I don't remember"
     },
     {
      "label": "Shorter",
-     "text": "Which Member's Mark Boxer Briefs pack did you buy?\nNavy 3-pack\nBlack 3-pack\nGrey 6-pack\nAnother pack\nI didn't buy any\nI don't remember"
+     "text": "Question: Which Member's Mark Boxer Briefs pack did you buy?\nAnswer choices:\n- Navy 3-pack\n- Black 3-pack\n- Grey 6-pack\n- Another pack\n- I didn't buy any\n- I don't remember"
     },
     {
      "label": "Friendlier",
-     "text": "Which pack of Member's Mark Boxer Briefs did you buy, if any?\nNavy 3-pack\nBlack 3-pack\nGrey 6-pack\nA different pack\nI didn't buy any\nI'm not sure"
+     "text": "Question: Which pack of Member's Mark Boxer Briefs did you buy, if any?\nAnswer choices:\n- Navy 3-pack\n- Black 3-pack\n- Grey 6-pack\n- A different pack\n- I didn't buy any\n- I'm not sure"
     }
    ]
   },

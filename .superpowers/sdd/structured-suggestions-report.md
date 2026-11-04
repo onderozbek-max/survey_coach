@@ -83,6 +83,22 @@ TDD exact runs:
 
 `git diff --check` clean; prompt135 lines, prompt tests139, new integration tests75. Only prompt, prompt tests, new integration tests, and this owned report in contract follow-up commit. No fullsuite/delegation/live/push. Parent's concurrent fullsuite may have started before these prompt changes; rerun final integration gate after this commit. This report is the reviewer handoff; no delegated review initiated.
 
+## Synthetic worked-example Q1 producer update
+
+Read README (two made-up surveys, reviewed synthetic AI cache, offline export), `surveycoach/demo_export.py` (CacheOnlyProvider, pinned exact fixture hashes), the named cache fixture, existing demo export tests, and generated bundle before edits. Confirmed `bb2f6eed757f0750e04e879bef7ce59e.json` is intentionally synthetic demo content, not a private user review.
+
+Changed **only Q1/B2 suggested_text and its three option.text values** in that named fixture to explicit `Question: …\nAnswer choices:\n- …` format. Original current_text, evidence, labels, all other findings/verdicts/blockers remained identical (asserted with parsed before/after dictionaries). Q4 remains historical/unlabelled. Regenerated `site/data.js` using `.venv/bin/python -m surveycoach.demo_export` with no --ai-refresh; exporter cannot call network on this path.
+
+New `tests/test_demo_structured_suggestions.py` verifies fixture and exported Q1 preserve original text/options exactly, then actual synthetic review UI exposes labelled Question and answer list and saves/copies the exact fixture suggestion.
+
+TDD and related checks:
+- RED `.venv/bin/python -m pytest tests/test_demo_structured_suggestions.py -q --tb=short` → **2 failed in1.70s**, missing fixture Question label and rendered Question heading.
+- GREEN `.venv/bin/python -m pytest tests/test_demo_structured_suggestions.py tests/test_demo_export.py tests/test_structured_generation.py tests/test_structured_suggestions_ui.py tests/test_judge_prompts.py tests/test_judge_grounding.py -q` → **82 passed in6.93s**.
+- Broader affected demo/UI `.venv/bin/python -m pytest tests/test_improve_ui.py tests/test_issue_loop_ui.py tests/test_site_e2e.py tests/test_phone_preview.py tests/test_answer_addition_ui.py tests/test_share_ui.py tests/test_copy_guard.py tests/test_stale_pick.py -q` → **87 passed in24.16s**.
+- Named-path `git diff --check` clean. New test49 lines; fixture195 lines, generated bundle1 line; all below600.
+
+Commit scope: named fixture, regenerated site/data.js, new demo contract test, this report only. Existing progress/other artifacts untouched. No real DB/external/live/push/fullsuite. Parent should restart the isolated preview **after this producer commit** and perform final integration gate. Existing saved historical real reviews are NOT relabelled or migrated; obtaining new generated labels requires a new review. This demo change is not evidence a live LLM followed the new prompt or a real survey was read.
+
 ## Boundaries
 
-No delegation, live survey/external browsing, real database, deployment, push, or server/reader edits. Tests use the existing ephemeral static localhost fixture and synthetic intercepted API responses; actual clipboard assertions run in Chromium. No visual screenshot evaluation or manual aesthetic claims made; automated semantic/keyboard/no-overflow assertions at1280 and390px only. Other worker's signals/overview/data, staged progress, and parent plan excluded. Parent should independently review the conservative recognition rule and perform final integration/full nonlive validation.
+No delegation, live survey/external browsing, real database, deployment, push, or server/reader edits. Tests use the existing ephemeral static localhost fixture and synthetic intercepted API responses; actual clipboard assertions run in Chromium. No visual screenshot evaluation or manual aesthetic claims made; automated semantic/keyboard/no-overflow assertions at1280 and390px only. Other worker's signals/overview, staged progress, and parent plan excluded. The final explicitly assigned synthetic producer follow-up owns regenerated site/data.js only, as documented above. Parent should independently review the conservative recognition rule and perform final integration/full nonlive validation.
