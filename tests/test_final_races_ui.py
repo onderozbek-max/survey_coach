@@ -17,7 +17,7 @@ def replace_projection(page):
 @pytest.mark.parametrize('delay', ['write', 'clipboard'])
 def test_projection_change_invalidates_delayed_batch(browser, base_url, delay):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
-    page.get_by_role('tab', name='More ideas', exact=True).click()
+    page.locator('[data-fk="queue-more"]').click()
     if delay == 'write':
         hold_puts(page)
     else:

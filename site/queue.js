@@ -75,7 +75,9 @@
       },
       renderBar(mode, changeMode, screenId) {
         const nav = h('div', {id:'queue-tabs',role:'tablist','aria-label':'Improvement queue'}, tabs.map(([name,label], i) => {
-          const count = detail.plan[name].filter(decided).length;
+          const total = detail.plan[name].length;
+          const position = name === tab ? detail.plan[name].findIndex(item => item.id === active) + 1 : 0;
+          const caption = name === tab && position > 0 ? `${label} ${position}/${total}` : `${label} ${total}`;
           return h('button', {type:'button', role:'tab', tabindex:name === tab ? '0' : '-1',
             'aria-selected':String(name === tab), 'aria-controls':'coach', 'data-fk':`queue-${name}`, onclick:() => chooseTab(name),
             onkeydown:event => {
@@ -83,9 +85,11 @@
               if (offset == null) return;
               event.preventDefault(); const next = tabs[(i + offset + 3) % 3][0]; chooseTab(next);
               document.querySelectorAll('#queue-tabs [role=tab]')[(i + offset + 3) % 3]?.focus();
-            }}, name === 'more' ? label : `${label} ${count}/${detail.plan.counts[name]}`);
+            }}, caption);
         }));
-        return [nav, SC.renderEnergy(detail, pageId => window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:pageId})), {compact:true,selected:screenId}),
+        const progress = h('p', {id:'queue-progress', class:'meta', 'aria-live':'polite'},
+          `${detail.plan[tab].filter(decided).length} of ${detail.plan[tab].length} handled`);
+        return [nav, progress, SC.renderEnergy(detail, pageId => window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:pageId})), {compact:true,selected:screenId}),
           h('div', {class:'queue-tools'}, h('button', {type:'button',id:'all-screens',onclick:() => SC.openScreens(detail)}, 'All screens'),
             h('div', {class:'seg',role:'group','aria-label':'Preview wording'}, [['current','Original'],['fixes','With changes']].map(([value,label]) =>
               h('button', {type:'button','aria-pressed':String(mode === value),'data-fk':`queue-mode-${value}`,onclick:() => changeMode(value)},label))))];

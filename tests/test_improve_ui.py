@@ -16,7 +16,7 @@ def curated(detail):
 
 def test_queue_saves_copies_advances_and_undo_reopens(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=curated)
-    assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Must-fix 0/3', 'Quick wins 0/0', 'More ideas']
+    assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Must-fix 1/3', 'Quick wins 0', 'More ideas 0']
     assert page.locator('#rail, .journey, #review-toolbar, .next-issue').count() == 0
     assert page.locator('#coach .location').inner_text().split(' · ')[0] == page.locator('#stage .phone-bar').inner_text().split(' · ')[0]
     assert page.locator('#coach .pill').first.inner_text() == 'Must-fix'
@@ -35,7 +35,7 @@ def test_queue_saves_copies_advances_and_undo_reopens(browser, base_url):
     assert page.locator('#coach h3.headline').evaluate('e => e === document.activeElement')
     assert page.locator('#status').inner_text().startswith('Next: ')
     page.locator('#undo').click()
-    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 0/3'")
+    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 1/3'")
     assert writes[-1]['action'] == 'open' and writes[-1]['revision'] == 2
     assert not errors
     context.close()
@@ -51,7 +51,7 @@ def test_keep_requires_reason_skip_does_not_save_and_drawer_searches_labels(brow
     assert not writes
     page.get_by_label('Reason for keeping', exact=False).fill('Required for comparability')
     page.get_by_role('button', name='Save reason', exact=True).click()
-    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 1/3'")
+    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 2/3'")
     assert writes[-1]['reason'] == 'Required for comparability'
     assert page.locator('#coach h3.headline').inner_text() != first
     page.locator('#skip').click()
@@ -98,7 +98,7 @@ def test_pattern_individual_writes_and_undo_restores_prior_objects(browser, base
         fp = detail['plan']['more'][0]['fingerprints'][0]
         detail['decisions'][fp] = dict(action='keep', reason='Tracker', manual_done=True)
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    page.get_by_role('tab', name='More ideas', exact=True).click()
+    page.locator('[data-fk="queue-more"]').click()
     assert page.locator('.pattern-row .suggested').count() == 3
     assert page.locator('.pattern-row .use-change').count() == 3
     page.locator('#use-all').click()
@@ -115,7 +115,7 @@ def test_pattern_individual_writes_and_undo_restores_prior_objects(browser, base
 
 def test_pattern_partial_save_never_claims_all_success(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
-    page.get_by_role('tab', name='More ideas', exact=True).click()
+    page.locator('[data-fk="queue-more"]').click()
     failing = detail['plan']['more'][0]['fingerprints'][1]
     page.route('**/decisions/' + failing, lambda r: r.fulfill(status=503, json={}))
     page.evaluate("navigator.clipboard.writeText('unchanged')")
@@ -142,7 +142,8 @@ def test_stale_alternatives_absorbed_and_completed_section(browser, base_url):
             item['decided'] = True
         detail['plan']['counts']['open_must_fix'] = 1
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 2/3'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 1/3'
+    assert page.locator('#queue-progress').inner_text() == '2 of 3 handled'
     assert page.get_by_text('We improved this suggestion since you chose it. Choose again.', exact=True).is_visible()
     assert page.locator('.also-affects').inner_text().endswith(detail['review']['findings'][-1]['headline'])
     assert page.locator('.alternatives button').all_inner_texts() == ['Precise', 'Shorter']
@@ -241,8 +242,8 @@ def test_pending_lock_survives_replacement_controls(browser, base_url):
     assert page.locator('#use-change').is_disabled()
     assert page.locator('#keep-as-is').is_disabled()
     page.evaluate("document.querySelector('#use-change').dispatchEvent(new MouseEvent('click'))")
-    page.get_by_role('tab', name='More ideas', exact=True).click()
-    page.get_by_role('tab', name='Must-fix 0/3', exact=True).click()
+    page.locator('[data-fk="queue-more"]').click()
+    page.locator('[data-fk="queue-must_fix"]').click()
     assert page.locator('#use-change').is_disabled()
     assert page.evaluate('putCalls.length') == 1
     page.evaluate('pendingPuts.shift()()')
@@ -255,7 +256,7 @@ def test_pending_lock_survives_replacement_controls(browser, base_url):
 @pytest.mark.parametrize('pending_count, changed_index', [(2, 0), (3, 0), (2, 2)])
 def test_pattern_superseded_earlier_row_stops_before_later_write_or_copy(browser, base_url, pending_count, changed_index):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
-    page.get_by_role('tab', name='More ideas', exact=True).click()
+    page.locator('[data-fk="queue-more"]').click()
     hold_puts(page)
     page.evaluate("navigator.clipboard.writeText('unchanged')")
     page.locator('#use-all').click()
@@ -286,7 +287,7 @@ def test_pattern_superseded_earlier_row_stops_before_later_write_or_copy(browser
 
 def test_pattern_keyboard_row_focus_survives_pending_success_failure_and_undo(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
-    page.get_by_role('tab', name='More ideas', exact=True).click()
+    page.locator('[data-fk="queue-more"]').click()
     hold_puts(page)
     page.locator('.pattern-row .use-change').first.focus()
     page.keyboard.press('Enter')
@@ -329,7 +330,7 @@ def test_signal_route_selects_server_tab_without_rebuilding_pattern(browser, bas
     item = detail['plan']['more'][0]
     f = next(f for f in detail['review']['findings'] if f['fingerprint'] == item['fingerprints'][1])
     page.evaluate("o => SC.goChapter('improve', o)", dict(fingerprints=[f['fingerprint']], page_id=f['page_id']))
-    assert page.get_by_role('tab', name='More ideas', exact=True).get_attribute('aria-selected') == 'true'
+    assert page.locator('[data-fk="queue-more"]').get_attribute('aria-selected') == 'true'
     assert page.locator('#coach h3').inner_text() == item['headline']
     assert page.locator('.pattern-row').count() == item['count']
     assert page.locator('.pattern-row').evaluate_all('rows => rows.map(r => r.dataset.fingerprint)') == item['fingerprints']

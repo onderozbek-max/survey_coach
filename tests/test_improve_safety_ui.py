@@ -29,7 +29,8 @@ def test_undo_failed_restore_never_claims_restored(browser, base_url):
     page.route('**/decisions/*', lambda r: r.fulfill(status=503, json={}))
     page.locator('#undo').click()
     page.wait_for_function("document.querySelector('#toast')?.textContent.includes('could not be restored')")
-    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 1/3'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 2/3'
+    assert page.locator('#queue-progress').inner_text() == '1 of 3 handled'
     assert not errors
     context.close()
 
@@ -41,7 +42,7 @@ def test_refetched_detail_replaces_queue_membership(browser, base_url):
       d.plan.must_fix = []; d.plan.counts.must_fix = 0;
       dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail:d}));
     }""")
-    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 0/0'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 0'
     assert page.locator('#coach h3').inner_text() == 'All 0 must-fixes handled'
     assert not writes and not errors
     context.close()
