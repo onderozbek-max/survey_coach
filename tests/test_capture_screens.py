@@ -12,6 +12,21 @@ import pytest
 from scripts import capture_screens as capture
 
 
+def test_preview_environment_keeps_only_validated_reader_proxy(monkeypatch):
+    from surveycoach.reader.proxy import APPROVED_PROXY
+    monkeypatch.setenv('SURVEYCOACH_CORPORATE_PROXY', APPROVED_PROXY)
+    monkeypatch.setenv('SURVEYCOACH_PARTICIPANT_MODE', '1')
+    monkeypatch.setenv('OPENAI_API_KEY', 'synthetic-secret')
+    assert 'SURVEYCOACH_CORPORATE_PROXY' not in capture.worker_environment(managed_reader=False)
+    env = capture.worker_environment(managed_reader=True)
+    assert env['SURVEYCOACH_CORPORATE_PROXY'] == APPROVED_PROXY
+    assert 'SURVEYCOACH_PARTICIPANT_MODE' not in env
+    assert 'OPENAI_API_KEY' not in env
+    monkeypatch.setenv('SURVEYCOACH_CORPORATE_PROXY', 'http://unapproved.example:8080')
+    with pytest.raises(ValueError, match='approved'):
+        capture.worker_environment(managed_reader=True)
+
+
 def test_output_cannot_escape_after():
     for path in (capture.ROOT / 'review', capture.ROOT / 'uglyhome.png',
                  capture.AFTER / '..' / 'originals'):

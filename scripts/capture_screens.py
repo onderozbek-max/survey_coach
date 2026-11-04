@@ -95,16 +95,26 @@ def seed(client, timeout):
     return detail, pattern_detail, group
 
 
+def worker_environment(*, managed_reader=False):
+    """Captures stay isolated; manual QA may retain one validated reader setting."""
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(('SURVEYCOACH_', 'WIBEY_', 'OPENAI_', 'ANTHROPIC_'))}
+    if managed_reader and os.environ.get('SURVEYCOACH_CORPORATE_PROXY'):
+        from surveycoach.reader.proxy import corporate_proxy
+        corporate_proxy('app.redjade.net')  # Fail closed before starting a child.
+        env['SURVEYCOACH_CORPORATE_PROXY'] = os.environ['SURVEYCOACH_CORPORATE_PROXY']
+    return env
+
+
 @contextmanager
-def server(log_path, timeout):
+def server(log_path, timeout, *, managed_reader=False):
     """Pass an already bound socket: no free-port discovery/rebind race."""
     with tempfile.TemporaryDirectory(prefix='surveycoach-board-') as temporary:
         with socket.socket() as listener, log_path.open('w') as log:
             listener.bind(('127.0.0.1', 0))
             listener.listen(128)
             port = listener.getsockname()[1]
-            env = {key: value for key, value in os.environ.items()
-                   if not key.startswith(('SURVEYCOACH_', 'WIBEY_', 'OPENAI_', 'ANTHROPIC_'))}
+            env = worker_environment(managed_reader=managed_reader)
             env.update(SC_CAPTURE_DB=str(Path(temporary) / 'empty.db'),
                        SC_CAPTURE_FD=str(listener.fileno()),
                        PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get('PYTHONPATH', ''))
@@ -253,7 +263,7 @@ def main(argv=None):
         raise KeyboardInterrupt
     previous = signal.signal(signal.SIGTERM, interrupted)
     try:
-        with server(args.output / 'server.log', args.timeout) as (base, client):
+        with server(args.output / 'server.log', args.timeout, managed_reader=args.serve) as (base, client):
             detail, pattern, group = seed(client, args.timeout)
             manifest.update(sample_id=detail['id'], pattern_id=pattern['id'],
                             group_fingerprints=group['fingerprints'], reduced_motion=args.reduced_motion,
