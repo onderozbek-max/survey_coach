@@ -1,0 +1,41 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_________ test_projection_change_invalidates_delayed_batch[clipboard] __________
+tests/test_final_races_ui.py:31: in test_projection_change_invalidates_delayed_batch
+    assert ('Nothing copied' in text) if delay == 'write' else ('Clipboard request already started' in text)
+E   assert False
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 01:07:00] "GET /app.js HTTP/1.1" 200 -
+=========================== short test summary info ============================
+FAILED tests/test_final_races_ui.py::test_projection_change_invalidates_delayed_batch[clipboard]
+1 failed, 1 passed in 1.93s

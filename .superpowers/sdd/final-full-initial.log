@@ -1,0 +1,334 @@
+........................................................................ [  6%]
+........................................................................ [ 13%]
+........................................................................ [ 20%]
+.................................F....................................F. [ 27%]
+...F................................................................FFF. [ 34%]
+........................................................................ [ 41%]
+........................................................................ [ 48%]
+........................................................................ [ 55%]
+........................................................................ [ 62%]
+........................................................................ [ 69%]
+........................................................................ [ 75%]
+...........................................................127.0.0.1 - - [04/Nov/2026 00:52:10] "GET /diff.js HTTP/1.1" 200 -
+............. [ 82%]
+...............................F........................................ [ 89%]
+........................................................................ [ 96%]
+...................................                                      [100%]
+=================================== FAILURES ===================================
+_________ test_authored_copy_has_no_retired_deck_phrases[check again] __________
+
+phrase = 'check again'
+
+    @pytest.mark.parametrize("phrase", [
+        r"fix before launch", r"worth a look", r"['\"](?-i:Polish)['\"]|\} polish", r"keep mine",
+        r"check again", r"share for sign-off", r"ready to launch", r"almost ready",
+        r"\bRound [{$]", r"\b(?:first|previous) round\b",
+        r"min on the captured path", r"scope-limited review · not launch approval",
+    ])
+    def test_authored_copy_has_no_retired_deck_phrases(phrase):
+        sources = [*(ROOT / "site").glob("*.html"),
+                   *(p for p in (ROOT / "site").glob("*.js") if p.name != "data.js"),
+                   ROOT / "surveycoach/server/report.py"]
+        matches = [str(p.relative_to(ROOT)) for p in sources
+                   if re.search(phrase, p.read_text(), re.I)]
+>       assert not matches, matches
+E       AssertionError: ['site/workflow.js']
+E       assert not ['site/workflow.js']
+
+tests/test_copy_deck.py:28: AssertionError
+____________________ test_all_css_token_references_resolve _____________________
+
+    def test_all_css_token_references_resolve():
+        styles = "\n".join(css.read_text() for css in SITE.glob("*.css"))
+        defined = set(re.findall(r"(--[\w-]+)\s*:", styles)) | {"--e", "--k"}
+>       assert set(re.findall(r"var\((--[\w-]+)", styles)) <= defined
+E       AssertionError: assert {'--accent', ..., '--bg', ...} <= {'--accent', ..., '--bg', ...}
+E         
+E         Extra items in the left set:
+E         '--overview-action-height'
+
+tests/test_design_tokens.py:67: AssertionError
+__ test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry __
+
+tmp_path = PosixPath('/private/var/folders/cy/m9q20js10t9bvtd05b9lk35w0000gp/T/pytest-of-o0o02dn/pytest-359/test_presentation_precedes_com0')
+
+    def test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry(tmp_path):
+        repo = Repository(tmp_path / "rounds.db")
+        try:
+            snap = survey(intro(), page(1, question()), thank_you())
+            payload = encoded(snap)
+            # Retained historical AI evidence: same scope, different roots, absorbable family.
+            for cid, severity, fp in [("B1", "must_fix", "root"),
+                                      ("5.1", "worth_improving", "child")]:
+                payload["review"]["findings"].append({
+                    "criterion_id": cid, "severity": severity, "fingerprint": fp,
+                    "headline": fp, "evidence": snap.pages[1].questions[0].text,
+                    "explanation": "Make it clear. Also covers 5.1.",
+                    "member_impact": "Clearer", "source": "ai", "page_id": "p1", "question_id": "q1"})
+            first = repo.submit(snap, ai=False)
+            repo.finish(first["job_id"], payload)
+            for fp in ("root", "child"):
+                repo.save_decision(first["id"], 1, fp, {"action": "keep", "reason": "Tracker"})
+            second = repo.submit(snap.model_copy(update={"title": "Round two"}),
+                                 ai=False, survey_id=first["id"])
+            repo.finish(second["job_id"], payload)
+            before = list(repo.db.iterdump())
+            data = repo.detail(first["id"])
+            assert_contract(data)
+            child = next(f for f in data["review"]["findings"] if f["fingerprint"] == "child")
+            assert child["absorbed_by"] == "root"
+            entry = next(e for e in data["round_changes"]["still"]
+                         if e["current_finding"]["fingerprint"] == "child")
+            assert entry["prior_finding"]["absorbed_by"] == "root"
+            assert entry["current_finding"]["absorbed_by"] == "root"
+            assert "child" not in {line["fingerprint"] for line in data["change_sheet"]}
+            assert data["carried"]["root"]["reason"] == "Tracker"
+            assert data["plan"]["counts"]["open_must_fix"] == 0
+>           assert data["overview"]["headline"] == "No must-fixes found in what we checked"
+E           AssertionError: assert 'All 1 must-f...rified fixes.' == 'No must-fixe...at we checked'
+E             
+E             - No must-fixes found in what we checked
+E             + All 1 must-fix decisions handled; chosen changes and kept risks are not verified fixes.
+
+tests/test_enrich_contract.py:135: AssertionError
+__ test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[2-0] ___
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/Users/o0o02dn/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing> version=156.0.8078.4>
+base_url = 'http://127.0.0.1:52660/', pending_count = 2, changed_index = 0
+
+    @pytest.mark.parametrize('pending_count, changed_index', [(2, 0), (3, 0), (2, 2)])
+    def test_pattern_superseded_earlier_row_stops_before_later_write_or_copy(browser, base_url, pending_count, changed_index):
+        context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
+        page.get_by_role('tab', name='More ideas', exact=True).click()
+        hold_puts(page)
+        page.evaluate("navigator.clipboard.writeText('unchanged')")
+        page.locator('#use-all').click()
+        page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function('putCalls.length === 2')
+        if pending_count == 3:
+            page.evaluate('pendingPuts.shift()()')
+            page.wait_for_function('putCalls.length === 3')
+        assert page.locator('.pattern-row .keep-as-is').first.is_disabled()
+        # Simulate an authoritative newer edit arriving outside the locked panel.
+        fp = detail['plan']['more'][0]['fingerprints'][changed_index]
+        page.evaluate("fp => { SC.decisionRevisions.set(fp, 2); SC.workspaceDetail.decisions[fp] = {action:'keep', reason:'Newer choice'}; }", fp)
+        page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function("n => document.querySelector('#toast')?.textContent.includes(`${n} of 3`)", arg=pending_count)
+        assert page.evaluate('putCalls.length') == pending_count
+        assert page.evaluate('navigator.clipboard.readText()') == 'unchanged'
+        page.locator('#undo').click()
+        restores = pending_count - (changed_index < pending_count)
+        for index in range(1, restores + 1):
+            page.wait_for_function('n => putCalls.length === n', arg=pending_count + index)
+            assert page.evaluate('putCalls.at(-1).action') == 'open'
+            page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function("document.querySelector('#toast')?.textContent.includes('restored')")
+>       assert page.evaluate('SC.workspaceDetail.decisions')[fp]['reason'] == 'Newer choice'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'fingerprint-0'
+
+tests/test_improve_ui.py:282: KeyError
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /app.js HTTP/1.1" 200 -
+__ test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[3-0] ___
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/Users/o0o02dn/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing> version=156.0.8078.4>
+base_url = 'http://127.0.0.1:52660/', pending_count = 3, changed_index = 0
+
+    @pytest.mark.parametrize('pending_count, changed_index', [(2, 0), (3, 0), (2, 2)])
+    def test_pattern_superseded_earlier_row_stops_before_later_write_or_copy(browser, base_url, pending_count, changed_index):
+        context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
+        page.get_by_role('tab', name='More ideas', exact=True).click()
+        hold_puts(page)
+        page.evaluate("navigator.clipboard.writeText('unchanged')")
+        page.locator('#use-all').click()
+        page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function('putCalls.length === 2')
+        if pending_count == 3:
+            page.evaluate('pendingPuts.shift()()')
+            page.wait_for_function('putCalls.length === 3')
+        assert page.locator('.pattern-row .keep-as-is').first.is_disabled()
+        # Simulate an authoritative newer edit arriving outside the locked panel.
+        fp = detail['plan']['more'][0]['fingerprints'][changed_index]
+        page.evaluate("fp => { SC.decisionRevisions.set(fp, 2); SC.workspaceDetail.decisions[fp] = {action:'keep', reason:'Newer choice'}; }", fp)
+        page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function("n => document.querySelector('#toast')?.textContent.includes(`${n} of 3`)", arg=pending_count)
+        assert page.evaluate('putCalls.length') == pending_count
+        assert page.evaluate('navigator.clipboard.readText()') == 'unchanged'
+        page.locator('#undo').click()
+        restores = pending_count - (changed_index < pending_count)
+        for index in range(1, restores + 1):
+            page.wait_for_function('n => putCalls.length === n', arg=pending_count + index)
+            assert page.evaluate('putCalls.at(-1).action') == 'open'
+            page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function("document.querySelector('#toast')?.textContent.includes('restored')")
+>       assert page.evaluate('SC.workspaceDetail.decisions')[fp]['reason'] == 'Newer choice'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'fingerprint-0'
+
+tests/test_improve_ui.py:282: KeyError
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:01] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /app.js HTTP/1.1" 200 -
+__ test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[2-2] ___
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/Users/o0o02dn/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing> version=156.0.8078.4>
+base_url = 'http://127.0.0.1:52660/', pending_count = 2, changed_index = 2
+
+    @pytest.mark.parametrize('pending_count, changed_index', [(2, 0), (3, 0), (2, 2)])
+    def test_pattern_superseded_earlier_row_stops_before_later_write_or_copy(browser, base_url, pending_count, changed_index):
+        context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
+        page.get_by_role('tab', name='More ideas', exact=True).click()
+        hold_puts(page)
+        page.evaluate("navigator.clipboard.writeText('unchanged')")
+        page.locator('#use-all').click()
+        page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function('putCalls.length === 2')
+        if pending_count == 3:
+            page.evaluate('pendingPuts.shift()()')
+            page.wait_for_function('putCalls.length === 3')
+        assert page.locator('.pattern-row .keep-as-is').first.is_disabled()
+        # Simulate an authoritative newer edit arriving outside the locked panel.
+        fp = detail['plan']['more'][0]['fingerprints'][changed_index]
+        page.evaluate("fp => { SC.decisionRevisions.set(fp, 2); SC.workspaceDetail.decisions[fp] = {action:'keep', reason:'Newer choice'}; }", fp)
+        page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function("n => document.querySelector('#toast')?.textContent.includes(`${n} of 3`)", arg=pending_count)
+        assert page.evaluate('putCalls.length') == pending_count
+        assert page.evaluate('navigator.clipboard.readText()') == 'unchanged'
+        page.locator('#undo').click()
+        restores = pending_count - (changed_index < pending_count)
+        for index in range(1, restores + 1):
+            page.wait_for_function('n => putCalls.length === n', arg=pending_count + index)
+            assert page.evaluate('putCalls.at(-1).action') == 'open'
+            page.evaluate('pendingPuts.shift()()')
+        page.wait_for_function("document.querySelector('#toast')?.textContent.includes('restored')")
+>       assert page.evaluate('SC.workspaceDetail.decisions')[fp]['reason'] == 'Newer choice'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'fingerprint-4'
+
+tests/test_improve_ui.py:282: KeyError
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:50:02] "GET /app.js HTTP/1.1" 200 -
+__________________ test_headline_and_heaviest_screen_subline ___________________
+
+    def test_headline_and_heaviest_screen_subline():
+        snapshot = survey(page(1, text="word " * 2695))
+        screens = [{"page_id": "p1", "screen": 1, "name": "Q8–Q18", "questions": []}]
+        plan = {"counts": {"must_fix": 3, "open_must_fix": 3, "quick_wins": 6}}
+        out = build_overview(snapshot, {}, {}, screens, plan, load_rubric())
+        assert out["headline"] == "3 must-fixes before launch, then 6 quick wins"
+        assert out["subline"] == ("About 13½ minutes for members (estimate). "
+                                   "The heaviest moment is Q8–Q18.")
+        plan["counts"]["open_must_fix"] = 0
+>       assert build_overview(snapshot, {}, {}, screens, plan, load_rubric())["headline"] == (
+            "No must-fixes found in what we checked")
+E       AssertionError: assert 'All 3 must-f...rified fixes.' == 'No must-fixe...at we checked'
+E         
+E         - No must-fixes found in what we checked
+E         + All 3 must-fix decisions handled; chosen changes and kept risks are not verified fixes.
+
+tests/test_signals.py:181: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /Users/o0o02dn/Documents/adminAI/survey-coach/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_copy_deck.py::test_authored_copy_has_no_retired_deck_phrases[check again]
+FAILED tests/test_design_tokens.py::test_all_css_token_references_resolve - A...
+FAILED tests/test_enrich_contract.py::test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry
+FAILED tests/test_improve_ui.py::test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[2-0]
+FAILED tests/test_improve_ui.py::test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[3-0]
+FAILED tests/test_improve_ui.py::test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[2-2]
+FAILED tests/test_signals.py::test_headline_and_heaviest_screen_subline - Ass...
+7 failed, 1036 passed, 1 deselected, 1 warning in 195.60s (0:03:15)

@@ -8,7 +8,10 @@ Programmatic PNG decoding, dimensions, DOM metrics and passing UI contracts are
 not claims about visual quality, five-second comprehension or human usability.
 The parent reviewer performs that QA separately.
 
-- Baseline: `5a663c9`, branch `feature/surveycoach-mvp`.
+- Original capture baseline: `5a663c9`, branch `feature/surveycoach-mvp`.
+- Final fix/capture baseline: `cddfe9b` (from final review base `899f4ce`).
+  All seven reviewed P2s plus modal routing and finite timeout P3s fixed.
+  Full report: `.superpowers/sdd/final-fix-report.md`.
 - Runner: `scripts/capture_screens.py` (no production UI/style changes).
 - Default captures: `review/after/{desktop,mobile}-{home,overview,improve,
   improve-pattern,share,preview-member}.png` (12 files).
@@ -81,7 +84,19 @@ were created or modified; the supplied originals remain untracked and untouched.
   path containment are covered. A real `--serve` subprocess SIGTERM test
   confirms clean exit and cleanup evidence; Ctrl-C uses the same cleanup path.
 - [x] Full `.venv/bin/python -m pytest -m 'not live' -q`:
-  **1013 passed, 1 deselected**, 186.73s. One existing Starlette/httpx warning.
+  **1051 passed, 1 deselected**, 194.50s, green before final fix commit.
+  One existing Starlette/httpx warning. Exact focused command/results and initial
+  red evidence are in `.superpowers/sdd/final-fix-report.md`.
+- [x] Final normal and reduced-motion capture commands both exited 0 after
+  `cddfe9b`; 24 refreshed PNGs and SHA-256 manifests. No page errors, external
+  request attempts or horizontal overflow. Owned process/temp DB cleanup confirmed.
+- [x] Cross-feature regressions: fingerprint/version Undo after reordered/removed
+  findings, delayed writes/clipboard, authoritative Overview after save/restore,
+  honest handled-vs-found headline and summary, exact multi-question labels.
+- [x] Keyboard DOM evidence: 390x844 real Tab/Shift+Tab geometry/hit-testing in
+  normal/reduced motion and enlarged text; single-card Undo restores panel/focus;
+  grouped rows retain focus target; About Escape deterministic and route cleanup.
+  These checks do not constitute human visual or usability acceptance.
 
 ## Board acceptance checklist — pending human visual QA
 
@@ -92,14 +107,14 @@ pass. No fabricated board sign-off.
 | --- | --- | --- |
 | Overview explains first priority within 5 seconds | Overview headline contracts; captured Overview | [ ] NOT inspected / timed |
 | One primary action; default paragraphs at most two lines | Capture primary-class counts; overview responsive/action and signal-details tests | [ ] Visual hierarchy and all paragraph lengths NOT inspected |
-| Same Q label in rail, phone, card, changes and summary | `test_labels.py`, phone-preview marker/canonical-label contracts | [ ] Cross-surface visual comparison NOT inspected; legacy rail removed by redesign |
+| Same Q label in rail, phone, card, changes and summary | `test_labels.py`, phone-preview contracts and real grouped multi-question Improve/Share/download regression | [ ] Cross-surface visual comparison NOT inspected; legacy rail removed by redesign |
 | No Next in rewrites; no blank quote gaps | `test_clean_copy.py`, copy-guard contracts | [ ] All rendered quotes NOT inspected |
 | No rubric IDs in prose; absorbed issues only in Also affects | Improve absorbed/pin tests, plan exclusion tests | [ ] Visible prose NOT inspected |
 | Community & fun suppresses emoji/one-word-caps findings | `test_survey_style.py` contracts | [ ] Manual style-switch scenario NOT performed |
 | Default at most 3 + 6 actions; overflow grouped under More ideas | `test_plan.py` quick-win cap/grouping; overview contracts | [ ] Entire default-view action count NOT visually audited |
 | Only test-response note inline; About reachable in every chapter | About keyboard-modal contracts, capture About presence | [ ] Disclaimer inventory NOT visually audited |
-| Keyboard complete must-fix, Undo, finish via Share; visible unobscured focus | Existing queue save/Undo and keyboard focus contracts pass separately | [ ] End-to-end keyboard-only human run NOT performed |
-| 390px no overflow; bottom bar does not cover content | All capture scrollWidths equal viewport widths; existing responsive contracts pass | [ ] Sticky-bar occlusion NOT visually inspected |
+| Keyboard complete must-fix, Undo, finish via Share; visible unobscured focus | Cross-feature keyboard keep -> Undo -> continue -> Share, grouped focus and mobile hit-test contracts | [ ] End-to-end keyboard-only human run NOT performed |
+| 390px no overflow; bottom bar does not cover content | All capture scrollWidths equal viewport; focused-control geometry/hit tests pass at 390x844 | [ ] Sticky-bar occlusion NOT visually inspected |
 | Reduced motion: no animation, usable flow | Reduced-motion screenshots and existing computed-style/navigation contracts pass | [ ] Human flow / all motion NOT visually inspected |
 
 ## Safety and limitations

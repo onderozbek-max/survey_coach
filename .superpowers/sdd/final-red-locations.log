@@ -1,0 +1,47 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_exact_question_labels_topics_and_share_match_download __________
+tests/test_final_locations_ui.py:41: in test_exact_question_labels_topics_and_share_match_download
+    assert row.locator('.location').inner_text().startswith(label)
+E   assert False
+E    +  where False = <built-in method startswith of str object at 0x11b0b71b0>('Q1 · Screen 2')
+E    +    where <built-in method startswith of str object at 0x11b0b71b0> = 'Q1–Q3 · Which snacks do you buy?'.startswith
+E    +      where 'Q1–Q3 · Which snacks do you buy?' = inner_text()
+E    +        where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:50120/review.html?id=synthetic#improve'> selector='.pattern-row[data-fingerprint="6b8b99cdf30a"] >> .location'>.inner_text
+E    +          where <Locator frame=<Frame name= url='http://127.0.0.1:50120/review.html?id=synthetic#improve'> selector='.pattern-row[data-fingerprint="6b8b99cdf30a"] >> .location'> = locator('.location')
+E    +            where locator = <Locator frame=<Frame name= url='http://127.0.0.1:50120/review.html?id=synthetic#improve'> selector='.pattern-row[data-fingerprint="6b8b99cdf30a"]'>.locator
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:47:15] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:47:16] "GET /app.js HTTP/1.1" 200 -
+=========================== short test summary info ============================
+FAILED tests/test_final_locations_ui.py::test_exact_question_labels_topics_and_share_match_download
+1 failed in 1.61s

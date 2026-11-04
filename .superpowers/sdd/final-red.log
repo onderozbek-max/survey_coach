@@ -1,0 +1,709 @@
+FFFFFFFF...FFFFFFFFFFF.FFFFFF                                            [100%]
+=================================== FAILURES ===================================
+________ test_handled_headline_preserves_assessment_and_download[pick] _________
+tests/test_final_projection.py:19: in test_handled_headline_preserves_assessment_and_download
+    detail['decisions'][f['fingerprint']] = {'action':action, 'reason':'Tracker', 'picked_text':text if action == 'pick' else None}
+    ^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'decisions'
+________ test_handled_headline_preserves_assessment_and_download[keep] _________
+tests/test_final_projection.py:19: in test_handled_headline_preserves_assessment_and_download
+    detail['decisions'][f['fingerprint']] = {'action':action, 'reason':'Tracker', 'picked_text':text if action == 'pick' else None}
+    ^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'decisions'
+________ test_handled_headline_preserves_assessment_and_download[mixed] ________
+tests/test_final_projection.py:19: in test_handled_headline_preserves_assessment_and_download
+    detail['decisions'][f['fingerprint']] = {'action':action, 'reason':'Tracker', 'picked_text':text if action == 'pick' else None}
+    ^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'decisions'
+_______ test_handled_headline_preserves_assessment_and_download[carried] _______
+tests/test_final_projection.py:19: in test_handled_headline_preserves_assessment_and_download
+    detail['decisions'][f['fingerprint']] = {'action':action, 'reason':'Tracker', 'picked_text':text if action == 'pick' else None}
+    ^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'decisions'
+________ test_handled_headline_preserves_assessment_and_download[stale] ________
+tests/test_final_projection.py:19: in test_handled_headline_preserves_assessment_and_download
+    detail['decisions'][f['fingerprint']] = {'action':action, 'reason':'Tracker', 'picked_text':text if action == 'pick' else None}
+    ^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'decisions'
+______ test_handled_headline_preserves_assessment_and_download[reopened] _______
+tests/test_final_projection.py:19: in test_handled_headline_preserves_assessment_and_download
+    detail['decisions'][f['fingerprint']] = {'action':action, 'reason':'Tracker', 'picked_text':text if action == 'pick' else None}
+    ^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'decisions'
+___ test_capture_rejects_nonfinite_or_nonpositive_timeout_before_output[nan] ___
+tests/test_final_projection.py:46: in test_capture_rejects_nonfinite_or_nonpositive_timeout_before_output
+    capture.main(['--timeout=' + value])
+scripts/capture_screens.py:255: in main
+    with server(args.output / 'server.log', args.timeout) as (base, client):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: 'NoneType' object does not support the context manager protocol (missed __exit__ method)
+___ test_capture_rejects_nonfinite_or_nonpositive_timeout_before_output[inf] ___
+tests/test_final_projection.py:46: in test_capture_rejects_nonfinite_or_nonpositive_timeout_before_output
+    capture.main(['--timeout=' + value])
+scripts/capture_screens.py:255: in main
+    with server(args.output / 'server.log', args.timeout) as (base, client):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: 'NoneType' object does not support the context manager protocol (missed __exit__ method)
+_______ test_undo_resolves_refetched_fingerprint_not_array_index[False] ________
+tests/test_final_fixes_ui.py:30: in test_undo_resolves_refetched_fingerprint_not_array_index
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('restored')")
+.venv/lib/python3.14/site-packages/playwright/sync_api/_generated.py:21235: in wait_for_function
+    self._sync(
+.venv/lib/python3.14/site-packages/playwright/_impl/_page.py:1158: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/playwright/_impl/_frame.py:945: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.14/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.14/site-packages/playwright/_impl/_connection.py:636: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms exceeded.
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:44:37] "GET /app.js HTTP/1.1" 200 -
+________ test_undo_resolves_refetched_fingerprint_not_array_index[True] ________
+tests/test_final_fixes_ui.py:30: in test_undo_resolves_refetched_fingerprint_not_array_index
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('restored')")
+.venv/lib/python3.14/site-packages/playwright/sync_api/_generated.py:21235: in wait_for_function
+    self._sync(
+.venv/lib/python3.14/site-packages/playwright/_impl/_page.py:1158: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/playwright/_impl/_frame.py:945: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.14/site-packages/playwright/_impl/_connection.py:78: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.14/site-packages/playwright/_impl/_connection.py:636: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms exceeded.
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:07] "GET /app.js HTTP/1.1" 200 -
+_______ test_preview_choice_survives_reordering_only_on_its_fingerprint ________
+tests/test_final_fixes_ui.py:52: in test_preview_choice_survives_reordering_only_on_its_fingerprint
+    assert page.locator('#stage .phone-screen').inner_text().find(target['current_text']) >= 0
+E   AssertionError: assert -1 >= 0
+E    +  where -1 = <built-in method find of str object at 0x107b6dce0>('Survey complete.')
+E    +    where <built-in method find of str object at 0x107b6dce0> = 'Welcome\n\nWelcome to the Boxer Briefs Survey! This takes about 4 minutes.\n\n!\n!\n!\nStart'.find
+E    +      where 'Welcome\n\nWelcome to the Boxer Briefs Survey! This takes about 4 minutes.\n\n!\n!\n!\nStart' = inner_text()
+E    +        where inner_text = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#improve'> selector='#stage .phone-screen'>.inner_text
+E    +          where <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#improve'> selector='#stage .phone-screen'> = locator('#stage .phone-screen')
+E    +            where locator = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#improve'>.locator
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /app.js HTTP/1.1" 200 -
+______________ test_keyboard_undo_returns_to_restored_single_card ______________
+tests/test_final_fixes_ui.py:68: in test_keyboard_undo_returns_to_restored_single_card
+    assert page.locator('#coach-h').evaluate('el => el === document.activeElement')
+E   AssertionError: assert False
+E    +  where False = evaluate('el => el === document.activeElement')
+E    +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#improve'> selector='#coach-h'>.evaluate
+E    +      where <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#improve'> selector='#coach-h'> = locator('#coach-h')
+E    +        where locator = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#improve'>.locator
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /app.js HTTP/1.1" 200 -
+________ test_mobile_tab_focus_is_not_covered_by_actions[False-reduce] _________
+tests/test_final_fixes_ui.py:91: in test_mobile_tab_focus_is_not_covered_by_actions
+    assert page.evaluate("""() => {
+E   AssertionError: <button type="button" class="signal-link btn-text">See 3 screens</button>
+E   assert False
+E    +  where False = evaluate("() => {\n              const el = document.activeElement;\n              if (!el.closest('#chapter-overview')) return...n              return r.top >= 0 && r.bottom <= innerHeight && (el.contains(hit) || hit?.contains(el));\n            }")
+E    +    where evaluate = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.evaluate
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /app.js HTTP/1.1" 200 -
+_____ test_mobile_tab_focus_is_not_covered_by_actions[False-no-preference] _____
+tests/test_final_fixes_ui.py:91: in test_mobile_tab_focus_is_not_covered_by_actions
+    assert page.evaluate("""() => {
+E   AssertionError: <button type="button" class="signal-link btn-text">See 3 screens</button>
+E   assert False
+E    +  where False = evaluate("() => {\n              const el = document.activeElement;\n              if (!el.closest('#chapter-overview')) return...n              return r.top >= 0 && r.bottom <= innerHeight && (el.contains(hit) || hit?.contains(el));\n            }")
+E    +    where evaluate = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.evaluate
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:38] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /app.js HTTP/1.1" 200 -
+_________ test_mobile_tab_focus_is_not_covered_by_actions[True-reduce] _________
+tests/test_final_fixes_ui.py:91: in test_mobile_tab_focus_is_not_covered_by_actions
+    assert page.evaluate("""() => {
+E   AssertionError: <button type="button" class="signal-link btn-text">See 3 screens</button>
+E   assert False
+E    +  where False = evaluate("() => {\n              const el = document.activeElement;\n              if (!el.closest('#chapter-overview')) return...n              return r.top >= 0 && r.bottom <= innerHeight && (el.contains(hit) || hit?.contains(el));\n            }")
+E    +    where evaluate = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.evaluate
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /app.js HTTP/1.1" 200 -
+_____ test_mobile_tab_focus_is_not_covered_by_actions[True-no-preference] ______
+tests/test_final_fixes_ui.py:91: in test_mobile_tab_focus_is_not_covered_by_actions
+    assert page.evaluate("""() => {
+E   AssertionError: <button type="button" class="signal-link btn-text">See 3 screens</button>
+E   assert False
+E    +  where False = evaluate("() => {\n              const el = document.activeElement;\n              if (!el.closest('#chapter-overview')) return...n              return r.top >= 0 && r.bottom <= innerHeight && (el.contains(hit) || hit?.contains(el));\n            }")
+E    +    where evaluate = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.evaluate
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /app.js HTTP/1.1" 200 -
+________________ test_about_closes_on_real_chapter_change[hash] ________________
+tests/test_final_fixes_ui.py:118: in test_about_closes_on_real_chapter_change
+    assert not page.locator('#about-review-dialog').evaluate('el => el.open')
+E   AssertionError: assert not True
+E    +  where True = evaluate('el => el.open')
+E    +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#about-review-dialog'>.evaluate
+E    +      where <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#about-review-dialog'> = locator('#about-review-dialog')
+E    +        where locator = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.locator
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /app.js HTTP/1.1" 200 -
+________________ test_about_closes_on_real_chapter_change[back] ________________
+tests/test_final_fixes_ui.py:118: in test_about_closes_on_real_chapter_change
+    assert not page.locator('#about-review-dialog').evaluate('el => el.open')
+E   AssertionError: assert not True
+E    +  where True = evaluate('el => el.open')
+E    +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#about-review-dialog'>.evaluate
+E    +      where <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#about-review-dialog'> = locator('#about-review-dialog')
+E    +        where locator = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.locator
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /app.js HTTP/1.1" 200 -
+______________ test_about_closes_on_real_chapter_change[forward] _______________
+tests/test_final_fixes_ui.py:118: in test_about_closes_on_real_chapter_change
+    assert not page.locator('#about-review-dialog').evaluate('el => el.open')
+E   AssertionError: assert not True
+E    +  where True = evaluate('el => el.open')
+E    +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#about-review-dialog'>.evaluate
+E    +      where <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#about-review-dialog'> = locator('#about-review-dialog')
+E    +        where locator = <Page url='http://127.0.0.1:49374/review.html?id=synthetic#overview'>.locator
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:39] "GET /app.js HTTP/1.1" 200 -
+______________ test_default_overview_feedback_is_visible[missing] ______________
+tests/test_final_fixes_ui.py:157: in test_default_overview_feedback_is_visible
+    assert status.is_visible()
+E   AssertionError: assert False
+E    +  where False = is_visible()
+E    +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#review-status'>.is_visible
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /about.js HTTP/1.1" 200 -
+______________ test_default_overview_feedback_is_visible[network] ______________
+tests/test_final_fixes_ui.py:157: in test_default_overview_feedback_is_visible
+    assert status.is_visible()
+E   AssertionError: assert False
+E    +  where False = is_visible()
+E    +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#review-status'>.is_visible
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.js HTTP/1.1" 200 -
+_____________ test_default_overview_feedback_is_visible[metadata] ______________
+tests/test_final_fixes_ui.py:157: in test_default_overview_feedback_is_visible
+    assert status.is_visible()
+E   AssertionError: assert False
+E    +  where False = is_visible()
+E    +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#review-status'>.is_visible
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.js HTTP/1.1" 200 -
+______________ test_default_overview_feedback_is_visible[failed] _______________
+tests/test_final_fixes_ui.py:157: in test_default_overview_feedback_is_visible
+    assert status.is_visible()
+E   AssertionError: assert False
+E    +  where False = is_visible()
+E    +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#review-status'>.is_visible
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /about.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.js HTTP/1.1" 200 -
+______________ test_default_overview_feedback_is_visible[queued] _______________
+tests/test_final_fixes_ui.py:157: in test_default_overview_feedback_is_visible
+    assert status.is_visible()
+E   AssertionError: assert False
+E    +  where False = is_visible()
+E    +    where is_visible = <Locator frame=<Frame name= url='http://127.0.0.1:49374/review.html?id=synthetic#overview'> selector='#review-status'>.is_visible
+----------------------------- Captured stderr call -----------------------------
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review.html?id=synthetic HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /design-system.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /review-studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.css HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /environment.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /data.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /dom.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /icons.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /diff.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /toast.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /chapters.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /entry.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /model.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issues.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /issue-list.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /rounds.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /share.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /phone.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /energy.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /overview.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /improve-actions.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /queue.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /coach.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workspace.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /workflow.js HTTP/1.1" 200 -
+127.0.0.1 - - [04/Nov/2026 00:45:40] "GET /about.js HTTP/1.1" 200 -
+___________ test_decision_refresh_overview_matches_authoritative_api ___________
+tests/test_final_fixes_ui.py:172: in test_decision_refresh_overview_matches_authoritative_api
+    page.wait_for_function("before => document.querySelector('#overview-headline').textContent !== before", before)
+E   TypeError: Page.wait_for_function() takes 2 positional arguments but 3 were given
+=========================== short test summary info ============================
+FAILED tests/test_final_projection.py::test_handled_headline_preserves_assessment_and_download[pick]
+FAILED tests/test_final_projection.py::test_handled_headline_preserves_assessment_and_download[keep]
+FAILED tests/test_final_projection.py::test_handled_headline_preserves_assessment_and_download[mixed]
+FAILED tests/test_final_projection.py::test_handled_headline_preserves_assessment_and_download[carried]
+FAILED tests/test_final_projection.py::test_handled_headline_preserves_assessment_and_download[stale]
+FAILED tests/test_final_projection.py::test_handled_headline_preserves_assessment_and_download[reopened]
+FAILED tests/test_final_projection.py::test_capture_rejects_nonfinite_or_nonpositive_timeout_before_output[nan]
+FAILED tests/test_final_projection.py::test_capture_rejects_nonfinite_or_nonpositive_timeout_before_output[inf]
+FAILED tests/test_final_fixes_ui.py::test_undo_resolves_refetched_fingerprint_not_array_index[False]
+FAILED tests/test_final_fixes_ui.py::test_undo_resolves_refetched_fingerprint_not_array_index[True]
+FAILED tests/test_final_fixes_ui.py::test_preview_choice_survives_reordering_only_on_its_fingerprint
+FAILED tests/test_final_fixes_ui.py::test_keyboard_undo_returns_to_restored_single_card
+FAILED tests/test_final_fixes_ui.py::test_mobile_tab_focus_is_not_covered_by_actions[False-reduce]
+FAILED tests/test_final_fixes_ui.py::test_mobile_tab_focus_is_not_covered_by_actions[False-no-preference]
+FAILED tests/test_final_fixes_ui.py::test_mobile_tab_focus_is_not_covered_by_actions[True-reduce]
+FAILED tests/test_final_fixes_ui.py::test_mobile_tab_focus_is_not_covered_by_actions[True-no-preference]
+FAILED tests/test_final_fixes_ui.py::test_about_closes_on_real_chapter_change[hash]
+FAILED tests/test_final_fixes_ui.py::test_about_closes_on_real_chapter_change[back]
+FAILED tests/test_final_fixes_ui.py::test_about_closes_on_real_chapter_change[forward]
+FAILED tests/test_final_fixes_ui.py::test_default_overview_feedback_is_visible[missing]
+FAILED tests/test_final_fixes_ui.py::test_default_overview_feedback_is_visible[network]
+FAILED tests/test_final_fixes_ui.py::test_default_overview_feedback_is_visible[metadata]
+FAILED tests/test_final_fixes_ui.py::test_default_overview_feedback_is_visible[failed]
+FAILED tests/test_final_fixes_ui.py::test_default_overview_feedback_is_visible[queued]
+FAILED tests/test_final_fixes_ui.py::test_decision_refresh_overview_matches_authoritative_api
+25 failed, 4 passed in 65.74s (0:01:05)

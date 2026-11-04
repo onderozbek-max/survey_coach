@@ -1,9 +1,9 @@
 {
-  "home": "http://127.0.0.1:54572/local.html",
-  "overview": "http://127.0.0.1:54572/review.html?id=1232fa3655834ab59ac9b8b521841823#overview",
-  "improve": "http://127.0.0.1:54572/review.html?id=1232fa3655834ab59ac9b8b521841823#improve",
-  "pattern": "http://127.0.0.1:54572/review.html?id=f1bde29714fd4d73a8324a29dba5da45#improve",
-  "share": "http://127.0.0.1:54572/review.html?id=1232fa3655834ab59ac9b8b521841823#share"
+  "home": "http://127.0.0.1:56460/local.html",
+  "overview": "http://127.0.0.1:56460/review.html?id=23fa8858c1ae4eba8c1e3342f413a272#overview",
+  "improve": "http://127.0.0.1:56460/review.html?id=23fa8858c1ae4eba8c1e3342f413a272#improve",
+  "pattern": "http://127.0.0.1:56460/review.html?id=b2466a3703d74b0495952aa2c24c0e45#improve",
+  "share": "http://127.0.0.1:56460/review.html?id=23fa8858c1ae4eba8c1e3342f413a272#share"
 }
 /Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-home.png
 /Users/o0o02dn/Documents/adminAI/survey-coach/review/after/desktop-overview.png
