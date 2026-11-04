@@ -54,7 +54,9 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     assert page.locator('#screen-drawer .screen-row').count() > 0
     headings = page.locator('#screen-drawer strong').all_inner_texts()
     assert not any('fingerprint' in text or 'q-' in text for text in headings)
-    assert page.locator('.review-actionbar #sign-off').inner_text() == 'Share for sign-off'
+    page.locator('[data-chapter=share]').click()
+    assert page.locator('#download-summary').inner_text() == 'Download summary'
+    assert page.locator('#download-summary').get_attribute('href').endswith('/summary?download=1')
     assert page.locator('details.studio-tools').count() == 0
     page.close()
 

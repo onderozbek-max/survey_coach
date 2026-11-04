@@ -16,9 +16,11 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.locator('.screen-row').first.click()
     assert page.locator('#coach .card').count() == 1
     assert page.locator('#stage .phone-screen').is_visible()
-    sign_off = page.get_by_role('link', name='Share for sign-off', exact=True)
-    assert '/versions/1/summary' in sign_off.get_attribute('href')
-    assert sign_off.locator('..').get_attribute('aria-label') == 'Finish this round'
+    page.locator('[data-chapter=share]').click()
+    download = page.get_by_role('link', name='Download summary', exact=True)
+    assert '/versions/1/summary?download=1' in download.get_attribute('href')
+    assert download.is_visible()
+    assert page.locator('#copy-all').is_hidden()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.close()
 

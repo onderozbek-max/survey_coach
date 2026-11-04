@@ -293,7 +293,8 @@ def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_ur
     page.locator('#review-summary > details').first.locator(':scope > summary').click()
     for unchecked in detail['review']['unchecked']:
         assert unchecked in page.locator('#review-summary').inner_text()
-    assert page.locator('#sign-off').get_attribute('target') == '_blank'
+    page.locator('[data-chapter=share]').click()
+    assert page.locator('#download-summary').get_attribute('href').endswith('/versions/2/summary?download=1')
     assert not writes and not errors
     context.close()
 

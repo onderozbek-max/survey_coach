@@ -11,9 +11,9 @@
   };
   SC.renderRounds = (detail, surveyId) => {
     const changes = detail.round_changes;
-    return [h('h2', null, `Round ${detail.version}`),
+    return [h('h2', null, detail.version > 1 ? `Since version ${detail.version - 1}` : 'First version'),
       h('nav', {class:'round-timeline', 'aria-label':'Review rounds'}, (detail.versions || [{version:detail.version}]).map(v =>
-        h('a', {href:`review.html?id=${encodeURIComponent(surveyId)}&version=${v.version}`, 'aria-current':v.version === detail.version ? 'page' : false}, `Round ${v.version}`))),
+        h('a', {href:`review.html?id=${encodeURIComponent(surveyId)}&version=${v.version}#share`, 'aria-current':v.version === detail.version ? 'page' : false}, `Round ${v.version}`))),
       changes ? h('div', {class:'round-comparison'},
         h('p', null, `${list(changes.fixed).length} no longer flagged · ${list(changes.still).length} still flagged · ${list(changes.new).length} new · ${list(changes.uncertain).length} uncertain`),
         h('p', {class:'note'}, 'No longer flagged is not blanket verification: checks, paths or wording may have changed. Review the evidence below.'),

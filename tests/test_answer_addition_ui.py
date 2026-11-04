@@ -18,8 +18,8 @@ def test_added_answer_card_copies_only_label_and_sheet_never_says_replace(browse
     page.get_by_role('button',name='Use this change',exact=True).click()
     page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
     assert page.evaluate('navigator.clipboard.readText()')=='I did not shop this year'
-    page.locator('.change-sheet > summary').click()
-    text=page.locator('.change-sheet pre').inner_text()
+    page.locator('[data-chapter=share]').click()
+    text=page.locator('#change-list').inner_text()
     assert 'Add answer option: I did not shop this year' in text
     assert 'Replace with:' not in text
     assert not errors

@@ -87,10 +87,12 @@ def test_contextual_use_copies_only_after_explicit_choice(browser, base_url):
     assert page.locator('#screen-drawer').get_by_text('Ask the coach').count() == 0
     assert 'fingerprint-' not in page.locator('#screen-drawer').inner_text()
     page.get_by_role('button', name='Close all screens').click()
-    page.locator('.change-sheet > summary').click()
-    sheet = page.locator('.change-sheet pre').inner_text()
-    assert 'Find:' in sheet and 'Replace with:' in sheet
-    assert writes[-1]['picked_text'] in sheet
+    page.locator('[data-chapter=share]').click()
+    assert page.locator('#change-list .diff').count() == 1
+    page.locator('#copy-all').click()
+    page.wait_for_function("navigator.clipboard.readText().then(t => t.includes('Replace with:'))")
+    sheet = page.evaluate('navigator.clipboard.readText()')
+    assert 'Find:' in sheet and writes[-1]['picked_text'] in sheet
     assert not errors
     context.close()
 
@@ -114,13 +116,15 @@ def test_action_only_keep_requires_reason_and_mobile_finish_loop(browser, base_u
     page.locator('#check-again').click()
     assert page.locator('#survey-link').input_value() == detail['snapshot']['source_url']
     assert not page.locator('#snapshot').is_visible()
+    page.locator('[data-chapter=improve]').click()
     page.get_by_role('button', name='Rename', exact=True).click()
     page.get_by_role('textbox', name='Survey title', exact=True).fill('Member experience round')
     page.get_by_role('button', name='Save title', exact=True).click()
     page.wait_for_function("document.querySelector('#review-title').textContent === 'Member experience round'")
+    page.locator('[data-chapter=share]').click()
     assert page.locator('.round-timeline a').count() == 2
     assert 'no longer flagged' in page.locator('.round-comparison').inner_text()
-    assert '/versions/2/summary' in page.locator('#sign-off').get_attribute('href')
+    assert '/versions/2/summary?download=1' in page.locator('#download-summary').get_attribute('href')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert not errors
     context.close()

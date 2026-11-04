@@ -120,17 +120,14 @@
   function refreshDecisions() {
     window.SC.workspaceDetail = detail;
     mount($('fix-list'), window.SC.renderIssueList(detail));
-    mount($('change-sheet'), window.SC.renderChangeSheet(detail));
-    const count = window.SC.issueCounts(detail).chosen;
-    $('copy-all').textContent = `Copy all changes (${count})`;
-    $('copy-all').disabled = count === 0;
+    window.SC.renderShare(detail, copy);
     const kept = window.SC.issueCounts(detail).kept;
     message('decision-verdict', kept ? `${kept} kept on purpose · accepted risk, not verified fixes.` : '');
   }
   function revealRecheck() {
-    $('recheck-details').open = true;
-    $('survey-link').value ||= detail.source_url || detail.snapshot.source_url || '';
-    $('recheck-panel').scrollIntoView({block:'center', behavior:'smooth'});
+    window.SC.goChapter('share');
+    $('survey-link').value ||= window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
+    $('recheck-panel').scrollIntoView({block:'center', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
     $('survey-link').focus({preventScroll:true});
   }
   function titleEditor() {
@@ -174,13 +171,15 @@
     if (!detail.review) { message('review-status', detail.job?.error || 'No completed review. Try checking again below.'); return; }
     message('review-status', `Round ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
     titleEditor(); renderSummary(); refreshDecisions();
-    mount($('version-changes'), window.SC.renderRounds(detail, surveyId));
-    $('survey-link').value = detail.source_url || detail.snapshot.source_url || '';
+    $('survey-link').value = window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
     $('check-again').onclick = revealRecheck;
-    $('sign-off').href = `${endpoint()}/summary`;
-    $('copy-all').onclick = () => copy(window.SC.changeSheetText(detail), $('action-status'));
     window.SC.loadWorkspace(detail);
   }
+  window.addEventListener('surveycoach-detail-updated', event => {
+    if (!detail || event.detail.id !== detail.id || event.detail.version !== detail.version) return;
+    detail = event.detail;
+    refreshDecisions();
+  });
   window.addEventListener('surveycoach-choice-saved', event => {
     if (!detail || event.detail.version !== detail.version) return;
     detail.decisions = event.detail.decisions;
