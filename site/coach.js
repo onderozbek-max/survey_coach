@@ -22,7 +22,7 @@
       const suggested = h('div', {class:'suggested'});
       const renderSuggestion = () => SC.mount(suggested,
         h('h4', null, adding ? 'Add answer option' : 'Suggested change'),
-        choice ? adding ? h('blockquote', null, choice.text) : SC.renderDiff(ctx.originalOf(entry), choice.text)
+        choice ? SC.renderSuggestion(f, ctx.originalOf(entry), choice.text, ctx.detail.snapshot)
           : h('p', null, 'Make this change in RedJade using the details below.'));
       renderSuggestion();
       const output = h('p', {class:'issue-save-status',role:'status'});

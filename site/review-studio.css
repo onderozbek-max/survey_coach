@@ -51,6 +51,12 @@ html { scroll-padding-top:150px; }
 .card h4 { font-size:14px; margin:0 0 8px; }
 .card .suggested { padding:16px; border:1px solid var(--line-strong); border-radius:var(--r-sm); font-size:14px; }
 .suggested blockquote { margin:0; white-space:pre-wrap; }
+.suggested { overflow-wrap:anywhere; }
+.suggested h5 { font-size:14px; margin:0 0 8px; }
+.suggestion-question { margin:0 0 16px; white-space:pre-wrap; line-height:1.6; }
+.suggestion-bundle ul { margin:0; padding-left:24px; line-height:1.6; }
+.suggestion-bundle li + li { margin-top:6px; }
+.issue-original blockquote { white-space:pre-wrap; overflow-wrap:anywhere; }
 .alternatives,.reason-chips,.decision-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
 .alternatives button,.reason-chip { min-height:44px; border:1px solid var(--line-strong); border-radius:var(--r-sm); color:var(--text); background:var(--surface); padding:6px 12px; font-size:14px; }
 .alternatives [aria-pressed=true] { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
