@@ -51,7 +51,11 @@ def test_existing_answer_and_unmatched_locations_are_not_invented_additions():
 
 def test_signoff_and_server_change_sheet_label_addition_not_replacement():
     finding=guard_recommendation(bundled(),SNAPSHOT)
-    snapshot=deepcopy(SNAPSHOT); snapshot['pages'][0]['position']=0
+    snapshot=deepcopy(SNAPSHOT)
+    snapshot['title']='Synthetic'
+    snapshot['pages'][0].update(position=0, kind='question')
+    for index, option in enumerate(snapshot['pages'][0]['questions'][0]['options']):
+        option['id']=f'option-{index}'
     detail={'snapshot':snapshot,'title':'Synthetic','version':1,'review':{'findings':[finding],
         'scorecard':{'score':0,'unchecked_points':100}},
         'decisions':{'stable':{'action':'pick','picked_text':ADDITION}}}

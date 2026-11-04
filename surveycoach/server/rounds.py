@@ -2,7 +2,9 @@
 from copy import deepcopy
 from urllib.parse import urlsplit, urlunsplit
 
+from surveycoach.labels import finding_label, screen_labels
 from surveycoach.reader.policy import UnsafeSurveyURL, validate_url
+from surveycoach.snapshot import SurveySnapshot
 
 
 def canonical_source_url(url):
@@ -28,17 +30,18 @@ def _scale_context(scale):
 
 def locations(snapshot):
     result = []
-    number = 0
-    for screen, page in enumerate(snapshot.get("pages", []), 1):
+    labels = screen_labels(SurveySnapshot.model_validate(snapshot))
+    for index, page in enumerate(snapshot.get("pages", [])):
         base = {"position": page["position"], "page_id": page["id"],
-                "screen_label": f"Screen {screen}", "page": page}
+                "screen_label": f'{labels[index]["name"]} · Screen {index + 1}', "page": page}
         result.append(dict(base, question_id=None, slot=None,
                            wording=page.get("intro_text") or page.get("text", ""),
                            context=("page", page.get("kind"), bool(page.get("questions")))))
         for slot, question in enumerate(page.get("questions", [])):
-            number += 1
+            label = (base["screen_label"] if question["kind"] == "info" else
+                     finding_label({"question_id": question["id"]}, labels))
             result.append(dict(base, question_id=question["id"], slot=slot, question=question,
-                               screen_label=f"Screen {screen} · Q{number}",
+                               screen_label=label,
                                wording=question["text"],
                                context=(question["kind"],
                                         tuple(sorted((o["label"], repr(o.get("is_exclusive")),

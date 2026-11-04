@@ -8,6 +8,7 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
+from surveycoach.labels import screen_labels
 from surveycoach.recommendations import guard_recommendation
 from surveycoach.snapshot import SurveySnapshot
 from surveycoach.server.rounds import (canonical_source_url, change_sheet, compare_rounds,
@@ -200,6 +201,7 @@ class Repository:
 
     def _project_detail(self, data):
         """Project one round only. This never loads or walks historical rounds."""
+        data["screens"] = screen_labels(SurveySnapshot.model_validate(data["snapshot"]))
         if data["review"]:
             data["review"] = project_review(data["snapshot"], data["review"])
             data["review"]["findings"] = [guard_recommendation(finding, data['snapshot'])

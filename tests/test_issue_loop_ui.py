@@ -166,9 +166,9 @@ def test_failed_save_never_copies_and_round_evidence_is_readable(browser, base_u
     text = page.evaluate('''() => {
       const d = SC.workspaceDetail;
       const f = d.review.findings[0];
-      return SC.renderRounds({...d, round_changes:{fixed:[{prior_finding:f,current_finding:null,screen_label:'Screen 2 · Q1',old_wording:'Old question',new_wording:'New question',resolution:'No longer flagged'}],still:[],new:[],uncertain:[]}}, 'synthetic').map(n=>n.textContent).join(' ');
+      return SC.renderRounds({...d, round_changes:{fixed:[{prior_finding:f,current_finding:null,screen_label:'Q1 · Screen 2',old_wording:'Old question',new_wording:'New question',resolution:'No longer flagged'}],still:[],new:[],uncertain:[]}}, 'synthetic').map(n=>n.textContent).join(' ');
     }''')
-    assert 'Screen 2 · Q1' in text
+    assert 'Q1 · Screen 2' in text
     assert 'Before: Old question' in text and 'Now: New question' in text
     assert 'not blanket verification' in text
     assert not errors
