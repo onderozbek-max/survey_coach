@@ -10,7 +10,7 @@ def open_sample(browser, studio):
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('#chapter-nav [data-chapter=improve]').click()
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     return context, page
 
 
@@ -42,7 +42,7 @@ def test_action_only_keeps_reason_without_claiming_verification(browser, studio)
     keep_mine(page, reason)
     assert 'not a verified fix' in page.locator('.accepted-risk').inner_text()
     page.reload()
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     focus_finding(page, finding)
     assert page.get_by_label('Reason for keeping', exact=False).input_value() == reason
     assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
@@ -73,7 +73,7 @@ def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studi
     page.wait_for_timeout(100)
     assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
     page.reload()
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     focus_finding(page, finding)
     assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
     assert 'accepted risk' in page.locator('.accepted-risk').inner_text()

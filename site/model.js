@@ -68,7 +68,8 @@
       const first = (page.questions || [])[0];
       if (page.kind === "question") questionNumber += 1;
       const name = { intro: "Intro", info: index === 0 ? "Welcome" : `Info ${index + 1}`, thank_you: "Thank you", screen_out: "Screen-out" }[page.kind] || `Q${questionNumber}`;
-      return { index, page, name, topic: first ? SC.clip(first.text, 34) : "", entries: [] };
+      const canonical = survey.screens?.find(screen => screen.page_id === page.id);
+      return { index, page, name:canonical?.name || name, topic:canonical?.topic ?? (first ? SC.clip(first.text, 34) : ""), entries: [] };
     });
     const whole = { index: -1, page: null, name: "Whole survey", topic: "Applies to every screen", entries: [] };
 

@@ -9,13 +9,13 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('#chapter-nav [data-chapter=improve]').click()
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     assert page.locator('link[href="design-system.css"]').count() == 1
     assert page.get_by_role('tab').count() == 0
     page.locator('#issues-view > summary').click()
     page.locator('.issue-jump').first.click()
     assert page.locator('#coach .card').count() == 1
-    assert page.locator('.phone-screen').is_visible()
+    assert page.locator('#stage .phone-screen').is_visible()
     sign_off = page.get_by_role('link', name='Share for sign-off', exact=True)
     assert '/versions/1/summary' in sign_off.get_attribute('href')
     assert sign_off.locator('..').get_attribute('aria-label') == 'Finish this round'
@@ -26,7 +26,7 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
 def test_phone_renders_page_landscape_placeholder(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/index.html#improve')
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     page.evaluate('''() => {
       const host = document.createElement('div'); host.id='image-test'; document.body.append(host);
       const item={name:'Test',index:0,page:{id:'p',kind:'info',text:'Review image',media:[

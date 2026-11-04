@@ -9,10 +9,10 @@ def test_phone_is_visible_above_fold_on_saved_review(browser, studio):
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('#chapter-nav [data-chapter=improve]').click()
-    page.locator('.phone-screen').wait_for()
-    phone = page.locator('.phone').bounding_box()
+    page.locator('#stage .phone-screen').wait_for()
+    phone = page.locator('#stage .phone').bounding_box()
     assert phone['y'] < 450  # Chapter navigation now shares the top half of the viewport.
-    assert page.locator('.phone-screen').bounding_box()['height'] >= 450
+    assert page.locator('#stage .phone-screen').bounding_box()['height'] >= 450
     assert page.locator('#coach .report').count() == 0
     assert page.locator('#stage').evaluate('e => getComputedStyle(e).backgroundColor') == 'rgba(0, 0, 0, 0)'
     page.close()
@@ -27,7 +27,7 @@ def test_return_to_review_always_opens_member_experience(browser, studio):
     page.locator('#issues-view > summary').click()
     page.locator('.issue-jump').last.click()
     page.reload()
-    page.locator('.phone-screen').wait_for(state='visible')
-    assert page.locator('.phone').bounding_box()['y'] < 430
+    page.locator('#stage .phone-screen').wait_for(state='visible')
+    assert page.locator('#stage .phone').bounding_box()['y'] < 430
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.close()

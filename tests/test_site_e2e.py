@@ -51,9 +51,9 @@ def stray_text(page) -> list[str]:
 def phone_text(page) -> str:
     """What a member would read on the phone: the numbered pins are our annotations, so they are left out."""
     text = page.evaluate("""() => {
-        const pins = [...document.querySelectorAll('.phone-screen .pin')];
+        const pins = [...document.querySelectorAll('#stage .phone-screen .pin')];
         pins.forEach((p) => { p.style.display = 'none'; });
-        const text = document.querySelector('.phone-screen').innerText;
+        const text = document.querySelector('#stage .phone-screen').innerText;
         pins.forEach((p) => { p.style.display = ''; });
         return text; }""")
     return " ".join(text.split())
@@ -87,11 +87,11 @@ def open_finding(page, finding: dict):
 
 def test_it_opens_on_the_first_screen_with_a_must_fix_and_that_issue_selected(browser, base_url):
     page, errors = open_page(browser, base_url)
-    shown = page.locator(".phone-bar").inner_text().split()[0]
+    shown = page.locator("#stage .phone-bar").inner_text().split()[0]
     assert page.locator('.screen-picker option:checked').inner_text().startswith(shown)
     first = page.locator(".card").first
     assert "Fix before launch" in first.inner_text()
-    assert page.locator(".pin.on").get_attribute("aria-label").startswith("Issue 1")
+    assert page.locator("#stage .pin.on").get_attribute("aria-label").startswith("Issue 1")
     assert not stray_text(page) and errors == []
 
 
@@ -239,7 +239,7 @@ def test_first_rewrite_wins_when_two_fixes_target_the_same_words(browser, base_u
     page.route('**/data.js', conflict)
     page.goto(base_url + 'index.html#improve')
     page.get_by_role("button", name="With fixes").click()
-    open_screen(page, "Intro")
+    open_screen(page, "Welcome")
     assert 'Complete replacement introduction.' in phone_text(page)
     assert 'Different complete wording.' not in phone_text(page)
 
@@ -321,11 +321,11 @@ def test_the_clean_sample_has_no_issues_but_does_not_hide_unchecked_points(brows
 
 def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base_url):
     page, _ = open_page(browser, base_url, 390)
-    phone = page.locator(".phone").bounding_box()
+    phone = page.locator("#stage .phone").bounding_box()
     assert phone["y"] < 844 / 2 and phone["y"] < page.locator(".coach").bounding_box()["y"]   # the phone starts in the top half
     assert page.get_by_role("group", name="Device").is_hidden()
     assert page.locator(".card-head").first.inner_text() in page.locator(".lead").inner_text()   # the top issue, above the phone
-    pin, screen = page.locator('.pin[aria-label^="Issue 1"]').bounding_box(), page.locator(".phone-screen").bounding_box()
+    pin, screen = page.locator('#stage .pin[aria-label^="Issue 1"]').bounding_box(), page.locator("#stage .phone-screen").bounding_box()
     assert screen["y"] <= pin["y"] and pin["y"] + pin["height"] <= screen["y"] + screen["height"]   # pin 1 is in view
 
 
@@ -358,7 +358,7 @@ def test_the_title_is_not_pretended_to_be_previewed_and_an_overridden_fix_says_w
     page, _ = open_page(browser, base_url)
     page.get_by_role("button", name="With fixes").click()
     title = page.evaluate("window.SURVEYCOACH_DEMO.surveys[0].review.findings.find((f) => f.criterion_id === '1.1')")
-    open_screen(page, "Intro")                                                         # the title finding is anchored to the first page
+    open_screen(page, "Welcome")                                                         # the title finding is anchored to the first page
     title_card = card_with(page, title["headline"])
     assert title_card.locator('.issue-rewrite').count() > 0
     rewrites = title_card.locator('.issue-rewrite blockquote').all_inner_texts()
@@ -369,6 +369,6 @@ def test_the_title_is_not_pretended_to_be_previewed_and_an_overridden_fix_says_w
 def test_with_fixes_the_true_time_promise_beats_an_ai_rewrite_of_the_same_paragraph(browser, base_url):
     page, _ = open_page(browser, base_url)
     page.get_by_role("button", name="With fixes").click()
-    open_screen(page, "Intro")
+    open_screen(page, "Welcome")
     intro = phone_text(page)
     assert "about 4 minutes" in intro and "about 3 minutes" not in intro               # the code-made fix is a fact, so it goes first

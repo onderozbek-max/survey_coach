@@ -144,8 +144,8 @@
       if (!input.value.trim()) { status.textContent = 'Enter a title.'; return; }
       const button = form.querySelector('button[type=submit]'); button.disabled = true;
       try {
-        await api(`/api/surveys/${encodeURIComponent(surveyId)}`, 'PATCH', {title:input.value.trim()});
-        detail.title = input.value.trim(); title.textContent = detail.title;
+        await window.SC.updateSurvey({title:input.value.trim()});
+        title.textContent = detail.title;
         form.hidden = true; edit.hidden = false; status.textContent = 'Title saved.';
       } catch (error) { status.textContent = error.message; }
       finally { button.disabled = false; }
@@ -153,6 +153,17 @@
       h('button', {type:'button', class:'btn', onclick:() => { form.hidden = true; edit.hidden = false; }}, 'Cancel'));
     mount($('title-tools'), edit, form, status);
   }
+  window.SC.updateSurvey = async payload => {
+    await api(`/api/surveys/${encodeURIComponent(surveyId)}`, 'PATCH', payload);
+    const updated = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
+    detail = updated;
+    detail.decisions ||= {};
+    message('review-title', detail.title);
+    titleEditor(); renderSummary(); refreshDecisions();
+    window.SC.renderOverview(detail);
+    window.dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail}));
+    return detail;
+  };
   async function review() {
     detail = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
     detail.decisions ||= {};

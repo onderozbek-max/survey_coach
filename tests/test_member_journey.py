@@ -40,8 +40,8 @@ def test_journey_comparison_and_question_stem_visible(browser, studio):
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
     page.locator('#chapter-nav [data-chapter=improve]').click()
-    page.locator('.phone-screen').first.wait_for()
-    assert page.locator('.phone-screen').first.evaluate('e => e.scrollTop') == 0
+    page.locator('#stage .phone-screen').first.wait_for()
+    assert page.locator('#stage .phone-screen').first.evaluate('e => e.scrollTop') == 0
     assert page.locator('.screen-picker select').is_visible()
     assert page.get_by_role('navigation', name='Member effort by screen').count() == 0
     # Comparison is intentionally unavailable on screens without text changes.
@@ -56,7 +56,7 @@ def test_journey_comparison_and_question_stem_visible(browser, studio):
     assert page.get_by_role('button', name='Pause walkthrough', exact=True).count() == 1
     page.get_by_role('button', name='Pause walkthrough', exact=True).click()
     page.get_by_role('button', name='Close comparison', exact=True).click()
-    assert page.locator('.phone').count() == 1
+    assert page.locator('#stage .phone').count() == 1
     page.set_viewport_size({'width':390,'height':844})
     page.get_by_role('button',name='Compare wording',exact=True).click()
     phones=page.locator('.comparison-phones .phone')

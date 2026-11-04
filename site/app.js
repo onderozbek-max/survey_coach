@@ -29,19 +29,16 @@
   const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model;
-  let comparing = false, playing = false, playbackTimer = null;
-  function stopPlayback() { clearTimeout(playbackTimer); playing = false; }
-  function schedulePlayback() {
-    clearTimeout(playbackTimer);
-    if (!playing || document.hidden) { playing = false; return; }
-    const item = pageItem(), previous = survey().timeline[item.index - 1]?.seconds || 0;
-    const seconds = Math.max(1, (survey().timeline[item.index]?.seconds || previous) - previous);
-    playbackTimer = setTimeout(() => {
-      if (item.index >= model.items.length - 1) { stopPlayback(); renderAll(); return; }
-      goToPage(item.index + 1); schedulePlayback();
-    }, seconds * 1000);
-  }
-  document.addEventListener('visibilitychange', () => { if (document.hidden && playing) { stopPlayback(); renderAll(); } });
+  let comparing = false, playing = false;
+  const playback = SC.createPlayback({
+    seconds:() => survey().overview.energy.screens[pageItem().index]?.seconds || 1,
+    advance:() => {
+      if (pageItem().index >= model.items.length - 1) return false;
+      goToPage(pageItem().index + 1); return true;
+    },
+    changed:value => { playing = value; if (model) renderAll(); },
+  });
+  function stopPlayback() { playback.pause(); }
   if (localDetail) {
     localDetail.review.findings.forEach((f, key) => {
       const decision = localDetail.decisions[f.fingerprint];
@@ -84,7 +81,7 @@
   }
 
   function scrollPhoneTo(key) {
-    const pinEl = document.querySelector(`.phone-screen [data-pin="${key}"]`), screen = document.querySelector(".phone-screen");
+    const pinEl = document.querySelector(`#stage .phone-screen [data-pin="${key}"]`), screen = document.querySelector("#stage .phone-screen");
     if (!pinEl || !screen) return;
     const s = screen.getBoundingClientRect(), p = pinEl.getBoundingClientRect();
     screen.scrollTop += p.top - s.top - s.height / 3;   // scroll the phone only, never the page
@@ -265,7 +262,7 @@
       localDetail && h('p', {class:'preview-effect',role:'status'}, comparison.replace('See the coach','See the issues')),
       h('div', {class:'member-controls'},
         h('button', {type:'button','aria-pressed':String(comparing),disabled:!changes && !comparing,onclick:()=>{comparing=!comparing;renderAll();}},comparing?'Close comparison':'Compare wording'),
-        h('button', {type:'button',onclick:()=>{playing=!playing;renderAll();schedulePlayback();}},playing?'Pause walkthrough':'Play as a member'),
+        h('button', {type:'button',onclick:()=>playing ? playback.pause() : playback.play()},playing?'Pause walkthrough':'Play as a member'),
         h('button', {type:'button',onclick:()=>nextIssue()},'Next issue →')),
       comparing && h('p', {class:'comparison-note'}, `Estimated reading-time change: ${Math.abs(SC.previewReadingDelta(item.page,previewPlan(true)))} seconds ${SC.previewReadingDelta(item.page,previewPlan(true)) < 0 ? 'longer' : 'shorter'}. Layout, typing and unvisited paths are not reassessed.`),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
@@ -293,7 +290,7 @@
     if (SC.currentChapter() !== 'improve') return;
     improveDirty = false;
     const active = document.activeElement, key = active && active.dataset ? active.dataset.fk : null;
-    const before = document.querySelector(".phone-screen"), keepTop = before ? before.scrollTop : 0;
+    const before = document.querySelector("#stage .phone-screen"), keepTop = before ? before.scrollTop : 0;
     const pageKey = `${state.survey}:${pageItem().index}`, samePage = pageKey === lastPage;
     lastPage = pageKey;
     renderTop();
@@ -306,8 +303,8 @@
       });
     }
     mount($("coach"), SC.renderCoach(current(), context()));
-    if (samePage) document.querySelector(".phone-screen").scrollTop = keepTop;
-    else document.querySelector('.phone-screen').scrollTop = 0;
+    if (samePage) document.querySelector("#stage .phone-screen").scrollTop = keepTop;
+    else document.querySelector('#stage .phone-screen').scrollTop = 0;
     restoreFocus(key);
   }
 
@@ -315,6 +312,7 @@
     stopPlayback(); comparing = false;
     state.survey = i;
     model = SC.buildModel(survey());
+    SC.renderOverview(survey());
     state.mode = "current";
     const start = model.start;
     state.screen = model.order.indexOf(start);
@@ -350,7 +348,25 @@
     mount($('stage'), h('p', {role:'status'}, 'No captured screens. Review the available findings and coverage below.'));
     return;
   }
+  window.addEventListener('surveycoach-detail-updated', event => {
+    localDetail = event.detail;
+    DATA.surveys[state.survey] = localDetail;
+    model = SC.buildModel(localDetail);
+    renderAll();
+  });
   window.addEventListener('surveycoach-chapter', event => {
+    if (event.detail.name === 'improve' && Object.keys(event.detail.options || {}).length) {
+      const options = event.detail.options;
+      SC.improveFilter = options;
+      const group = survey().plan[options.tab];
+      const target = options.page_id || survey().screens.find(screen => screen.screen === group?.[0]?.screen)?.page_id;
+      const item = model.items.find(item => item.page.id === target);
+      if (item) {
+        state.screen = model.order.indexOf(item);
+        state.selected = item.entries.find(entry => options.fingerprints?.includes(entry.f.fingerprint))?.key ?? item.entries[0]?.key ?? null;
+      }
+      improveDirty = true;
+    }
     if (event.detail.name !== 'improve') {
       if (playing) { stopPlayback(); improveDirty = true; }
       return;

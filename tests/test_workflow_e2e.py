@@ -60,7 +60,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required for comparability'
     assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
     assert page.locator('#copy-all').is_disabled()
-    assert page.locator('.phone-screen').is_visible()
+    assert page.locator('#stage .phone-screen').is_visible()
     assert 'Local review' in page.locator('#strip').inner_text()
     page.locator('#check-again').click()
     page.locator('.advanced-recheck > summary').click()

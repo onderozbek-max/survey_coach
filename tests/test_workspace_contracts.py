@@ -36,7 +36,7 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     page.goto(studio + '/index.html?' + query)
     page.wait_for_url('**/review.html?**')
     page.locator('#chapter-nav [data-chapter=improve]').click()
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     assert page.get_by_role('tab').count() == 0
     summary = page.locator('#issues-view > summary')
     summary.focus()
@@ -48,7 +48,7 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     assert page.locator('#coach .card').count() == 1
     assert page.locator('#coach .card-head').inner_text() == headline
     assert page.locator('#survey-view').is_visible()
-    assert page.locator('.phone-screen').is_visible()
+    assert page.locator('#stage .phone-screen').is_visible()
     assert page.locator('#fix-list select, #fix-list textarea').count() == 0
     assert page.locator('#issues-view').evaluate('e => e.tagName') == 'DETAILS'
     assert page.locator('#fix-list .issue-jump').count() > 0
@@ -62,7 +62,7 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
 def test_old_validation_capture_is_identified_not_presented_as_question(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/index.html#improve')
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     page.evaluate('''() => {
       const host=document.createElement('div');host.id='validation-test';document.body.append(host);
       host.append(SC.renderPhone({name:'Test',index:0,entries:[],page:{id:'p',kind:'info',
@@ -79,7 +79,7 @@ def test_old_validation_capture_is_identified_not_presented_as_question(browser,
 def test_unknown_and_portrait_media_are_not_fabricated_as_landscape(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/index.html#improve')
-    page.locator('.phone-screen').wait_for()
+    page.locator('#stage .phone-screen').wait_for()
     page.evaluate('''() => {
       const host = document.createElement('div');host.id='image-test';document.body.append(host);
       host.append(SC.renderPhone({name:'Test',index:0,entries:[],page:{id:'p',kind:'info',text:'Images',media:[

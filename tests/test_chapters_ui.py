@@ -15,18 +15,18 @@ def assert_chapter(page, name):
 def test_default_overview_navigation_back_forward_and_focus(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='')
     assert_chapter(page, 'overview')
-    assert page.locator('.phone-screen').count() == 0  # Improve is lazy.
+    assert page.locator('#stage .phone-screen').count() == 0  # Improve is lazy.
     assert page.locator('#overview-h').evaluate('(el) => el === document.activeElement')
     page.locator('[data-chapter=improve]').click()
     assert page.url.endswith('#improve')
     assert_chapter(page, 'improve')
     assert page.locator('#improve-h').evaluate('(el) => el === document.activeElement')
-    page.evaluate("document.querySelector('.phone-screen').dataset.retained = 'yes'")
+    page.evaluate("document.querySelector('#stage .phone-screen').dataset.retained = 'yes'")
     page.go_back()
     assert_chapter(page, 'overview')
     page.go_forward()
     assert_chapter(page, 'improve')
-    assert page.locator('.phone-screen').get_attribute('data-retained') == 'yes'
+    assert page.locator('#stage .phone-screen').get_attribute('data-retained') == 'yes'
     assert not writes and not errors
     context.close()
 
@@ -116,7 +116,7 @@ def test_static_sample_uses_shell_and_redirect_keeps_query_and_hash(browser, bas
     page.goto(base_url + 'index.html')
     assert_chapter(page, 'overview')
     page.locator('[data-chapter=improve]').click()
-    assert page.locator('.phone-screen').is_visible()
+    assert page.locator('#stage .phone-screen').is_visible()
     assert page.locator('#rail, .toolbar, .journey').count() == 0
     page.goto(base_url + 'index.html?id=synthetic&version=2#share')
     page.wait_for_url('**/review.html?id=synthetic&version=2#share')

@@ -158,7 +158,7 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
         page.wait_for_timeout(100)
         assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
         page.reload()
-        page.locator('.phone-screen').wait_for()
+        page.locator('#stage .phone-screen').wait_for()
         focus_finding(page, finding)
         assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
         assert 'accepted risk' in page.locator('.accepted-risk').inner_text(), 'Reload must not restore the stale suggestion'
