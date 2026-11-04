@@ -236,13 +236,17 @@ Forbidden in product copy (tested): "actually finish", "completion rate", "drop-
 - SUS of at least 80. At least 60% of surveys get a second check within a week.
 - Zero fabricated outcome claims (forbidden-phrase test), zero numbering mismatches (unified-label test).
 
-## 10. Decisions needed from Onder
-1. **Light theme** as the single theme (board: yes).
-2. **Community & fun** survey style with a 5/8-minute target, and emoji treated as voice (board: yes).
-3. UI says **Version** instead of Round (board: yes; the API keeps `round`).
-4. Default view shows **Must-fix + up to 6 quick wins** (board: yes).
-5. **Hosting on AI Launchpad** before the pilot. Terminal launch and localhost links block real adoption. This is a separate track;
-   revisit React + Living Design only if the product is hosted (board: start the onboarding now).
+## 10. Decisions (approved by Onder, 3 Nov 2026)
+1. **Approved:** light theme as the single theme.
+2. **Approved:** **Community & fun** survey style with a 5/8-minute target; emoji treated as voice.
+3. **Approved:** UI says **Version** instead of Round (the API keeps `round`).
+4. **Approved:** default view shows **Must-fix + up to 6 quick wins**.
+5. **Hosting: open.** GitHub Pages was considered and rejected for the working tool. Pages serves static files only;
+   SurveyCoach needs a running Python server (Playwright reader, SQLite, server-held Wibey credentials). The repo remote is
+   public github.com, so a Pages site would be internet-visible regardless of who is expected to use it. Options:
+   AI Launchpad (internal URL, Walmart sign-in, runs the server) for the tool; Puppy Pages for a static, internal demo only.
+   Hosting changes "saved on this computer" into a shared service: it needs per-user data separation and sign-in, plus a
+   container with Chromium. This becomes Part C once hosting is chosen.
 
 Implementation: `docs/superpowers/plans/2026-11-03-board-redesign-part-a-engine.md` (trust, signals, curation) and
 `docs/superpowers/plans/2026-11-03-board-redesign-part-b-experience.md` (visual system and the three chapters).
