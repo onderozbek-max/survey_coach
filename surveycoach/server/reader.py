@@ -81,8 +81,24 @@ def router(repository, app):
             with repository.transaction() as db:
                 db.execute("UPDATE reader_jobs SET stage='checking',pages_captured=? WHERE id=?", (len(captured.snapshot.pages),job_id))
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
-                update(job_id, "failed", body.survey_id,
-                       error="No reviewable pages captured. The link may need authentication or an unsupported reader.")
+                warnings = captured.coverage.warnings
+                if 'Reader initial document unavailable: redirect_blocked.' in warnings:
+                    message = ('The survey entry page returned a redirect. The reader does not follow redirects, '
+                               'so it captured no questions. Ask the survey owner for a direct researcher preview '
+                               'or export; no redirect destination was opened.')
+                elif any(f'Reader initial document unavailable: http_{code}.' in warnings for code in (401, 403)):
+                    code = 401 if 'Reader initial document unavailable: http_401.' in warnings else 403
+                    message = (f'The survey entry page returned HTTP {code}. The reader has a fresh session, '
+                               'not your browser sign-in. A vendor or network access rule may also be involved. '
+                               'Use an owner-provided researcher preview or export; do not share browser credentials.')
+                else:
+                    message = ('The reader returned empty or untitled content before any reviewable questions '
+                               'were available. This does not establish whether sign-in, a blocked startup request '
+                               'or unsupported rendering caused it. No completed review was created.')
+                logger.warning('Reader empty result reference=%s stop=%s pages=%d blocked=%d',
+                               job_id[:8], captured.coverage.stop_reason,
+                               len(captured.snapshot.pages), captured.coverage.blocked_requests)
+                update(job_id, "failed", body.survey_id, error=message)
                 return
             if not captured.snapshot.all_questions() and any(
                 "participant sign-in" in warning for warning in captured.coverage.warnings

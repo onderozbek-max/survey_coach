@@ -156,8 +156,7 @@ class GuardedTransport:
                         # Diagnostic identity only: Chromium adds '/' to host-only URLs.
                         # Keep every other URL component exact; policy/origin checks above
                         # still decide which requests may reach the transport.
-                        initial_document = (parts._replace(path=parts.path or "/")
-                                            == self.parts._replace(path=self.parts.path or "/"))
+                        initial_document = self._initial_document(parts)
                         if initial_document and request.method == "GET":
                             kind = "timeout" if isinstance(error, TimeoutError) else "connection"
                             warning = f"Reader initial connection failed: {kind}."
@@ -185,6 +184,21 @@ class GuardedTransport:
             # Network/browser errors may contain the original token-bearing URL.
             self.block(route)
 
+    def _initial_document(self, parts):
+        return (parts._replace(path=parts.path or "/")
+                == self.parts._replace(path=self.parts.path or "/"))
+
+    def _record_initial_http_failure(self, parts, method, status):
+        if method != 'GET' or not self._initial_document(parts):
+            return
+        code = 'redirect_blocked' if 300 <= status < 400 else f'http_{status}'
+        if not (300 <= status < 400 or status >= 400):
+            return
+        warning = f'Reader initial document unavailable: {code}.'
+        with self.lock:
+            if warning not in self.coverage.warnings:
+                self.coverage.warnings.append(warning)
+
     def _exchange(self, request, parts, write):
         """One HTTP round trip. Returns (None, [], b"") for redirects or oversized bodies."""
         port = parts.port or (80 if self.local else 443)
@@ -210,6 +224,7 @@ class GuardedTransport:
             connection.request(request.method, (parts.path or "/") + ("?" + parts.query if parts.query else ""),
                                body=request.post_data if write else None, headers=headers)
             response = connection.getresponse()
+            self._record_initial_http_failure(parts, request.method, response.status)
             # All redirects are unsupported, even same-origin. Never follow one.
             if 300 <= response.status < 400:
                 return None, [], b""
