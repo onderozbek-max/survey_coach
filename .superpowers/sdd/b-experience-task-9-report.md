@@ -39,3 +39,25 @@ Commands ran in `/Users/o0o02dn/Documents/adminAI/survey-coach`; browser fixture
 
 ## Boundaries / limitations
 No delegation, worktree, push, live test, external request, protected original or image edits. Existing untracked `review/` and `uglyhome.png` untouched. Home layout/content not redesigned; its existing dialog wiring is reused. No claim of manual visual/screenshot audit, screen-reader audit or exhaustive WCAG certification: automated Chromium desktop/mobile, keyboard and DOM checks passed. Unknown historical evidence is disclosed rather than reconstructed into passing credit.
+
+## B9 review fix — absent AI blocker coverage
+
+Base: `c2ae77a`. Read `b9-review.md` and the Task 9 brief/report before changes.
+
+- [x] RED: real code-only and wording-batch-failure reviews, direct/read-time projection and About.
+- [x] GREEN: include every absent active rubric check in coverage and unchecked titles.
+- [x] Preserve absent results (no fabricated assessed passes), explicit N/A exclusions, scorecards and stored history.
+- [x] Focused rounds/projection/chapter/export/AI/scoring/trust regression run; local fix commit only.
+
+`scope()` now derives its pending-check set and titles together from existing `Criterion.active` definitions plus rubric blockers (all blockers are active). Missing B1/B6 no longer depend on the scored-only `review.unchecked` list. Counts remain evidence coverage, not passing credit; assessed failures still count as checked and explicit non-applicable results remain excluded. Tests independently expect 48 applicable checks (43 active criteria + 7 blockers − 2 explicit N/A) with 22 checked when AI is disabled and 34 when only wording fails. Both missing safety titles must appear in About. Offline contract assertions no longer reproduce the implementation's missing-check formula.
+
+Exact commands/results from the project checkout:
+
+1. RED: `.venv/bin/python -m pytest tests/test_enrich_contract.py tests/test_chapters_ui.py -k 'absent_ai_blockers' -q --tb=short` — **6 failed, 28 deselected, 1 warning in 4.72s**. All six failed for expected missing coverage: actual 46 versus required 48, including About's rendered counts.
+2. GREEN, same command — **6 passed, 28 deselected, 1 warning in 1.76s**; B1/B6 titles, absent results, independent checked totals and unchanged scorecards asserted.
+3. `.venv/bin/python -m surveycoach.demo_export` — **wrote site/data.js**, cache-only; generated output unchanged, no data.js diff.
+4. `.venv/bin/python -m pytest tests/test_enrich_contract.py tests/test_committee_rounds.py tests/test_review_projection.py tests/test_chapters_ui.py tests/test_demo_export.py -q --tb=short` — **72 passed, 1 warning in 10.66s**.
+5. Final expanded regression: `.venv/bin/python -m pytest tests/test_enrich_contract.py tests/test_committee_rounds.py tests/test_review_projection.py tests/test_chapters_ui.py tests/test_demo_export.py tests/test_ai_review.py tests/test_scoring.py tests/test_committee_trust_engine.py -q --tb=short` — **141 passed, 1 warning in 10.88s**. Warning is the existing Starlette/httpx TestClient deprecation.
+6. `git diff --check` — clean after removing one test EOF blank line. Changed files remain below 600 lines (largest: `rounds.py`, 350 lines).
+
+No full-suite rerun claimed for this fix. No delegation, push, live test, external request or protected-original/image edits. Browser tests use localhost and intercepted synthetic routes; AI failure uses an in-memory FakeProvider. Existing untracked `review/` and `uglyhome.png` untouched.

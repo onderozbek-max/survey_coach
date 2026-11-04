@@ -1,5 +1,8 @@
 """One read-time contract for workspace, offline demo and worked example."""
 from copy import deepcopy
+from pathlib import Path
+
+import pytest
 
 from fastapi.testclient import TestClient
 
@@ -153,6 +156,10 @@ def test_scope_counts_assessed_checks_not_points_or_findings_without_mutation():
                                    'B1': {'applies': True, 'assessed': True, 'fraction': None},
                                    '4.2': {'applies': True, 'assessed': False, 'fraction': None},
                                    '4.3': {'applies': False, 'assessed': True, 'fraction': 1}}}}
+    # All other rubric checks are explicitly non-applicable in this tiny case.
+    rubric = load_rubric()
+    for check in [*(c for c in rubric.criteria if c.active), *rubric.blockers]:
+        data['review']['results'].setdefault(check.id, {'applies': False})
     before = deepcopy(data)
     actual = scope(data)
     assert actual['checked_count'] == 2  # Failed assessed checks still count as checked.
@@ -172,11 +179,54 @@ def test_scope_available_for_offline_demo_and_enriched_payloads():
                    (r['fraction'] is not None or r['criterion_id'].startswith('B'))]
         assert scope['checked_count'] == len(checked)
         rubric = load_rubric()
-        missing = [c for c in rubric.criteria if c.active and c.id not in results
-                   and c.title in detail['review']['unchecked']]
-        assert scope['total_count'] == len(applicable) + len(missing)
+        active_count = sum(c.active for c in rubric.criteria) + len(rubric.blockers)
+        assert scope['total_count'] == active_count - sum(not r['applies'] for r in results.values())
         assert set(detail['review']['unchecked']) <= set(scope['unchecked_checks'])
         for blocker in rubric.blockers:
             result = results.get(blocker.id)
-            if result and result['applies'] and not result['assessed']:
+            if result is None or (result['applies'] and not result['assessed']):
                 assert blocker.title in scope['unchecked_checks']
+
+
+def missing_wording_detail(mode):
+    """Real review pipeline; the only provider is an in-memory synthetic stub."""
+    from surveycoach.llm import FakeProvider, LlmError
+    from surveycoach.snapshot import SurveySnapshot
+    from tests.test_ai_review import batch_of, verdicts
+
+    def answer(system, data):
+        batch = batch_of(system)
+        if batch.id == 'wording':
+            raise LlmError('Synthetic wording batch failure')
+        return verdicts(batch)
+
+    snapshot = SurveySnapshot.model_validate_json(
+        (Path(__file__).parent.parent / 'fixtures/boxer-briefs.json').read_text())
+    provider = FakeProvider({'BatchOutput': answer}) if mode == 'wording_failure' else None
+    review = run_review(snapshot, provider=provider)
+    return {'snapshot': snapshot.model_dump(mode='json'), 'review': review.model_dump(mode='json')}
+
+
+@pytest.mark.parametrize('mode,checked', [('disabled', 22), ('wording_failure', 34)])
+@pytest.mark.parametrize('projected', [False, True])
+def test_scope_keeps_absent_ai_blockers_without_inventing_assessments(mode, checked, projected):
+    from surveycoach.server.rounds import project_review, scope
+
+    detail = missing_wording_detail(mode)
+    before = deepcopy(detail)
+    if projected:
+        detail = dict(detail, review=project_review(detail['snapshot'], detail['review']))
+    actual = scope(detail)
+    # Rubric v2 has 43 active criteria + 7 blockers; this fixture has 2 explicit N/A.
+    assert actual['total_count'] == 48
+    assert actual['checked_count'] == checked
+    for cid, title in [('B1', 'Leading question on the main research topic'),
+                       ('B6', 'Asks for personal details it does not need')]:
+        assert cid not in detail['review']['results']  # Missing, not fabricated passes.
+        assert title in actual['unchecked_checks']
+        assert cid not in detail['review'].get('checked_criteria', [])
+    assert detail['review']['scorecard'] == before['review']['scorecard']
+    assert scope(before) == actual
+    if mode == 'wording_failure':
+        assert detail['review']['ai']['checked'] == ['story', 'flow']
+        assert set(detail['review']['ai']['failed']) == {'wording'}

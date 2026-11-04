@@ -216,6 +216,28 @@ def test_about_missing_scope_is_unknown_not_all_checked(browser, base_url):
     context.close()
 
 
+@pytest.mark.parametrize('mode,checked', [('disabled', 22), ('wording_failure', 34)])
+def test_about_discloses_absent_ai_blockers(browser, base_url, mode, checked):
+    from tests.test_enrich_contract import missing_wording_detail
+    from surveycoach.server.rounds import scope
+
+    evidence = missing_wording_detail(mode)
+
+    def prepare(detail):
+        detail['presentation']['scope'] = scope(evidence)
+        detail['review']['ai'] = evidence['review']['ai']
+
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    page.locator('#about-review').click()
+    dialog = page.get_by_role('dialog', name='About this review')
+    assert f'{checked} of 48 checks' in dialog.inner_text()
+    for title in ('Leading question on the main research topic',
+                  'Asks for personal details it does not need'):
+        assert title in dialog.inner_text()
+    assert not writes and not errors
+    context.close()
+
+
 def test_review_caveats_centralized_but_submission_notice_stays_visible(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
     assert page.locator('.reconstruction-note, #strip, .checked-summary, #share-details').count() == 0

@@ -112,12 +112,14 @@ def scope(detail):
                and (result.get("fraction") is not None or cid.startswith("B"))}
     from surveycoach.rubric import load_rubric
     rubric = load_rubric()
-    # Some unassessed criteria have no result entry; retain them in the denominator.
-    missing = {c.id for c in rubric.criteria if c.active and c.id not in (results or {})
-               and c.title in review.get("unchecked", [])}
-    titles = {c.id: c.title for c in [*rubric.criteria, *rubric.blockers]}
+    # Missing active checks are unknown evidence, including AI-only blockers.
+    # An explicit non-applicable result is not missing and stays out of coverage.
+    active = [*(c for c in rubric.criteria if c.active), *rubric.blockers]
+    missing = {c.id for c in active if c.id not in (results or {})}
+    titles = {c.id: c.title for c in active}
     unchecked = list(dict.fromkeys([*review.get("unchecked", []),
-                                   *(titles.get(cid, cid) for cid in sorted(applicable.keys() - checked))]))
+                                   *(titles.get(cid, cid) for cid in sorted(
+                                       (applicable.keys() - checked) | missing))]))
     # Counts describe assessed evidence, never points, findings or passing credit.
     # Older payloads without criterion results cannot establish a denominator.
     return {"checked_count": len(checked) if results is not None else None,
