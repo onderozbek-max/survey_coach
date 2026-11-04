@@ -6,7 +6,7 @@ from tests.test_site_e2e import base_url, browser
 SITE = Path(__file__).parent.parent / 'site'
 
 
-def open_review(browser, base_url, width=1280):
+def open_review(browser, base_url, width=1280, chapter='improve'):
     context = browser.new_context(viewport={'width': width, 'height': 900},
                                   permissions=['clipboard-read', 'clipboard-write'])
     page = context.new_page()
@@ -39,9 +39,13 @@ def open_review(browser, base_url, width=1280):
         else:
             route.fulfill(json=detail)
     page.route('**/api/**', api)
-    page.goto(base_url + 'review.html?id=synthetic')
+    page.goto(base_url + f'review.html?id=synthetic#{chapter}')
     page.locator('.phone-screen').wait_for()
     return context, page, detail, writes, errors
+
+
+def open_overview(browser, base_url, width=1280):
+    return open_review(browser, base_url, width=width, chapter='overview')
 
 
 def focus(page, finding):
