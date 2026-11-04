@@ -89,7 +89,7 @@
         }));
         const progress = h('p', {id:'queue-progress', class:'meta', 'aria-live':'polite'},
           `${detail.plan[tab].filter(decided).length} of ${detail.plan[tab].length} handled`);
-        return [nav, progress, SC.renderEnergy(detail, pageId => window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:pageId})), {compact:true,selected:screenId}),
+        return [h('div', {class:'queue-navigation'}, nav, progress), SC.renderEnergy(detail, pageId => window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:pageId})), {compact:true,selected:screenId}),
           h('div', {class:'queue-tools'}, h('button', {type:'button',id:'all-screens',onclick:() => SC.openScreens(detail)}, 'All screens'),
             h('div', {class:'seg',role:'group','aria-label':'Preview wording'}, [['current','Original'],['fixes','With changes']].map(([value,label]) =>
               h('button', {type:'button','aria-pressed':String(mode === value),'data-fk':`queue-mode-${value}`,onclick:() => changeMode(value)},label))))];

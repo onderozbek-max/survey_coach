@@ -108,13 +108,13 @@ def test_the_header_scores_only_what_was_checked_and_says_what_the_ai_did(browse
     page, _ = open_page(browser, base_url)
     header = page.locator("#topbar").inner_text()
     review = page.evaluate('SURVEYCOACH_DEMO.surveys[0].review')
-    card = review['scorecard']
-    assert f"of {card['checked_points']} points checked" in header
+    quality = page.evaluate('SURVEYCOACH_DEMO.surveys[0].quality')
+    assert f"{quality['score']:.0f}/100" in header
+    assert f"{quality['coverage_percent']:.0f}% coverage" in header
+    assert 'Provisional' in header and quality['unchecked_points'] > 0
     assert 'AI checked 3 of 3 parts' in header and re.search(r'Needs work\. Fix \d+ things first\.', header)
-    assert f"{card['unchecked_points']} points still unchecked" in header
-    assert all(name in header for name in review['unchecked'])         # the unchecked checks are named, not just counted
+    assert all(name in header for name in review['unchecked'])
     assert "AI check pending" not in header and "wait on the AI step" not in header
-    assert "83" not in header and "84" not in header and "63%" not in header   # no 0-100 figure, no bare percentage
 
 
 @pytest.mark.parametrize("sample", [0, 1])
@@ -320,11 +320,12 @@ def test_the_clean_sample_has_no_issues_but_does_not_hide_unchecked_points(brows
     page.locator('[data-fk="survey-picker"]').select_option(index=1)
     header = page.locator("#topbar").inner_text()
     review = page.evaluate('SURVEYCOACH_DEMO.surveys[1].review')
-    card = review['scorecard']
+    quality = page.evaluate('SURVEYCOACH_DEMO.surveys[1].quality')
     assert page.locator('.card').count() == 0 and 'Nothing to fix.' in header
     assert 'Ready to launch' not in header
-    assert f"of {card['checked_points']} points checked" in header
-    assert f"{card['unchecked_points']} points still unchecked" in header
+    assert f"{quality['score']:.0f}/100" in header
+    assert f"{quality['coverage_percent']:.0f}% coverage" in header
+    assert 'Provisional' in header and quality['unchecked_points'] > 0
     assert all(name in header for name in review['unchecked'])
     assert 'AI checked 3 of 3 parts' in header    # never an unqualified full ring
     page.locator('#all-screens').click()
@@ -343,11 +344,15 @@ def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base
     assert screen["y"] <= pin["y"] and pin["y"] + pin["height"] <= screen["y"] + screen["height"]   # pin 1 is in view
 
 
-def test_the_ring_never_draws_unchecked_points_as_earned(browser, base_url):
+def test_quality_never_presents_unchecked_coverage_as_complete(browser, base_url):
     page, _ = open_page(browser, base_url)
-    ring = page.locator(".ring")
-    earned, checked = (float(ring.evaluate(f"el => getComputedStyle(el).getPropertyValue('--{v}')").strip().replace("deg", "")) for v in "ek")
-    assert earned < checked < 360                       # earned < checked < everything: a grey 'waiting' arc always remains
+    quality = page.evaluate('SC.workspaceDetail.quality')
+    assert quality['assessed_points'] < quality['applicable_points']
+    assert quality['score'] == pytest.approx(quality['earned_points'] / quality['assessed_points'] * 100)
+    assert quality['coverage_percent'] < 100 and quality['provisional']
+    label = page.locator('#topbar .quality-compact').inner_text()
+    assert 'Provisional' in label and f"{quality['coverage_percent']:.0f}% coverage" in label
+    assert page.locator('.ring').count() == 0
 
 
 def test_ai_advice_is_labeled_for_review_and_rule_made_rewrites_are_not(browser, base_url):
