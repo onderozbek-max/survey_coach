@@ -17,6 +17,18 @@ QuestionKind = Literal[
 ]
 
 
+_NAV_TAIL = re.compile(r"(?:^|\n)[ \t]*(?:next|continue|back|start|begin|submit|finish|done)[ \t]*$", re.I)
+
+
+def clean_copy(text: str) -> str:
+    """Screen copy as a member reads it: no trailing navigation label, no runs of blank lines."""
+    text = (text or "").replace("\xa0", " ").rstrip()
+    while (trimmed := _NAV_TAIL.sub("", text).rstrip()) != text:
+        text = trimmed
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
 class Media(BaseModel):
     kind: Literal["image", "video", "embed"] = "image"
     element_id: str = ""
@@ -113,8 +125,10 @@ class SurveySnapshot(BaseModel):
 
     @staticmethod
     def page_copy(page: Page) -> str:
-        return " ".join(dict.fromkeys(t for t in [page.intro_text, page.text,
-                           *[q.text for q in page.questions if q.kind == "info"]] if t))
+        parts = [clean_copy(t) for t in (
+            page.intro_text, page.text, *[q.text for q in page.questions if q.kind == "info"]
+        )]
+        return " ".join(dict.fromkeys(p for p in parts if p))
 
     def all_questions(self) -> list[Question]:
         return [q for page in self.pages for q in page.questions]
