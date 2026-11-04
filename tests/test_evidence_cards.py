@@ -18,6 +18,7 @@ def test_summary_leads_with_highest_priority_finding_and_exact_question_label(si
                 finding('later', cid, headline='Another urgent issue', page_id='p2')]
     card = signal(overview({cid: result(.5)}, findings, snapshot=snapshot), sid)
     assert card['summary'] == 'Q8a · Screen 1: The actual urgent issue'
+    assert card['lead'] == {'headline': 'The actual urgent issue', 'location': 'Q8a · Screen 1'}
     assert card['findings'] == ['minor', 'urgent', 'later']
     assert card['pages'] == ['p1', 'p2']
     assert card['summary'] not in card['details']
@@ -80,3 +81,44 @@ def test_absorbed_and_handled_findings_do_not_become_a_verified_pass():
     card = signal(overview({'4.2': result()}, [finding()], {'issue': {'action': 'pick'}}), 'honest')
     assert 'An answer is missing' in card['summary']
     assert any('not verified fixes' in text for text in card['details'])
+
+
+def cross_dimension_detail():
+    from surveycoach.rubric import load_rubric
+    from surveycoach.server.present import enrich
+    snapshot = survey(page(1, question()))
+    return enrich({'snapshot': snapshot.model_dump(mode='json'), 'review': {
+        'results': {}, 'findings': [
+            finding('primary', 'B2', page_id='p1', headline='Add a valid answer'),
+            finding('child', '8.4', 'worth_improving', page_id='p1',
+                    headline='Some members cannot answer this relevantly')]}}, load_rubric())
+
+
+def test_cross_dimension_absorbed_evidence_resolves_primary_navigation():
+    card = signal(cross_dimension_detail()['overview'], 'energy')
+    assert card['findings'] == [] and card['pages'] == []  # marker contract unchanged
+    assert card['navigation'] == {'fingerprints': ['primary'], 'pages': ['p1']}
+
+
+@pytest.mark.parametrize('parent', ['missing', 'issue'])
+def test_unresolvable_or_cyclic_absorption_does_not_promise_navigation(parent):
+    card = signal(overview(findings=[finding(absorbed_by=parent)]), 'honest')
+    assert card['navigation'] is None
+    assert not any('navigation opens' in text for text in card['details'])
+
+
+def test_real_null_fraction_blockers_are_complete_but_missing_unassessed_are_not():
+    from surveycoach.review import run_review
+    review = run_review(survey(page(1, question()))).model_dump(mode='json')
+    assert review['results']['B4'] == dict(criterion_id='B4', fraction=None,
+        applies=True, assessed=True, findings=review['results']['B4']['findings'])
+    out = overview(review['results'])
+    assert not any('No complete blocker assessment:' in text
+                   for text in signal(out, 'tone')['details'])
+    assert any('Broken time promise' in text for text in signal(out, 'time')['details'])
+    assert any('Leading question on the main research topic' in text
+               for text in signal(out, 'honest')['details'])
+    review['results']['B4']['applies'] = False
+    card = signal(overview(review['results']), 'tone')
+    assert any('Blocker not applicable: No intro page' in text for text in card['details'])
+    assert not any('No complete blocker assessment:' in text for text in card['details'])

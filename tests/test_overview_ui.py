@@ -22,7 +22,7 @@ def test_supplied_overview_signals_strengths_and_energy(browser, base_url):
         assert tile.locator('.signal-state').inner_text() == signal['label']
         assert tile.locator('.signal-state svg').count() == 1
         assert tile.get_attribute('role') != 'button'
-        assert tile.locator('button.signal-link').count() == 1
+        assert tile.locator('button.signal-link').count() == int(bool(signal.get('navigation')))
     assert page.locator('#strengths li').all_text_contents() == supplied['strengths'][:3]
     bars = page.locator('#energy-map button.energy-bar')
     assert bars.count() == len(detail['screens'])
@@ -178,11 +178,14 @@ def test_dialog_keyboard_trap_close_and_reopen_has_no_duplicate_clock(browser, b
 
 @pytest.mark.parametrize('width', [390, 1280])
 def test_long_signal_summary_has_keyboard_details(browser, base_url, width):
-    summary = 'Supplied evidence, not rewritten. ' * 40 + 'Final evidence remains available.'
+    headline = 'The leading finding remains readable. ' * 40 + 'Final headline words.'
+    location = 'Q8a · Screen 18'
+    summary = f'{location}: {headline}'
     support = 'Captured evidence: Exact saved words, with no invented conclusion.'
 
     def prepare(detail):
         detail['overview']['signals'][0]['summary'] = summary
+        detail['overview']['signals'][0]['lead'] = {'headline': headline, 'location': location}
         detail['overview']['signals'][0]['details'] = [support, 'Not assessed: Branch-specific pacing']
     context, page, detail, writes, errors = overview(browser, base_url, width=width, prepare=prepare)
     tile = page.locator('#signals > li').first
@@ -197,7 +200,10 @@ def test_long_signal_summary_has_keyboard_details(browser, base_url, width):
     page.keyboard.press('Enter')
     full = expansion.locator('p').first
     assert full.is_visible() and full.inner_text() == support
-    assert summary not in expansion.inner_text()
+    lead = expansion.locator('.signal-lead')
+    assert lead.is_visible() and lead.inner_text() == headline
+    assert lead.evaluate('el => el.clientHeight >= el.scrollHeight')
+    assert location in expansion.inner_text()
     assert 'Not assessed: Branch-specific pacing' in expansion.inner_text()
     assert full.evaluate('el => el.clientHeight >= el.scrollHeight')
     assert not preview.is_visible()
@@ -214,6 +220,8 @@ def test_evidence_details_escape_saved_text_and_do_not_guess_legacy_evidence(bro
     def prepare(detail):
         detail['overview']['signals'][1]['details'] = [quote, 'Not assessed: One idea per question']
         detail['overview']['signals'][2].pop('details', None)
+        detail['overview']['signals'][2].pop('lead', None)
+        detail['overview']['signals'][2]['navigation'] = None
     context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
     clarity = page.locator('[data-signal=clarity]')
     clarity.locator('summary').click()
@@ -223,6 +231,29 @@ def test_evidence_details_escape_saved_text_and_do_not_guess_legacy_evidence(bro
     honest = page.locator('[data-signal=honest]')
     honest.locator('summary').click()
     assert honest.locator('.signal-details p').inner_text() == 'No supporting check details were saved.'
+    assert honest.locator('.signal-lead').inner_text() == detail['overview']['signals'][2]['summary']
+    assert honest.locator('.signal-lead').is_visible()
+    assert honest.locator('.signal-link').count() == 0
+    assert not writes and not errors
+    context.close()
+
+
+def test_absorbed_energy_link_opens_actual_primary_issue(browser, base_url):
+    from tests.test_evidence_cards import cross_dimension_detail
+
+    def prepare(detail):
+        from surveycoach.server.present import enrich
+        from surveycoach.rubric import load_rubric
+        supplied = cross_dimension_detail()
+        detail['snapshot'] = supplied['snapshot']
+        detail['review']['findings'] = supplied['review']['findings']
+        detail.update(enrich(detail, load_rubric()))
+    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
+    page.locator('[data-signal=energy] .signal-link').click()
+    assert page.url.endswith('#improve')
+    assert page.locator('#coach [data-fingerprint=primary]').is_visible()
+    assert 'Add a valid answer' in page.locator('#coach').inner_text()
+    assert 'Nothing more in this view' not in page.locator('#coach').inner_text()
     assert not writes and not errors
     context.close()
 

@@ -91,10 +91,15 @@
         h('span', {class:'signal-state', 'data-tone':tones[signal.state]}, icon(symbols[signal.state]), signal.label),
         h('p', {class:'signal-summary'}, signal.summary),
         h('details', {class:'signal-details'}, h('summary', null, 'Details'),
+          signal.lead ? h('div', null, h('span', {class:'meta'}, signal.lead.location),
+            h('div', {class:'signal-lead'}, signal.lead.headline))
+            : h('div', {class:'signal-lead'}, signal.summary),
           (signal.details?.length ? signal.details : ['No supporting check details were saved.'])
             .map(text => h('p', null, text))),
-        h('button', {type:'button', class:'signal-link btn-text', onclick:() => route({signal:signal.id,
-          page_id:signal.pages[0], fingerprints:signal.findings})}, `See ${SC.plural(signal.pages.length, 'screen')}`)))),
+        signal.navigation?.fingerprints.length > 0 && h('button', {type:'button', class:'signal-link btn-text',
+          onclick:() => route({signal:signal.id, page_id:signal.navigation.pages[0],
+            fingerprints:signal.navigation.fingerprints})}, signal.navigation.pages.length
+            ? `See ${SC.plural(signal.navigation.pages.length, 'screen')}` : 'See related issues')))),
       h('h3', null, 'Energy map', SC.energyInfoButton(detail)), h('div', {id:'energy-map'}, SC.renderEnergy(detail, page_id => route({page_id}))),
       h('div', {class:'overview-bottom'}, overview.strengths.length > 0 && h('section', null,
         h('h3', null, 'What members will like'), h('ul', {id:'strengths'}, overview.strengths.slice(0,3).map(text => h('li', null, icon('check'), text)))),

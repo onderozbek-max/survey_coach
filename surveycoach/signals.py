@@ -158,7 +158,7 @@ def _evidence(sid: str, ids: set, results: dict, findings: list,
         if any(not _open(f, decisions) for f in ordered):
             details.append("Chosen changes and kept risks are not verified fixes.")
         if any(f.get("absorbed_by") for f in ordered):
-            details.append("Grouped findings remain evidence; navigation opens the primary issue.")
+            details.append("Grouped findings remain supporting evidence.")
     if checked:
         details.append("Assessed checks: " + "; ".join(
             f"{c.title} ({results[c.id]['fraction']:.0%} credit)" for c in checked))
@@ -166,11 +166,45 @@ def _evidence(sid: str, ids: set, results: dict, findings: list,
         details.append("Not assessed: " + "; ".join(c.title for c in missing))
     if not_applicable:
         details.append("Not applicable: " + "; ".join(c.title for c in not_applicable))
-    unchecked_blockers = [b.title for b in rubric.blockers if b.id in ids
-                          and not _assessed(results.get(b.id) or {})]
+    blockers = [b for b in rubric.blockers if b.id in ids]
+    unchecked_blockers = [b.title for b in blockers
+                          if (results.get(b.id) or {}).get("assessed") is not True
+                          or not isinstance((results.get(b.id) or {}).get("applies"), bool)]
+    excluded_blockers = [b.title for b in blockers
+                         if (results.get(b.id) or {}).get("assessed") is True
+                         and (results.get(b.id) or {}).get("applies") is False]
+    if excluded_blockers:
+        details.append("Blocker not applicable: " + "; ".join(excluded_blockers))
     if unchecked_blockers:
         details.append("No complete blocker assessment: " + "; ".join(unchecked_blockers))
-    return {"summary": summary, "coverage": coverage, "details": details}
+    return {"summary": summary, "coverage": coverage, "details": details,
+            "lead": {"headline": lead["headline"], "location": finding_label(lead, screens)}
+            if lead else None}
+
+
+def _navigation(related: list, all_findings: list, screens: list, plan: dict) -> dict | None:
+    """Resolve grouped evidence to existing queue issues, never an empty filter."""
+    by_fp = {f["fingerprint"]: f for f in all_findings}
+    queued = {fp for group in ("must_fix", "quick_wins", "more")
+              for item in plan.get(group, []) for fp in item["fingerprints"]}
+    targets = []
+    for finding in related:
+        seen = set()
+        while finding and finding.get("absorbed_by"):
+            fp = finding["fingerprint"]
+            if fp in seen:
+                finding = None
+                break
+            seen.add(fp)
+            finding = by_fp.get(finding["absorbed_by"])
+        if finding and finding["fingerprint"] in queued and finding not in targets:
+            targets.append(finding)
+    if not targets:
+        return None
+    question_pages = {q["id"]: s["page_id"] for s in screens for q in s.get("questions", [])}
+    affected = {_page_id(f, question_pages, {s["page_id"] for s in screens}) for f in targets}
+    return {"fingerprints": [f["fingerprint"] for f in targets],
+            "pages": [s["page_id"] for s in screens if s["page_id"] in affected]}
 
 
 def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
@@ -201,9 +235,10 @@ def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
                 minutes = timing.total_seconds / 60
                 length_state = "strong" if minutes <= low else "mixed" if minutes <= high else "needs_work"
                 state = max((state, length_state), key=_STATE_ORDER.get)
-        evidence = _evidence(sid, assessed_ids, results,
-                             [f for f in all_findings if f["criterion_id"] in assessed_ids],
+        evidence_findings = [f for f in all_findings if f["criterion_id"] in assessed_ids]
+        evidence = _evidence(sid, assessed_ids, results, evidence_findings,
                              screens, rubric, decisions)
+        navigation = _navigation(evidence_findings, all_findings, screens, plan)
         if sid != "time":
             summary = evidence["summary"]
         else:
@@ -212,7 +247,8 @@ def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
         affected = {_page_id(f, question_pages, page_ids) for f in related}
         signals.append({"id": sid, "name": name, "state": state, "label": STATE_LABELS[state],
                         "summary": summary, "coverage": evidence["coverage"],
-                        "details": evidence["details"],
+                        "details": evidence["details"], "lead": evidence["lead"],
+                        "navigation": navigation,
                         "findings": list(dict.fromkeys(f["fingerprint"] for f in related)),
                         "pages": [s["page_id"] for s in screens if s["page_id"] in affected]})
     counts = plan.get("counts", {})
