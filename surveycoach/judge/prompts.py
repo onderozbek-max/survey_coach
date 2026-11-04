@@ -10,7 +10,7 @@ from surveycoach.snapshot import Question, SurveySnapshot
 
 SENTINEL_OPEN = "<<<SURVEY_DATA"
 SENTINEL_CLOSE = "SURVEY_DATA>>>"
-PROMPT_VERSION = "7"          # bump when the wording of the prompts changes: it is part of the cache key
+PROMPT_VERSION = "8"          # bump when the wording of the prompts changes: it is part of the cache key
 
 
 def clean_line(text: str) -> str:
@@ -67,6 +67,8 @@ def system_prompt(batch: Batch, rubric: Rubric) -> str:
     if batch.blockers:
         parts.append("Also decide these launch blockers:\n" + "\n".join(f"- {bid} {blockers[bid].title}" for bid in batch.blockers))
     rules = [
+        "If the survey type is community_pulse, emoji, exclamation marks and playful wording are part of "
+        "the community voice; flag them only when they hide meaning.",
         "For every criterion above, return one verdict with a fraction from 0 to 1 (1 means fully met). "
         "If nothing is wrong, return fraction 1.0 and no finding.",
         "Report each problem as a finding: criterion_id; page_id and question_id copied from the data (leave question_id "

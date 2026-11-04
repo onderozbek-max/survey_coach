@@ -22,6 +22,7 @@ HEAVY_PUNCTUATION = re.compile(r"!{2,}|\?{2,}|[!?]{2,}|(?:\.{3,}|\u2026).+(?:\.{
 ALL_CAPS_WORD = re.compile(r"\b[A-Z]{4,}\b")
 KNOWN_ACRONYMS = {"IHUT", "USDA", "NASA"}
 CAPS_RUN = re.compile(r"\b[A-Z]{2,}(?:\s+[A-Z]{2,})+\b")
+EMOJI_ONLY = re.compile(r"^[^\w]*$")
 
 
 def _questions(ctx: ReviewContext) -> list[Question]:
@@ -71,7 +72,8 @@ def clear_instructions(ctx: ReviewContext) -> CheckResult:
 def emoji_rule(ctx: ReviewContext) -> CheckResult:
     """Only the emoji rule of 9.1. Tone is the AI judge's call, so the criterion stays unchecked (fraction None)."""
     findings: list[Finding] = []
-    if emoji_count(ctx.snapshot.intro_text) > 1:
+    playful = ctx.snapshot.survey_type == "community_pulse"
+    if not playful and emoji_count(ctx.snapshot.intro_text) > 1:
         findings.append(finding("9.1", "worth_improving", "More than one emoji in the intro", clip(ctx.snapshot.intro_text),
                                 "Use at most one emoji, in the intro only.", "Heavy emoji use reads as less trustworthy.",
                                 current_text=ctx.snapshot.intro_text,
@@ -79,11 +81,19 @@ def emoji_rule(ctx: ReviewContext) -> CheckResult:
     for q in _questions(ctx):
         in_question = emoji_count(q.text) + emoji_count(q.help_text)
         in_options = [o.label for o in q.options if emoji_count(o.label)]
-        if in_question:
+        if in_question and not playful:
             findings.append(finding("9.1", "worth_improving", "Emoji in a question", clip(q.text),
                                     "Remove emoji from questions.", "Emoji belong in the intro only.",
                                     question_id=q.id, current_text=q.text, suggested_text=limit_emoji(q.text)))
         for label in in_options:
+            if playful:
+                if EMOJI_ONLY.match(label):
+                    findings.append(finding(
+                        "9.1", "worth_improving", "Answer is only an emoji", clip(label),
+                        "Add a word next to the emoji so every member, and screen readers, get the same meaning.",
+                        "Emoji alone can read differently across phones and assistive technology.",
+                        question_id=q.id, current_text=label))
+                continue
             findings.append(finding("9.1", "worth_improving", "Emoji in an answer choice", clip(label),
                                     "Remove emoji from answer choices.",
                                     "Emoji in answers can read differently across phones.", question_id=q.id,
@@ -97,6 +107,7 @@ def _member_word(banned: str) -> str:
 
 def _standards_findings(ctx: ReviewContext) -> list[Finding]:
     found: list[Finding] = []
+    playful = ctx.snapshot.survey_type == "community_pulse"
 
     def add(headline: str, evidence: str, explanation: str, q: Question | None = None,
             suggested: str | None = None, highlight: str | None = None) -> None:
@@ -122,7 +133,8 @@ def _standards_findings(ctx: ReviewContext) -> list[Finding]:
                 "Write the question in sentence case: only the first word and names are capitalized.", q,
                 suggested=sentence_case(q.text))
         shouting = [w for w in ALL_CAPS_WORD.findall(q.text) if w not in KNOWN_ACRONYMS]
-        if shouting or CAPS_RUN.search(q.text):
+        emphasis_only = playful and len(shouting) == 1 and not CAPS_RUN.search(q.text)
+        if (shouting or CAPS_RUN.search(q.text)) and not emphasis_only:
             add("ALL CAPS reads as shouting", q.text, "Write it in normal capitalization; avoid ALL CAPS for emphasis.",
                 q, highlight=shouting[0] if shouting else None)
         if HEAVY_PUNCTUATION.search(q.text):

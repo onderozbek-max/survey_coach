@@ -18,7 +18,7 @@ from surveycoach.snapshot import SurveySnapshot
 
 
 class JudgeCache:
-    """One JSON file per (survey content, rubric, model, batch, prompt version).
+    """One JSON file per (survey content, style, rubric, model, batch, prompt version).
 
     The model is part of the key on purpose: changing it is a recorded decision that re-runs the AI steps.
     """
@@ -30,7 +30,8 @@ class JudgeCache:
     def key(self, snapshot: SurveySnapshot, rubric: Rubric, batch: Batch, known: Sequence[Finding] = ()) -> str:
         """`known` is part of the key because the prompt changes with it (the judge skips what code already found)."""
         known_ids = ",".join(sorted(f.fingerprint for f in known))
-        raw = "|".join([snapshot.content_hash, rubric.version, ASSESSMENT_MODEL, batch.id, PROMPT_VERSION, known_ids])
+        raw = "|".join([snapshot.content_hash, snapshot.survey_type, rubric.version,
+                        ASSESSMENT_MODEL, batch.id, PROMPT_VERSION, known_ids])
         return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
     def get(self, key: str) -> BatchOutput | None:

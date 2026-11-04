@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-SurveyType = Literal["ihut", "non_ihut_product", "services_concept", "market_research"]
+SurveyType = Literal["ihut", "non_ihut_product", "services_concept", "market_research", "community_pulse"]
 PageKind = Literal["intro", "question", "info", "screen_out", "thank_you", "end"]
 QuestionKind = Literal[
     "single_choice", "multi_choice", "dropdown", "text_short", "text_long", "numeric",

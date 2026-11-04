@@ -9,6 +9,7 @@ length_targets_minutes:   # full credit up to the first number, partial up to th
   non_ihut_product: [5, 8]
   services_concept: [6, 10]
   market_research: [6, 10]
+  community_pulse: [5, 8]
 dimensions:
   - {id: D1, name: "First impression", points: 11}
   - {id: D2, name: "Respect for members' time", points: 13}

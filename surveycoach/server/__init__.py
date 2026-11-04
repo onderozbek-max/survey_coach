@@ -12,7 +12,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from surveycoach.server.repository import Repository
 from surveycoach.server.security import LocalRequestGuard
 from surveycoach.server.service import metadata, run_job, summary_packet
-from surveycoach.snapshot import SurveySnapshot
+from surveycoach.snapshot import SurveySnapshot, SurveyType
 
 SITE = Path(__file__).resolve().parents[2] / "site"
 
@@ -48,9 +48,16 @@ class ImportRequest(BaseModel):
         return self
 
 
-class TitleRequest(BaseModel):
+class SurveyUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    title: str = Field(min_length=1, max_length=200)
+    title: str | None = Field(None, min_length=1, max_length=200)
+    survey_type: SurveyType | None = None
+
+    @model_validator(mode="after")
+    def has_update(self):
+        if self.title is None and self.survey_type is None:
+            raise ValueError("Supply a title or survey_type")
+        return self
 
 
 class DecisionRequest(BaseModel):
@@ -149,8 +156,8 @@ def create_app(db_path, provider=None) -> FastAPI:
         return repository.detail(survey_id)
 
     @app.patch("/api/surveys/{survey_id}")
-    def rename(survey_id: str, body: TitleRequest):
-        return repository.rename(survey_id, body.title)
+    def update(survey_id: str, body: SurveyUpdate):
+        return repository.update(survey_id, title=body.title, survey_type=body.survey_type)
 
     @app.get("/api/surveys/{survey_id}/versions/{version}/change-sheet")
     def changes(survey_id: str, version: int):

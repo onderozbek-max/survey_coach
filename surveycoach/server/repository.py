@@ -8,9 +8,12 @@ import sqlite3
 from threading import RLock
 from uuid import uuid4
 
+from pydantic import TypeAdapter
+
 from surveycoach.labels import screen_labels
 from surveycoach.recommendations import guard_recommendation
-from surveycoach.snapshot import SurveySnapshot
+
+from surveycoach.snapshot import SurveySnapshot, SurveyType
 from surveycoach.server.rounds import (canonical_source_url, change_sheet, compare_rounds,
                                        presentation, project_review, valid_decisions)
 
@@ -62,6 +65,8 @@ class Repository:
         columns = {r[1] for r in self.db.execute("PRAGMA table_info(surveys)")}
         if "display_title" not in columns:
             self.db.execute("ALTER TABLE surveys ADD COLUMN display_title TEXT")
+        if "survey_type" not in columns:
+            self.db.execute("ALTER TABLE surveys ADD COLUMN survey_type TEXT")
         # A stopped process cannot finish its in-process jobs. Never leave a spinner forever.
         with self.transaction() as db:
             db.execute("UPDATE jobs SET status='failed', error='Local server stopped before review finished', "
@@ -117,13 +122,30 @@ class Repository:
             return next(iter(matches)) if len(matches) == 1 else None
 
     def rename(self, survey_id: str, title: str) -> dict:
-        title = title.strip()
-        if not title or len(title) > 200 or any(ord(c) < 32 for c in title):
-            raise ValueError("Supply a title of 1 to 200 characters without control characters")
+        """Compatibility for callers using the original title-only API."""
+        return self.update(survey_id, title=title)
+
+    def update(self, survey_id: str, title: str | None = None,
+               survey_type: SurveyType | None = None) -> dict:
+        if title is not None:
+            title = title.strip()
+            if not title or len(title) > 200 or any(ord(c) < 32 for c in title):
+                raise ValueError("Supply a title of 1 to 200 characters without control characters")
+        if survey_type is not None:
+            survey_type = TypeAdapter(SurveyType).validate_python(survey_type)
+        if title is None and survey_type is None:
+            raise ValueError("Supply a title or survey_type")
         with self.transaction() as db:
-            if not db.execute("UPDATE surveys SET display_title=? WHERE id=?", (title, survey_id)).rowcount:
+            if not db.execute("UPDATE surveys SET display_title=COALESCE(?, display_title), "
+                              "survey_type=COALESCE(?, survey_type) WHERE id=?",
+                              (title, survey_type, survey_id)).rowcount:
                 raise KeyError("Survey not found")
-        return {"id": survey_id, "survey_id": survey_id, "title": title}
+        response = {"id": survey_id, "survey_id": survey_id}
+        if title is not None:
+            response["title"] = title
+        if survey_type is not None:
+            response.update(survey_type=survey_type, survey_type_chosen=True)
+        return response
 
     @staticmethod
     def _latest_review(db, survey_id: str, version: int):
@@ -146,20 +168,21 @@ class Repository:
 
     def list_surveys(self) -> list[dict]:
         with self.transaction() as db:
-            rows = db.execute("SELECT v.survey_id AS id,v.title,v.version,v.content_hash,v.created_at "
-                              "FROM versions v WHERE v.version=(SELECT MAX(v2.version) FROM versions v2 "
+            rows = db.execute("SELECT v.survey_id AS id,v.title,v.version,v.content_hash,v.created_at,"
+                              "v.snapshot,s.survey_type,s.display_title FROM versions v "
+                              "JOIN surveys s ON s.id=v.survey_id WHERE v.version=(SELECT MAX(v2.version) FROM versions v2 "
                               "WHERE v2.survey_id=v.survey_id) ORDER BY v.created_at DESC, v.survey_id").fetchall()
             surveys = []
             for row in rows:
                 item = dict(row) | {"readiness": None, "must_fix": None, "score_checked": None}
-                title = db.execute("SELECT display_title FROM surveys WHERE id=?", (row["id"],)).fetchone()[0]
-                if title:
+                snapshot = json.loads(item.pop("snapshot"))
+                item["survey_type"] = row["survey_type"] or snapshot["survey_type"]
+                item["survey_type_chosen"] = bool(row["survey_type"])
+                if title := item.pop("display_title"):
                     item["title"] = title
                 data = self._latest_review(db, row["id"], row["version"])
                 if data:
-                    snapshot = json.loads(db.execute("SELECT snapshot FROM versions WHERE survey_id=? AND version=?",
-                                                     (row["id"], row["version"])).fetchone()[0])
-                    review = project_review(snapshot, data["review"])
+                    review = project_review(dict(snapshot, survey_type=item["survey_type"]), data["review"])
                     self._qualify(review, self._coverage(db, row["id"], row["version"]))
                     card = review["scorecard"]
                     item.update(readiness=card["readiness"],
@@ -193,18 +216,21 @@ class Repository:
                     "job": self._job(job) if job else None}
             if review:
                 data.update(review)
-            display_title = db.execute("SELECT display_title FROM surveys WHERE id=?", (survey_id,)).fetchone()[0]
-            data["title"] = display_title or row["title"]
+            metadata = db.execute("SELECT display_title,survey_type FROM surveys WHERE id=?", (survey_id,)).fetchone()
+            data["title"] = metadata["display_title"] or row["title"]
+            data["survey_type"] = metadata["survey_type"] or data["snapshot"]["survey_type"]
+            data["survey_type_chosen"] = bool(metadata["survey_type"])
             data["snapshot_title"] = row["title"]
             data["coverage"] = self._coverage(db, survey_id, version)
             return data
 
     def _project_detail(self, data):
         """Project one round only. This never loads or walks historical rounds."""
-        data["screens"] = screen_labels(SurveySnapshot.model_validate(data["snapshot"]))
+        effective = dict(data["snapshot"], survey_type=data["survey_type"])
+        data["screens"] = screen_labels(SurveySnapshot.model_validate(effective))
         if data["review"]:
-            data["review"] = project_review(data["snapshot"], data["review"])
-            data["review"]["findings"] = [guard_recommendation(finding, data['snapshot'])
+            data["review"] = project_review(effective, data["review"])
+            data["review"]["findings"] = [guard_recommendation(finding, effective)
                                            for finding in data["review"].get("findings", [])]
         self._qualify(data["review"], data["coverage"])
         data["decisions"] = valid_decisions(data)

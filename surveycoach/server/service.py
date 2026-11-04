@@ -27,7 +27,7 @@ def run_job(repository, job_id: str, provider=None):
     try:
         job = repository.job(job_id)
         detail = repository.detail(job["survey_id"], job["version"])
-        snapshot = SurveySnapshot.model_validate(detail["snapshot"])
+        snapshot = SurveySnapshot.model_validate(dict(detail["snapshot"], survey_type=detail["survey_type"]))
         selected = (provider if provider is not None else WibeyProvider()) if job["ai_requested"] else None
         result = run_review(snapshot, provider=selected)
         review = result.model_dump(mode="json", exclude={"timing"})
