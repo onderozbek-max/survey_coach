@@ -80,6 +80,12 @@ def router(repository, app):
                     raise ReaderNetworkFailure(kind)
             with repository.transaction() as db:
                 db.execute("UPDATE reader_jobs SET stage='checking',pages_captured=? WHERE id=?", (len(captured.snapshot.pages),job_id))
+            if not captured.snapshot.all_questions() and any(
+                "participant sign-in" in warning for warning in captured.coverage.warnings
+            ):
+                update(job_id, "failed", body.survey_id,
+                       error="Connected to RedJade, but this link requires starting a participant session before questions are available. SurveyCoach has not created that session. Use a researcher preview/export, or arrange a test-participant session with the survey owner.")
+                return
             if not captured.snapshot.pages or not captured.snapshot.title.strip():
                 warnings = captured.coverage.warnings
                 if 'Reader initial document unavailable: redirect_blocked.' in warnings:
@@ -99,12 +105,6 @@ def router(repository, app):
                                job_id[:8], captured.coverage.stop_reason,
                                len(captured.snapshot.pages), captured.coverage.blocked_requests)
                 update(job_id, "failed", body.survey_id, error=message)
-                return
-            if not captured.snapshot.all_questions() and any(
-                "participant sign-in" in warning for warning in captured.coverage.warnings
-            ):
-                update(job_id, "failed", body.survey_id,
-                       error="Connected to RedJade, but this link requires starting a participant session before questions are available. SurveyCoach has not created that session. Use a researcher preview/export, or arrange a test-participant session with the survey owner.")
                 return
             if not captured.snapshot.all_questions() and all(
                 page.text.strip().lower().rstrip(". …") in {"", "loading", "please wait"}
