@@ -115,6 +115,44 @@ def test_answer_additions_are_ghosts_not_stem_rewrites_or_verified_fixes(browser
     context.close()
 
 
+@pytest.mark.parametrize('width,large', [(1280, False), (390, True)])
+@pytest.mark.parametrize('kind', ['single_choice', 'multi_choice'])
+def test_option_control_and_copy_share_a_row(browser, base_url, width, large, kind):
+    def prepare(detail):
+        question = detail['snapshot']['pages'][1]['questions'][0]
+        question.update(kind=kind, options=[{'label': 'Ordinary answer'},
+                                           {'label': 'A longer answer that can wrap naturally'}],
+                        options_below_fold=1)
+    context, page, detail, writes, errors = open_review(browser, base_url, width=width, prepare=prepare)
+    open_screen(page, detail['screens'][1]['name'])
+    if large:
+        page.locator('#phone-settings').click()
+        page.get_by_role('button', name='Large text', exact=True).click()
+        page.get_by_label('Device size', exact=True).select_option('320')
+    rows = page.locator('#stage .opts li:not(.fold):not(.suggested-option)')
+    assert rows.count() == 2
+    for row in rows.all():
+        geometry = row.evaluate('''e => {
+          const box = e.getBoundingClientRect(), style = getComputedStyle(e);
+          const control = getComputedStyle(e, '::before');
+          const copy = e.querySelector('.phone-marked-block').getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(e.querySelector('.phone-block-copy > span'));
+          const label = range.getClientRects()[0];
+          const top = box.top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
+          return {copyTop:copy.top, top, controlBottom:top + parseFloat(control.marginTop)
+            + parseFloat(control.height), labelTop:label.top, right:copy.right, rowRight:box.right};
+        }''')
+        assert abs(geometry['copyTop'] - geometry['top']) <= 1, geometry
+        assert geometry['labelTop'] < geometry['controlBottom'], geometry
+        assert geometry['right'] <= geometry['rowRight'], geometry
+    fold = page.locator('#stage .opts li.fold')
+    assert fold.count() == 1
+    assert fold.evaluate("e => getComputedStyle(e, '::before').display") == 'none'
+    assert not writes and not errors
+    context.close()
+
+
 def test_phone_settings_keyboard_large_text_and_device_size(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, width=390)
     settings = page.locator('button#phone-settings')

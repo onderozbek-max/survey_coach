@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from playwright.sync_api import expect
 
 from surveycoach.llm import FakeProvider
 from surveycoach.server import create_app
@@ -124,7 +125,7 @@ def test_local_root_has_an_entry_to_the_private_workspace(browser, studio):
         page.close()
 
 
-def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
+def test_pending_save_locks_decisions_until_committed_and_survives_reload(browser, studio):
     context = browser.new_context()
     page = context.new_page()
     try:
@@ -136,33 +137,46 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
         from tests.test_workspace_decisions import finding_with, focus_finding, keep_mine
         finding = finding_with(page, True)
         focus_finding(page, finding)
-        held, completed = [], []
+        held, requests = [], []
 
-        def reorder(route):
-            if not held:
-                held.append(route)  # Delay first pick while user changes their mind.
+        def delay_first(route):
+            requests.append(route.request.post_data_json)
+            if len(requests) == 1:
+                held.append(route)
             else:
-                response = route.fetch()
-                route.fulfill(response=response)
-                completed.append(True)
+                route.continue_()
 
-        page.route("**/decisions/*", reorder)
+        page.route("**/decisions/*", delay_first)
         page.locator('#coach .use-change').first.click()
-        page.wait_for_timeout(100)
-        assert held
+        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_disabled()
+        assert len(held) == 1
+        picked = requests[0]['picked_text']
+        # A redraw and a chapter round-trip must not recreate enabled controls.
+        for chapter in ('overview', 'improve'):
+            page.locator(f'#chapter-nav [data-chapter={chapter}]').click()
         focus_finding(page, finding)
-        keep_mine(page, 'Required wording')
-        assert completed
+        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_disabled()
+        for control in page.locator('#coach .use-change').all():
+            expect(control).to_be_disabled()
+        assert len(requests) == 1, 'Locked UI must not emit a competing decision'
         response = held[0].fetch()
-        held[0].fulfill(response=response)  # Old pick arrives after the keep decision.
-        page.wait_for_timeout(100)
+        assert response.status == 200
+        held[0].fulfill(response=response)
         focus_finding(page, finding)
-        assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_enabled()
+        page.reload()
+        page.locator('#stage .phone-screen').wait_for()
+        focus_finding(page, finding)
+        saved = page.evaluate('fp => SC.workspaceDetail.decisions[fp]', finding['fingerprint'])
+        assert saved['action'] == 'pick' and saved['picked_text'] == picked
+        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_enabled()
+        keep_mine(page, 'Required wording')
+        assert len(requests) == 2
         page.reload()
         page.locator('#stage .phone-screen').wait_for()
         focus_finding(page, finding)
         assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
-        assert 'accepted risk' in page.locator('.accepted-risk').inner_text(), 'Reload must not restore the stale suggestion'
+        assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
         assert page.locator('#copy-all').is_disabled()
     finally:
         context.close()

@@ -1,4 +1,6 @@
 """Persisted contextual decisions, including reordered requests against the real API."""
+from playwright.sync_api import expect
+
 from tests.test_site_e2e import browser
 from tests.test_workflow_e2e import studio
 
@@ -81,9 +83,22 @@ def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studi
       d.decisions[fp] = await response.json();
       dispatchEvent(new CustomEvent('surveycoach-decisions', {detail:d}));
     }""", finding['fingerprint'])
+    older = pending[0].request.post_data_json
+    assert older['revision'] == 1 and older['action'] == 'pick'
+    assert older['client_id'] == page.evaluate('SC.decisionClient')
     response = pending[0].fetch()
+    assert response.status == 200
+    # The API rejects the late older pick by returning the authoritative keep,
+    # not by accepting stale data and relying on the browser to hide it.
+    authoritative = response.json()
+    assert authoritative['revision'] == 2 and authoritative['action'] == 'keep'
+    assert authoritative['client_id'] == older['client_id']
+    assert authoritative['reason'] == 'Required wording'
     pending[0].fulfill(response=response)
-    page.wait_for_timeout(100)
+    focus_finding(page, finding)
+    expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_enabled()
+    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+    assert page.locator('#coach .use-change').first.is_enabled()
     assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
     page.reload()
     page.locator('#stage .phone-screen').wait_for()

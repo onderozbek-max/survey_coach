@@ -103,6 +103,8 @@ mark.must_fix { border-bottom-color:var(--critical); }
 }
 .opts { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 8px; }
 .opts li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border: 1px solid var(--phone-line); border-radius: 10px; padding: 10px 12px; background: var(--phone-bg); position: relative; }
+.opts li:not(.fold):not(.suggested-option) { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; }
+.opts li:not(.fold):not(.suggested-option)::before { margin-top: .15em; }
 .opts li::before { content: ""; flex: none; width: 18px; height: 18px; border: 2px solid var(--line-strong); border-radius: 50%; }
 .opts.multi li::before { border-radius: 4px; }
 .opts li.fold { border: 0; background: none; padding: 2px 0; color: var(--critical); font-size: .8em; font-weight: 700; }
