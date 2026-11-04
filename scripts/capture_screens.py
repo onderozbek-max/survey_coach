@@ -23,6 +23,9 @@ from urllib.parse import urlsplit
 import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
+# Direct script invocation puts scripts/, not the repository, on sys.path.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 AFTER = ROOT / 'review' / 'after'
 VIEWPORTS = {'desktop': {'width': 1440, 'height': 900},
              'mobile': {'width': 390, 'height': 844}}

@@ -27,6 +27,17 @@ def test_preview_environment_keeps_only_validated_reader_proxy(monkeypatch):
         capture.worker_environment(managed_reader=True)
 
 
+def test_managed_worker_environment_imports_when_script_invoked_directly(tmp_path):
+    import os
+    env = dict(os.environ, SURVEYCOACH_CORPORATE_PROXY='http://proxy-intlho.wal-mart.com:8080')
+    env.pop('PYTHONPATH', None)
+    code = (f"import runpy; scope=runpy.run_path({str(capture.ROOT / 'scripts/capture_screens.py')!r}); "
+            "assert scope['worker_environment'](managed_reader=True)['SURVEYCOACH_CORPORATE_PROXY']")
+    result = subprocess.run([sys.executable, '-c', code], cwd=tmp_path, env=env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+
+
 def test_output_cannot_escape_after():
     for path in (capture.ROOT / 'review', capture.ROOT / 'uglyhome.png',
                  capture.AFTER / '..' / 'originals'):
