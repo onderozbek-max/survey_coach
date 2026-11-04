@@ -159,7 +159,9 @@ def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
     quick = counts.get("quick_wins", 0)
     headline = (f"{must} must-{'fix' if must == 1 else 'fixes'} before launch, "
                 f"then {quick} quick {'win' if quick == 1 else 'wins'}" if must
-                else "No must-fixes found in what we checked")
+                else (f"All {counts['must_fix']} must-fix decisions handled; "
+                      "chosen changes and kept risks are not verified fixes."
+                      if counts.get('must_fix') else "No must-fixes found in what we checked"))
     subline = f"About {_minutes(timing.total_seconds / 60)} for members (estimate)."
     if timing.path_uncertain:
         subline += " Branching makes the total uncertain."

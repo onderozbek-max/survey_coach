@@ -11,7 +11,7 @@
     return model.items.find(item => item.page.id === f.page_id || item.page.questions.some(q => q.id === f.question_id)) || model.whole;
   };
   SC.shareChangeText = (f, detail) => {
-    const d = SC.issueDecision(f, detail), name = place(f, detail).name;
+    const d = SC.issueDecision(f, detail), name = SC.improveLocation(f, detail);
     return `${name} · ${f.headline}\n${f.edit_kind === 'add_answer'
       ? `Keep question: ${f.current_text}\nAdd answer option: ${d.picked_text}\n${f.explanation}`
       : `Find: ${f.current_text || 'Locate using the guidance above'}\nReplace with: ${d.picked_text}`}`;
@@ -41,7 +41,7 @@
     }
     mount($('change-list'), ...[...groups].sort(([a], [b]) => a - b).map(([, group]) => h('section', null,
       h('h3', null, group.name), h('ul', null, group.findings.map(f => h('li', null,
-        h('strong', null, f.headline),
+        h('p', {class:'location'}, SC.improveLocation(f, detail)), h('strong', null, f.headline),
         f.edit_kind === 'add_answer' ? h('div', null, h('p', null, `Keep question: ${f.current_text}`),
           h('p', null, 'Add answer option: ', h('ins', null, SC.issueDecision(f, detail).picked_text)))
           : SC.renderDiff(f.current_text, SC.issueDecision(f, detail).picked_text),
@@ -49,7 +49,7 @@
     if (!changes.length) mount($('change-list'), h('p', null, 'No changes chosen yet. Recommended previews are not included.'));
     mount($('kept-reasons'), kept.length && h('details', null, h('summary', null, `Kept on purpose (${kept.length})`),
       h('p', null, 'These are accepted risk, not verified fixes.'), h('ul', null, kept.map(f => h('li', null,
-        `${place(f, detail).name} · ${f.headline}: ${SC.issueDecision(f, detail).reason}`)))));
+        `${SC.improveLocation(f, detail)} · ${f.headline}: ${SC.issueDecision(f, detail).reason}`)))));
     const button = $('copy-all');
     button.textContent = `Copy all changes (${changes.length})`;
     button.disabled = !changes.length; button.hidden = !changes.length;

@@ -7,6 +7,18 @@
   const tones = {strong:'positive', mixed:'attention', needs_work:'critical', unknown:'neutral'};
   const symbols = {strong:'check', mixed:'alert', needs_work:'alert', unknown:'minus'};
   let detail;
+  // Wrapping and the device safe area both affect the fixed bar's real height.
+  const actionSize = new ResizeObserver(entries => {
+    const height = entries[0]?.target.getBoundingClientRect().height || 0;
+    document.documentElement.style.setProperty('--overview-action-height', `${height + 16}px`);
+  });
+  document.addEventListener('focusin', event => {
+    if (!matchMedia('(max-width:759px)').matches || SC.currentChapter() !== 'overview') return;
+    const target = event.target, bar = document.querySelector('.overview-actions');
+    if (!target.closest('#chapter-overview') || !bar || bar.contains(target)) return;
+    const rect = target.getBoundingClientRect(), top = bar.getBoundingClientRect().top;
+    if (rect.bottom > top - 12) window.scrollBy({top:rect.bottom - top + 12, behavior:'instant'});
+  });
   SC.overviewPhoneContext = (survey, item) => ({data:window.SURVEYCOACH_DEMO, review:survey.review,
     selected:item.entries.find(entry => entry.f.severity === 'must_fix')?.key, device:390, large:false,
     total:survey.screens.length, pageId:item.page.id, plan:null, applied:() => false,
@@ -42,6 +54,7 @@
   }
   SC.renderOverview = survey => {
     detail = survey;
+    actionSize.disconnect();
     const overview = detail.overview;
     if (!overview) return;
     const active = document.activeElement;
@@ -86,6 +99,7 @@
               if (fieldset.isConnected) SC.renderOverview(detail);
               document.querySelector(`#survey-style input[value="${value}"]`)?.focus({preventScroll:true});
             }}), label))), styleStatus));
+    actionSize.observe(document.querySelector('.overview-actions'));
     if (restoreHeading) $('overview-h').focus({preventScroll:true});
   };
 })();

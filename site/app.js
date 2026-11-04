@@ -21,13 +21,13 @@
       DATA = { ...metadata, surveys: [detail] };
       // The canonical workspace owns app navigation and version controls.
     } catch (error) {
-      mount($("topbar"), h("p", { role: "alert" }, error.message), h("a", { href: "local.html" }, "My surveys"));
+      mount($("review-status") || $("topbar"), h("span", { role: "alert" }, error.message), h("a", { href: "local.html" }, "My surveys"));
       return;
     }
   }
   const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
-  let model, queue;
+  let model, queue, projectionRevision = 0;
   const improveOperation = {busy:false, recovery:null};
   let comparing = false, playing = false, settingsOpen = false, toolsOpen = false;
   const playback = SC.createPlayback({
@@ -43,14 +43,16 @@
     localDetail.review.findings.forEach((f, key) => {
       const decision = localDetail.decisions[f.fingerprint];
       const pick = ["keep", "original"].includes(decision?.action) ? "original" : SC.choicesOf(f).find((c) => c.text === decision?.picked_text)?.value || "open";
-      if (pick) state.choices[`0:${key}`] = pick;
+      if (pick) state.choices[`0:${f.fingerprint}`] = pick;
     });
   }
 
   const survey = () => DATA.surveys[state.survey];
   const current = () => model.order[state.screen];
   const pageItem = () => (current().page ? current() : model.items[0]);
-  const choiceOf = (key) => state.choices[`${state.survey}:${key}`];
+  const choiceOf = (key) => state.choices[`${state.survey}:${survey().review.findings[key]?.fingerprint}`];
+  const projectionKey = detail => JSON.stringify([detail.id, detail.version, detail.survey_type,
+    detail.review.findings.map(f => [f.fingerprint, SC.choicesOf(f)])]);
   /** The version picked for a finding, or null for "keep my original". Bundles of answer choices are never previewed. */
   const chosen = (f, key) => (f.structural ? null : SC.chosenChoice(f, choiceOf(key) === 'open' ? undefined : choiceOf(key)));
 
@@ -91,6 +93,7 @@
 
   /** One render's view of the world. "Applied" means the phone really changed: the same function decides both. */
   function context() {
+    const source = survey(), sourceProjection = projectionKey(source), sourceRevision = projectionRevision;
     const page = pageItem().page, plan = previewPlan(), hits = plan ? SC.hitsOn(page, plan) : new Set();
     const texts = SC.pageTexts(page);
     const picked = (entry) => state.mode === "fixes" && !!chosen(entry.f, entry.key);
@@ -103,20 +106,27 @@
       total: model.items.length, pageId: page.id, plan, applied, blocked, offscreen, choiceOf, originalOf,
       onPin: key => { queue.focus(survey().review.findings[key].fingerprint); document.querySelector('#coach h3')?.focus(); },
       onSelect: key => queue.focus(survey().review.findings[key].fingerprint),
-      decisionOf: key => survey().decisions[survey().review.findings[key].fingerprint],
+      isCurrent: () => sourceRevision === projectionRevision && sourceProjection === projectionKey(survey()),
+      version:source.version,
+      onFocusFinding: fp => { queue.focus(fp); renderAll(); },
+      decisionOf: key => source.decisions[source.review.findings[key]?.fingerprint],
       onKeep: (key, reason) => context().onChoose(key, 'original', reason),
       onChoose: (key, value, reason) => {
-        const f = survey().review.findings[key], picked = SC.chosenChoice(f, value);
-        return saveDecision(key, {action:picked ? 'pick' : reason ? 'keep' : 'original',
-          picked_text:picked?.text || null, reason:reason || '', manual_done:false});
+        const f = source.review.findings[key];
+        if (!f || sourceProjection !== projectionKey(survey())) return Promise.resolve(false);
+        const picked = SC.chosenChoice(f, value);
+        return saveDecision(f.fingerprint, {action:picked ? 'pick' : reason ? 'keep' : 'original',
+          picked_text:picked?.text || null, reason:reason || '', manual_done:false}, source.version);
       },
-      onRestore: (key, prior) => saveDecision(key, prior || {action:'open'}),
+      onRestore: (fp, prior, version) => saveDecision(fp, prior || {action:'open'}, version),
       onCopy: copy, operation:improveOperation, onRender:renderAll,
     };
   }
 
-  async function saveDecision(key, decision) {
-    const detail = survey(), f = detail.review.findings[key], choiceKey = `${state.survey}:${key}`;
+  async function saveDecision(fingerprint, decision, version) {
+    const detail = survey(), f = detail.review.findings.find(f => f.fingerprint === fingerprint);
+    if (!f || detail.version !== version) return false;
+    const choiceKey = `${state.survey}:${fingerprint}`;
     const priorChoice = state.choices[choiceKey];
     const revision = (decisionRevisions.get(f.fingerprint) || 0) + 1;
     decisionRevisions.set(f.fingerprint, revision);
@@ -137,7 +147,15 @@
       }
       if (revision !== decisionRevisions.get(f.fingerprint)) return false;
       detail.decisions[f.fingerprint] = saved;
-      window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail}));
+      if (localDetail && SC.refreshDetail) {
+        try { await SC.refreshDetail(detail.version); }
+        catch (_) {
+          const status = $('review-status');
+          if (status) { status.textContent = 'Decision saved, but the overview could not refresh. Reload to retry.'; status.dataset.tone = 'error'; }
+          SC.say('Decision saved, but the overview could not refresh. Reload to retry.');
+          window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail}));
+        }
+      } else window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail}));
       renderAll();
       return true;
     } catch (_) {
@@ -332,8 +350,8 @@
     localDetail.review.findings.forEach((f, key) => {
       const decision = localDetail.decisions[f.fingerprint];
       const value = ['keep','original'].includes(decision?.action) ? 'original' : SC.choicesOf(f).find(c => c.text === decision?.picked_text)?.value || 'open';
-      if (value) state.choices[`0:${key}`] = value;
-      else delete state.choices[`0:${key}`];
+      if (value) state.choices[`0:${f.fingerprint}`] = value;
+      else delete state.choices[`0:${f.fingerprint}`];
     });
     renderAll();
   });
@@ -342,10 +360,19 @@
     return;
   }
   window.addEventListener('surveycoach-detail-updated', event => {
+    if (projectionKey(event.detail) !== projectionKey(survey())) projectionRevision++;
     localDetail = event.detail;
     DATA.surveys[state.survey] = localDetail;
     model = SC.buildModel(localDetail);
     SC.workspaceDetail = localDetail;
+    // Reconcile saved previews by identity, never by yesterday's array position.
+    state.choices = {};
+    localDetail.review.findings.forEach(f => {
+      const d = localDetail.decisions[f.fingerprint];
+      state.choices[`${state.survey}:${f.fingerprint}`] = ['keep','original'].includes(d?.action) ? 'original'
+        : d?.action === 'pick' && !d.stale_pick ? SC.choicesOf(f).find(c => c.text === d.picked_text)?.value || 'open' : 'open';
+    });
+    state.screen = Math.min(state.screen, model.order.length - 1);
     queue.update(localDetail);
     renderAll();
   });

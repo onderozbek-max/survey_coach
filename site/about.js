@@ -10,7 +10,7 @@
   if (reviewDialog) document.body.append(reviewDialog);
   const dialog = reviewDialog || $('data-handling-dialog');
   const trigger = reviewTrigger || $('data-handling');
-  let latest;
+  let latest, openedChapter, routeClosing = false;
   const section = (title, ...children) => h('section', null, h('h3', null, title), ...children);
   const list = items => h('ul', null, items.map(text => h('li', null, text)));
   const stops = {
@@ -55,10 +55,20 @@
   }
   trigger?.addEventListener('click', () => {
     if (reviewDialog) renderReview();
+    openedChapter = SC.currentChapter?.();
+    routeClosing = false;
     dialog.showModal();
   });
   (reviewDialog ? close : $('close-data-handling'))?.addEventListener('click', () => dialog.close());
-  dialog?.addEventListener('close', () => trigger.focus());
+  dialog?.addEventListener('close', () => {
+    if (!routeClosing) trigger.focus();
+    routeClosing = false;
+  });
+  window.addEventListener('surveycoach-chapter', event => {
+    if (!dialog?.open || event.detail.name === openedChapter) return;
+    routeClosing = true;
+    dialog.close(); // Router focuses the destination heading after synchronous listeners.
+  });
   window.addEventListener('surveycoach-detail-updated', event => {
     latest = event.detail;
     if (reviewDialog?.open) renderReview();

@@ -179,7 +179,10 @@ def test_headline_and_heaviest_screen_subline():
                                "The heaviest moment is Q8–Q18.")
     plan["counts"]["open_must_fix"] = 0
     assert build_overview(snapshot, {}, {}, screens, plan, load_rubric())["headline"] == (
-        "No must-fixes found in what we checked")
+        "All 3 must-fix decisions handled; chosen changes and kept risks are not verified fixes.")
+    plan['counts']['must_fix'] = 0
+    assert build_overview(snapshot, {}, {}, screens, plan, load_rubric())['headline'] == (
+        'No must-fixes found in what we checked')
 
 
 def test_unassessed_blocker_concern_is_not_a_pass():

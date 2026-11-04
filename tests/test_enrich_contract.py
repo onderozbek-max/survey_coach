@@ -132,7 +132,8 @@ def test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry(t
         assert "child" not in {line["fingerprint"] for line in data["change_sheet"]}
         assert data["carried"]["root"]["reason"] == "Tracker"
         assert data["plan"]["counts"]["open_must_fix"] == 0
-        assert data["overview"]["headline"] == "No must-fixes found in what we checked"
+        assert data["overview"]["headline"] == (
+            "All 1 must-fix decisions handled; chosen changes and kept risks are not verified fixes.")
         assert all("Also covers" not in line["instructions"] for line in data["change_sheet"])
         assert data == repo.detail(first["id"])
         assert list(repo.db.iterdump()) == before

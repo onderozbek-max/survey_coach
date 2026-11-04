@@ -20,7 +20,12 @@
       active = null;
       clearTimeout(timer);
       document.removeEventListener('keydown', onKeydown);
+      const ownedFocus = toast.contains(document.activeElement);
       toast.remove();
+      if (ownedFocus) {
+        const chapter = SC.currentChapter?.() || 'improve';
+        (chapter === 'improve' ? document.querySelector('#coach-h') : document.querySelector(`#chapter-${chapter} h2`))?.focus({preventScroll:true});
+      }
     }
     function onKeydown(event) {
       if (event.key === 'Escape') dismiss();

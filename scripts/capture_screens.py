@@ -9,6 +9,7 @@ import argparse
 from contextlib import contextmanager
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -243,8 +244,8 @@ def main(argv=None):
     parser.add_argument('--reduced-motion', action='store_true', help='Emulate prefers-reduced-motion')
     parser.add_argument('--serve', action='store_true', help='Serve disposable seeded DB for manual QA until Ctrl-C')
     args = parser.parse_args(argv)
-    if args.timeout <= 0:
-        parser.error('--timeout must be positive')
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        parser.error('--timeout must be finite and positive')
     args.output.mkdir(parents=True, exist_ok=True)
     manifest = {'status': 'running', 'visual_inspection': 'NOT inspected', 'records': []}
     manifest_path = args.output / 'evidence.json'

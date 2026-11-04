@@ -6,7 +6,12 @@
     'Stakeholder requirement', 'Not accurate', 'Other…'];
   SC.improveLocation = (f, detail) => {
     const screen = detail.screens.find(s => s.page_id === f.page_id || s.questions?.some(q => q.id === f.question_id));
-    return screen ? `${screen.name}${screen.topic ? ` · ${screen.topic}` : ''}` : 'Whole survey';
+    if (!screen) return 'Whole survey';
+    const question = screen.questions?.find(q => q.id === f.question_id);
+    const captured = detail.snapshot.pages.flatMap(p => p.questions || []).find(q => q.id === f.question_id);
+    const topic = question ? captured?.text?.split(/\s+/).slice(0,5).join(' ') : screen.topic;
+    const label = question?.label || screen.name;
+    return `${label} · Screen ${screen.screen}${topic ? ` · ${topic}` : ''}`;
   };
   SC.renderImproveItem = (item, ctx) => {
     const pattern = item.count > 1, act = SC.improveActions(ctx), values = new Map();

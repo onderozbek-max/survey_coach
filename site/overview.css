@@ -66,7 +66,10 @@
 .compact .energy-column { height:48px; }
 @media (min-width:760px) and (max-width:1099px) { .overview-hero { grid-template-columns:1fr 1fr; } }
 @media (max-width:759px) {
-  #chapter-overview { padding-bottom:120px; }
+  :root { --overview-action-height:120px; }
+  html:has(#chapter-overview:not([hidden])) { scroll-padding-bottom:var(--overview-action-height, 120px); }
+  #chapter-overview { padding-bottom:var(--overview-action-height, 120px); }
+  #chapter-overview :is(button, summary, input, a) { scroll-margin-bottom:var(--overview-action-height, 120px); }
   .overview-hero,.overview-bottom { grid-template-columns:1fr; gap:16px; }
   .overview-mini { display:none; }
   #signals { grid-template-columns:1fr; }

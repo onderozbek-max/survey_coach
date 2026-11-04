@@ -137,6 +137,22 @@
       h('button', {type:'button', class:'btn', onclick:() => { form.hidden = true; edit.hidden = false; }}, 'Cancel'));
     mount($('title-tools'), edit, form, status);
   }
+  window.SC.refreshDetail = async version => {
+    const updated = await api(endpoint(version));
+    if (detail.version !== version) return;
+    // A GET started around another write must not erase a newer local revision.
+    for (const [fp, local] of Object.entries(detail.decisions)) {
+      const revision = window.SC.decisionRevisions.get(fp) || 0;
+      if (revision > (updated.decisions?.[fp]?.revision || 0)) {
+        throw Error('Decision saved, but the overview could not refresh. Reload to retry.');
+      }
+    }
+    detail = updated;
+    detail.decisions ||= {};
+    window.SC.renderOverview(detail);
+    window.dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail}));
+    return detail;
+  };
   window.SC.updateSurvey = async payload => {
     await api(`/api/surveys/${encodeURIComponent(surveyId)}`, 'PATCH', payload);
     const updated = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
@@ -155,8 +171,12 @@
     if (detail.job && ['queued', 'running'].includes(detail.job.status)) {
       await waitForJob(detail.job.id, 'review-status'); return review();
     }
-    if (!detail.review) { message('review-status', detail.job?.error || 'No completed review. Try checking again below.'); return; }
-    message('review-status', `Version ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
+    if (!detail.review) {
+      message('review-status', detail.job?.error || 'No completed review. Return to My surveys or open Share to start a new check.', 'error');
+      return;
+    }
+    if (detail.job?.status === 'failed') message('review-status', `${detail.job.error || 'Latest check failed.'} Showing the previous completed review.`, 'error');
+    if (detail.job?.status !== 'failed') message('review-status', `Version ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
     titleEditor(); refreshDecisions();
     $('survey-link').value = window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
     $('check-again').onclick = revealRecheck;
