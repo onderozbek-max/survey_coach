@@ -6,7 +6,7 @@
   let localDetail = null;
   const decisionClient = SC.decisionClient, decisionRevisions = SC.decisionRevisions;
   if (localId && !SC.workspaceDetail && location.pathname.endsWith('/index.html')) {
-    location.replace(`review.html${location.search}`);
+    location.replace(`review.html${location.search}${location.hash}`);
     return;
   }
   if (localId) {
@@ -210,17 +210,6 @@
           DATA.surveys.map((s, i) => h("option", { value: i, selected: i === state.survey }, s.title)))));
   }
 
-  /* ---------- rail ---------- */
-  function railItem(item, i) {
-    const on = i === state.screen, n = item.entries.length;
-    return h("button", { type: "button", class: `rail-item${on ? " on" : ""}`, "data-fk": `rail-${i}`, "aria-current": on ? "true" : false, onclick: () => goToScreen(i) },
-      h("span", { class: `dot ${item.worst || "ok"}`, "aria-hidden": "true" }),
-      h("span", { class: "rail-text" },
-        h("strong", { class: "line1" }, item.name, item.topic && h("span", { class: "topic" }, ` ${item.topic}`)),
-        h("span", { class: `issue ${item.worst || "ok"}` }, n ? item.entries[0].f.headline : survey().review.ai ? "Nothing flagged" : "Nothing flagged yet")),
-      n > 1 && h("span", { class: "count", "aria-label": plural(n, "issue") }, String(n)));
-  }
-
   /* ---------- stage ---------- */
   const seg = (label, options, value, onPick, prefix, disabled = []) =>
     h("div", { class: "seg", role: "group", "aria-label": label },
@@ -240,7 +229,7 @@
     renderAll();
   }
 
-  /** One line above the phone (phones only): what is wrong on this screen, without scrolling to the coach. */
+  /** Contextual shortcut below the phone on small screens. */
   function leadLine() {
     const entry = current().entries.find((e) => e.key === state.selected);
     if (!entry) return null;
@@ -261,21 +250,24 @@
     const rewrittenCtx = {...context(),plan:previewPlan(true),applied:e=>SC.hitsOn(item.page,previewPlan(true)).has(e.key)};
     mount($("stage"),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
-      h("div", { class: "toolbar" },
+      h("label", {class: 'screen-picker'}, 'Survey screen',
+        h('select', {'data-fk': 'screen-picker', onchange: event => goToScreen(Number(event.target.value))},
+          model.order.map((screen, i) => h('option', {value: i, selected: i === state.screen},
+            `${screen.name}${screen.topic ? ` · ${screen.topic}` : ''} · ${screen.entries.length ? plural(screen.entries.length, 'issue') : s.review.ai ? 'Nothing flagged' : 'Nothing flagged yet'}`)))),
+      h("div", { class: "preview-controls" },
         seg("View", [["current", localDetail ? "Original" : "Current"], ["fixes", localDetail ? "Rewritten" : "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? `${plural(changes, 'text change')} previewed. Hypothetical only; no decision saved.` : "Showing the original survey wording."); }, "mode", localDetail && !changes ? ['fixes'] : []),
         !localDetail && seg("Device", DEVICES.map(([name, w]) => [String(w), name]), String(state.device), (v) => { state.device = Number(v); renderAll(); }, "dev"),
         h("button", { type: "button", class: "toggle", "aria-pressed": String(state.large), "data-fk": "large", onclick: () => { state.large = !state.large; renderAll(); } }, "Large text")),
-      !localDetail && leadLine(),
       comparing ? h('div', {class:'comparison-phones'},
         h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
         h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
+      !localDetail && leadLine(),
       localDetail && h('p', {class:'preview-effect',role:'status'}, comparison.replace('See the coach','See the issues')),
       h('div', {class:'member-controls'},
         h('button', {type:'button','aria-pressed':String(comparing),disabled:!changes && !comparing,onclick:()=>{comparing=!comparing;renderAll();}},comparing?'Close comparison':'Compare wording'),
         h('button', {type:'button',onclick:()=>{playing=!playing;renderAll();schedulePlayback();}},playing?'Pause walkthrough':'Play as a member'),
         h('button', {type:'button',onclick:()=>nextIssue()},'Next issue →')),
       comparing && h('p', {class:'comparison-note'}, `Estimated reading-time change: ${Math.abs(SC.previewReadingDelta(item.page,previewPlan(true)))} seconds ${SC.previewReadingDelta(item.page,previewPlan(true)) < 0 ? 'longer' : 'shorter'}. Layout, typing and unvisited paths are not reassessed.`),
-      SC.renderJourney?.(model.items,s,item.index,previewPlan(true),index=>{stopPlayback();goToPage(index);}),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
         current().entries.length ? `Review ${plural(current().entries.length, 'issue')} on this screen ↓` : 'Read the coach notes ↓'),
       h("div", { class: "pager" },
@@ -294,25 +286,18 @@
     if (usable) usable.focus({ preventScroll: true });
   }
 
-  function centerSelectedInRail() {   // scroll the rail strip only, never the page
-    const rail = $("rail"), on = rail.querySelector(".rail-item.on");
-    if (!on) return;
-    if (rail.scrollWidth > rail.clientWidth && getComputedStyle(rail).flexDirection === "row") {
-      rail.scrollLeft = on.offsetLeft - (rail.clientWidth - on.offsetWidth) / 2;
-    } else if (rail.scrollHeight > rail.clientHeight) {
-      rail.scrollTop = on.offsetTop - (rail.clientHeight - on.offsetHeight) / 2;
-    }
-  }
-
   let lastPage = null;
+  let improveDirty = true;
   function renderAll() {
+    improveDirty = true;
+    if (SC.currentChapter() !== 'improve') return;
+    improveDirty = false;
     const active = document.activeElement, key = active && active.dataset ? active.dataset.fk : null;
     const before = document.querySelector(".phone-screen"), keepTop = before ? before.scrollTop : 0;
     const pageKey = `${state.survey}:${pageItem().index}`, samePage = pageKey === lastPage;
     lastPage = pageKey;
     renderTop();
     if ($('strip')) mount($("strip"), h("span", { class: "long" }, DATA.disclaimer), h("span", { class: "short" }, DATA.disclaimer_short));
-    mount($("rail"), h("h2", { class: "sr-only" }, "Screens"), model.order.map(railItem));
     renderStage();
     if (comparing) {
       const screens = [...document.querySelectorAll('.comparison-phones .phone-screen')];
@@ -321,7 +306,6 @@
       });
     }
     mount($("coach"), SC.renderCoach(current(), context()));
-    centerSelectedInRail();
     if (samePage) document.querySelector(".phone-screen").scrollTop = keepTop;
     else document.querySelector('.phone-screen').scrollTop = 0;
     restoreFocus(key);
@@ -340,7 +324,7 @@
   }
 
   if (!localDetail && window.SURVEYCOACH_LOCAL) {
-    document.body.insertBefore(h("nav", { class: "local-nav", "aria-label": "Private workspace" }, h("a", { href: "local.html" }, "Open My surveys — requires the local SurveyCoach server")), $("topbar"));
+    document.body.insertBefore(h("nav", { class: "local-nav", "aria-label": "Private workspace" }, h("a", { href: "local.html" }, "Open My surveys — requires the local SurveyCoach server")), $("workspace"));
   }
   window.addEventListener('surveycoach-focus-finding', event => {
     const key = survey().review.findings.findIndex(f => f.fingerprint === event.detail);
@@ -348,9 +332,8 @@
     if (!item) return;
     state.screen = model.order.indexOf(item);
     state.selected = key;
-    SC.activateReviewTab?.('tab-survey');
+    SC.goChapter('improve');
     renderAll();
-    $('stage').scrollIntoView({block:'start',behavior:'smooth'});
   });
   window.addEventListener('surveycoach-decisions', event => {
     if (!localDetail) return;
@@ -367,5 +350,10 @@
     mount($('stage'), h('p', {role:'status'}, 'No captured screens. Review the available findings and coverage below.'));
     return;
   }
+  window.addEventListener('surveycoach-chapter', event => {
+    if (event.detail.name !== 'improve') { stopPlayback(); return; }
+    if (improveDirty) renderAll();
+  });
   chooseSurvey(0);
+  SC.reviewReady = true;
 })();

@@ -9,6 +9,7 @@ def open_sample(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('.phone-screen').wait_for()
     return context, page
 

@@ -40,7 +40,7 @@ def open_review(browser, base_url, width=1280, chapter='improve'):
             route.fulfill(json=detail)
     page.route('**/api/**', api)
     page.goto(base_url + f'review.html?id=synthetic#{chapter}')
-    page.locator('.phone-screen').wait_for()
+    page.wait_for_function('SC.reviewReady === true')
     return context, page, detail, writes, errors
 
 

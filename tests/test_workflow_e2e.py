@@ -44,6 +44,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
     page.get_by_role("button", name="Check survey").click()
     page.wait_for_url("**/review.html?**", timeout=30000)
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('#issues-view > summary').click()
     jump = page.locator('.issue-jump').first
     headline = jump.locator('strong').inner_text()
@@ -69,6 +70,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     page.get_by_label("Updated snapshot file (.json)").set_input_files({"name": "revised.json", "mimeType": "application/json", "buffer": updated.model_dump_json().encode()})
     page.get_by_role("button", name="Start next round").click()
     page.wait_for_url(lambda url: str(url) != before, timeout=30000)
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('.round-timeline').wait_for()
     assert page.locator('.round-timeline a').count() == 2
     assert '/versions/2/summary' in page.locator('#sign-off').get_attribute('href')

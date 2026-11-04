@@ -39,7 +39,7 @@ def open_page(browser, base_url, width=1280):
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
-    page.goto(base_url)
+    page.goto(base_url + 'index.html#improve')
     return page, errors
 
 
@@ -60,8 +60,9 @@ def phone_text(page) -> str:
 
 
 def open_screen(page, name: str):
-    """Click a rail row by its exact screen name (so Q1 never matches Q10)."""
-    page.locator(".rail-item", has=page.locator("strong", has_text=re.compile(rf"^{name}\b"))).click()
+    """Select the exact screen name (so Q1 never matches Q10)."""
+    option = page.locator('.screen-picker option').filter(has_text=re.compile(rf'^{name}\b')).first
+    page.locator('.screen-picker select').select_option(value=option.get_attribute('value'))
 
 
 def card_with(page, text: str):
@@ -87,7 +88,7 @@ def open_finding(page, finding: dict):
 def test_it_opens_on_the_first_screen_with_a_must_fix_and_that_issue_selected(browser, base_url):
     page, errors = open_page(browser, base_url)
     shown = page.locator(".phone-bar").inner_text().split()[0]
-    assert page.locator(".rail-item.on").inner_text().startswith(shown)
+    assert page.locator('.screen-picker option:checked').inner_text().startswith(shown)
     first = page.locator(".card").first
     assert "Fix before launch" in first.inner_text()
     assert page.locator(".pin.on").get_attribute("aria-label").startswith("Issue 1")
@@ -110,9 +111,9 @@ def test_the_header_scores_only_what_was_checked_and_says_what_the_ai_did(browse
 @pytest.mark.parametrize("sample", [0, 1])
 def test_every_screen_renders_real_text(browser, base_url, sample):
     page, errors = open_page(browser, base_url)
-    page.locator("select").select_option(index=sample)
-    for i in range(page.locator(".rail-item").count()):
-        page.locator(".rail-item").nth(i).click()
+    page.locator('[data-fk="survey-picker"]').select_option(index=sample)
+    for i in range(page.locator('.screen-picker option').count()):
+        page.locator('.screen-picker select').select_option(index=i)
         assert "[object" not in phone_text(page) and "undefined" not in phone_text(page)
         assert not stray_text(page)
     assert errors == []
@@ -147,9 +148,9 @@ def test_focus_stays_on_the_control_the_user_used(browser, base_url):
     page.get_by_role("button", name="Large text").focus()
     page.keyboard.press("Enter")
     assert page.evaluate("document.activeElement.dataset.fk") == "large"
-    page.locator(".rail-item").nth(2).focus()
-    page.keyboard.press("Enter")
-    assert page.evaluate("document.activeElement.dataset.fk") == "rail-2"
+    page.locator('.screen-picker select').focus()
+    page.locator('.screen-picker select').select_option(index=2)
+    assert page.evaluate("document.activeElement.dataset.fk") == 'screen-picker'
 
 
 def test_a_code_fix_previews_and_your_original_pick_wins(browser, base_url):
@@ -203,8 +204,8 @@ def test_rewrites_only_replace_real_matching_phone_text(browser, base_url):
     page, _ = open_page(browser, base_url)
     page.get_by_role('button', name='With fixes').click()
     claimed = 0
-    for i in range(page.locator('.rail-item').count()):
-        page.locator('.rail-item').nth(i).click()
+    for i in range(page.locator('.screen-picker option').count()):
+        page.locator('.screen-picker select').select_option(index=i)
         entries = page.locator('.screen-issue-nav button').all_inner_texts()
         heads = [re.sub(r'^\d+\. ', '', text) for text in entries]
         if not heads and page.locator('.card-head').count():
@@ -236,7 +237,7 @@ def test_first_rewrite_wins_when_two_fixes_target_the_same_words(browser, base_u
         }'''
         route.fulfill(response=response, body=script)
     page.route('**/data.js', conflict)
-    page.goto(base_url)
+    page.goto(base_url + 'index.html#improve')
     page.get_by_role("button", name="With fixes").click()
     open_screen(page, "Intro")
     assert 'Complete replacement introduction.' in phone_text(page)
@@ -303,7 +304,7 @@ def test_unchecked_points_are_disclosed_as_unknown_not_earned(browser, base_url)
 
 def test_the_clean_sample_has_no_issues_but_does_not_hide_unchecked_points(browser, base_url):
     page, _ = open_page(browser, base_url)
-    page.locator("select").select_option(index=1)
+    page.locator('[data-fk="survey-picker"]').select_option(index=1)
     header = page.locator("#topbar").inner_text()
     review = page.evaluate('SURVEYCOACH_DEMO.surveys[1].review')
     card = review['scorecard']
@@ -313,8 +314,8 @@ def test_the_clean_sample_has_no_issues_but_does_not_hide_unchecked_points(brows
     assert f"{card['unchecked_points']} points still unchecked" in header
     assert all(name in header for name in review['unchecked'])
     assert 'AI checked 3 of 3 parts' in header    # never an unqualified full ring
-    rail = page.locator(".rail").inner_text()
-    assert "Nothing flagged" in rail and "Nothing flagged yet" not in rail            # the AI did run, so 'yet' would be wrong
+    screens = page.locator('.screen-picker').inner_text()
+    assert "Nothing flagged" in screens and "Nothing flagged yet" not in screens            # the AI did run, so 'yet' would be wrong
     assert not stray_text(page)
 
 

@@ -9,23 +9,41 @@
   <link rel="stylesheet" href="workflow.css">
   <link rel="stylesheet" href="design-system.css">
   <link rel="stylesheet" href="review-studio.css">
-</head>
+<link rel="stylesheet" href="chapters.css"></head>
 <body>
-  <a class="skip" href="#stage">Skip to the phone preview</a>
-  <header class="app-header"><a href="local.html" class="app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a><nav><a href="local.html">My surveys</a><span class="pill">Sample review · fictional data</span></nav></header>
-  <header id="topbar" class="topbar"></header>
-
-  <main class="studio">
-    <p id="strip" class="strip"></p>
-    <nav id="rail" class="rail" aria-label="Survey screens"></nav>
+  <a class="skip" href="#workspace">Skip to review</a>
+  <header class="app-bar">
+    <a href="local.html" class="brand">SurveyCoach</a>
+    <nav id="chapter-nav" aria-label="Review steps">
+      <a href="#overview" data-chapter="overview"><span class="step-n">1</span> Overview</a>
+      <a href="#improve" data-chapter="improve"><span class="step-n">2</span> Improve</a>
+      <a href="#share" data-chapter="share"><span class="step-n">3</span> Share</a>
+    </nav>
+    <a href="local.html" class="btn-text">My surveys</a>
+  </header>
+  <main id="workspace" class="sample-shell" tabindex="-1">
+    <section id="chapter-overview" aria-labelledby="overview-h"><h2 id="overview-h" tabindex="-1">Overview</h2><p>Sample review · fictional data</p></section>
+    <section id="chapter-improve" aria-labelledby="improve-h" hidden>
+    <h2 id="improve-h" tabindex="-1">Improve</h2>
+    <header id="topbar" class="topbar"></header>
+    <div class="studio">
     <section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"></section>
     <aside id="coach" class="coach" aria-labelledby="coach-h"></aside>
+    </div>
+    <p id="strip" class="strip"></p>
+    </section>
+    <section id="chapter-share" aria-labelledby="share-h" hidden><h2 id="share-h" tabindex="-1">Share</h2></section>
+    <footer class="chapter-foot"><button type="button" id="about-review" class="btn-text">About this review</button></footer>
   </main>
 
   <p id="status" class="sr-only" role="status" aria-live="polite"></p>
   <script src="environment.js"></script>
   <script src="data.js"></script>
   <script src="dom.js"></script>
+  <script src="icons.js"></script>
+  <script src="diff.js"></script>
+  <script src="toast.js"></script>
+  <script src="chapters.js"></script>
   <script src="model.js"></script>
   <script src="issues.js"></script>
   <script src="phone.js"></script>

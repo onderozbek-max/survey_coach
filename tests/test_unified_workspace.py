@@ -8,6 +8,7 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('.phone-screen').wait_for()
     assert page.locator('link[href="design-system.css"]').count() == 1
     assert page.get_by_role('tab').count() == 0
@@ -24,7 +25,7 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
 
 def test_phone_renders_page_landscape_placeholder(browser, studio):
     page = browser.new_page()
-    page.goto(studio + '/index.html')
+    page.goto(studio + '/index.html#improve')
     page.locator('.phone-screen').wait_for()
     page.evaluate('''() => {
       const host = document.createElement('div'); host.id='image-test'; document.body.append(host);

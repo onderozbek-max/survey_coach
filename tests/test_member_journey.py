@@ -5,18 +5,24 @@ from tests.test_workflow_e2e import studio
 
 def test_journey_comparison_and_question_stem_visible(browser, studio):
     page = browser.new_page(viewport={'width':1440,'height':1000})
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('.phone-screen').first.wait_for()
     assert page.locator('.phone-screen').first.evaluate('e => e.scrollTop') == 0
-    assert page.get_by_role('navigation', name='Member effort by screen').count() == 1
+    assert page.locator('.screen-picker select').is_visible()
+    assert page.get_by_role('navigation', name='Member effort by screen').count() == 0
     # Comparison is intentionally unavailable on screens without text changes.
     page.evaluate("() => { const f=SC.workspaceDetail.review.findings.find(f=>f.current_text && !f.structural && (f.suggested_text || f.options?.length)); window.dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:f.fingerprint})); }")
     page.get_by_role('button', name='Compare wording', exact=True).click()
+    assert not errors
     assert page.locator('.comparison-phones .phone').count() == 2
     assert page.get_by_text('Original', exact=True).count() >= 1
-    assert 'Estimated' in page.locator('.journey').inner_text()
+    assert 'Estimated' in page.locator('.comparison-note').inner_text()
+    assert 'not reassessed' in page.locator('.comparison-note').inner_text()
     page.get_by_role('button', name='Play as a member', exact=True).click()
     assert page.get_by_role('button', name='Pause walkthrough', exact=True).count() == 1
     page.get_by_role('button', name='Pause walkthrough', exact=True).click()

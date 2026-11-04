@@ -1,0 +1,31 @@
+/* Shell layout only. Chapter content keeps its own styles until its redesign. */
+.app-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:12px 28px; border-bottom:1px solid var(--line); background:var(--surface); }
+.app-bar .brand { font-size:18px; font-weight:750; color:var(--text); text-decoration:none; }
+.app-bar > a { display:inline-flex; align-items:center; min-height:44px; }
+#chapter-nav { display:flex; gap:8px; }
+#chapter-nav a { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:8px 12px; border-radius:12px; text-decoration:none; color:var(--muted); font-size:14px; }
+#chapter-nav a[aria-current] { color:var(--accent); background:var(--accent-soft); font-weight:700; }
+.step-n { display:inline-flex; justify-content:center; align-items:center; width:24px; height:24px; border:1px solid currentColor; border-radius:50%; font-size:12px; }
+.chapter-foot { padding:24px 0; }
+.chapter-foot button { min-height:44px; }
+.workspace-shell > section > h2, .sample-shell > section > h2 { font-size:24px; margin:0 0 12px; }
+.sample-shell #topbar > .brand { display:none; }
+.workspace-shell [hidden] { display:none!important; }
+.screen-picker { display:flex; flex-direction:column; gap:6px; font-size:12px; margin-bottom:12px; }
+.screen-picker select { width:100%; min-width:0; min-height:44px; }
+.preview-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center; }
+.review-studio .studio, .review-studio .studio:has(.comparing) { grid-template-columns:minmax(0,1fr) minmax(300px,390px); grid-template-areas:'stage coach'; }
+body:not(.review-studio) #chapter-improve .studio { grid-template-columns:minmax(0,1fr) minmax(300px,440px); }
+body:not(.review-studio) #strip { grid-column:1 / -1; }
+@media(max-width:700px) {
+  .app-bar { padding:8px 14px; gap:4px 12px; }
+  .screen-picker { flex-direction:row; align-items:center; margin-bottom:6px; }
+  .screen-picker select { flex:1; width:0; }
+  .sample-shell > section > h2 { margin:0 12px 6px; font-size:20px; }
+  .sample-shell .pick { grid-row:1; }
+  .sample-shell .ring-block, .sample-shell .head-text { grid-row:2; }
+  .sample-shell .topbar { padding:4px 12px; }
+  #chapter-nav { order:3; width:100%; gap:4px; }
+  #chapter-nav a { flex:1; padding:8px 4px; }
+  .review-studio .studio, .review-studio .studio:has(.comparing), body:not(.review-studio) #chapter-improve .studio { grid-template-columns:minmax(0,1fr); grid-template-areas:'stage' 'coach'; }
+}

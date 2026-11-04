@@ -31,9 +31,11 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     query = page.url.split('?', 1)[1]
     page.goto(studio + '/index.html?' + query)
     page.wait_for_url('**/review.html?**')
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('.phone-screen').wait_for()
     assert page.get_by_role('tab').count() == 0
     summary = page.locator('#issues-view > summary')
@@ -59,7 +61,7 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
 
 def test_old_validation_capture_is_identified_not_presented_as_question(browser, studio):
     page = browser.new_page()
-    page.goto(studio + '/index.html')
+    page.goto(studio + '/index.html#improve')
     page.locator('.phone-screen').wait_for()
     page.evaluate('''() => {
       const host=document.createElement('div');host.id='validation-test';document.body.append(host);
@@ -76,7 +78,7 @@ def test_old_validation_capture_is_identified_not_presented_as_question(browser,
 
 def test_unknown_and_portrait_media_are_not_fabricated_as_landscape(browser, studio):
     page = browser.new_page()
-    page.goto(studio + '/index.html')
+    page.goto(studio + '/index.html#improve')
     page.locator('.phone-screen').wait_for()
     page.evaluate('''() => {
       const host = document.createElement('div');host.id='image-test';document.body.append(host);

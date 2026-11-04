@@ -1,16 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="review-studio.css"><link rel="stylesheet" href="workflow.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="review-studio.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="chapters.css"></head>
 <body class="review-studio">
 <a class="skip" href="#workspace">Skip to review</a>
-<header class="app-header"><a href="local.html" class="app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a><nav aria-label="Workspace"><a href="local.html">← My surveys</a><span class="pill">Private workspace</span></nav></header>
-<main id="workspace" class="workspace-shell">
+<header class="app-bar">
+  <a href="local.html" class="brand">SurveyCoach</a>
+  <nav id="chapter-nav" aria-label="Review steps">
+    <a href="#overview" data-chapter="overview"><span class="step-n">1</span> Overview</a>
+    <a href="#improve" data-chapter="improve"><span class="step-n">2</span> Improve</a>
+    <a href="#share" data-chapter="share"><span class="step-n">3</span> Share</a>
+  </nav>
+  <a href="local.html" class="btn-text">My surveys</a>
+</header>
+<main id="workspace" class="workspace-shell" tabindex="-1">
+  <section id="chapter-overview" aria-labelledby="overview-h"><h2 id="overview-h" tabindex="-1">Overview</h2></section>
+  <section id="chapter-improve" aria-labelledby="improve-h" hidden>
+  <h2 id="improve-h" tabindex="-1">Improve</h2>
   <div class="workspace-heading"><div><h1 id="review-title">Opening your survey…</h1><div id="title-tools"></div><p id="review-status" role="status" aria-live="polite"></p></div></div>
   <header id="topbar" class="topbar" aria-label="Review overview"><p>Loading review details…</p></header>
   <p id="decision-verdict" class="decision-verdict" role="status"></p>
   <section id="survey-view" aria-label="Survey and contextual coach">
     <div class="studio">
-      <div class="screen-navigator"><div class="section-kicker"><h2>Survey screens</h2></div><nav id="rail" class="rail" aria-label="Survey screens"></nav></div>
       <section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"><p>Preparing the phone preview…</p></section>
       <aside id="coach" class="coach" aria-labelledby="coach-h"><p>Opening your issues…</p></aside>
     </div>
@@ -40,7 +50,10 @@
     <a id="sign-off" class="btn" target="_blank" rel="noopener">Share for sign-off</a>
     <p id="action-status" role="status" aria-live="polite"></p>
   </footer>
+  </section>
+  <section id="chapter-share" aria-labelledby="share-h" hidden><h2 id="share-h" tabindex="-1">Share</h2></section>
+  <footer class="chapter-foot"><button type="button" id="about-review" class="btn-text">About this review</button></footer>
 </main>
 <p id="status" class="sr-only" role="status" aria-live="polite"></p>
-<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="phone.js"></script><script src="journey.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
+<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="icons.js"></script><script src="diff.js"></script><script src="toast.js"></script><script src="chapters.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="phone.js"></script><script src="journey.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
 </body></html>

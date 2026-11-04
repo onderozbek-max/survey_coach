@@ -40,9 +40,11 @@ def test_link_start_to_saved_review_preserves_partial_coverage(browser, studio, 
     page.get_by_label('RedJade preview link').fill('https://example.redjade.net/test')
     page.get_by_role('button', name='Check survey', exact=True).click()
     page.wait_for_url('**/review.html?**', timeout=30000)
+    page.locator('#chapter-nav [data-chapter=improve]').click()
     for reload in (False, True):
         if reload:
             page.reload()
+        page.locator('#chapter-nav [data-chapter=improve]').click()
         page.locator('#issues-view > summary').click()
         jump = page.locator('.issue-jump').first
         jump.wait_for(state='attached')

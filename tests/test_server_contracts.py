@@ -132,6 +132,7 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
         page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
         page.get_by_role("button", name="Check survey").click()
         page.wait_for_url("**/review.html?**", timeout=30000)
+        page.locator('#chapter-nav [data-chapter=improve]').click()
         from tests.test_workspace_decisions import finding_with, focus_finding, keep_mine
         finding = finding_with(page, True)
         focus_finding(page, finding)
