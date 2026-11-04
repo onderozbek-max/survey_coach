@@ -7,7 +7,7 @@ from tests.test_site_e2e import base_url, browser
 
 STEM = 'Which flavours would you try?'
 OLD = ['Vanilla', 'Chocolate', 'Mint']
-TEXT = 'Which flavours would you buy?\nVanilla\nChocolate\nNeither of these'
+TEXT = 'Question: Which flavours would you buy?\nAnswer choices:\n- Vanilla\n- Chocolate\n- Neither of these'
 
 
 def recommendation(detail, text=TEXT, structural=True, adding=False):
@@ -28,9 +28,9 @@ def test_bundle_has_semantic_labels_answers_and_discoverable_original(browser, b
         browser, base_url, width=width, prepare=recommendation)
     box = page.locator('#coach .suggested')
     assert box.get_by_role('heading', name='Question', exact=True).count() == 1
-    assert box.locator('.suggestion-question').inner_text() == TEXT.split('\n')[0]
+    assert box.locator('.suggestion-question').inner_text() == 'Which flavours would you buy?'
     assert box.get_by_role('heading', name='Answer choices', exact=True).count() == 1
-    assert box.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == TEXT.split('\n')[1:]
+    assert box.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == ['Vanilla', 'Chocolate', 'Neither of these']
     assert box.locator('del, ins').count() == 0
     page.locator('#coach details.more summary').focus()
     page.keyboard.press('Enter')
@@ -41,7 +41,7 @@ def test_bundle_has_semantic_labels_answers_and_discoverable_original(browser, b
 
 
 def test_alternative_keyboard_selection_updates_structure_and_copies_exact_text(browser, base_url):
-    alternative = '  Which flavours would you share?\r\nVanilla\r\nMint\r\nNeither  '
+    alternative = '  Question: Which flavours would you share?\r\nAnswer choices:\r\n- Vanilla\r\n- Mint\r\n- Neither  '
     def prepare(detail):
         finding = recommendation(detail)
         finding['options'] = [dict(label='Neutral', text=TEXT), dict(label='Friendlier', text=alternative)]
@@ -91,7 +91,12 @@ def test_add_answer_is_labelled_without_replacing_the_question(browser, base_url
     ('Consider the following.\nThis explains the proposal.\nMore explanatory prose.', True),
     ('Which flavours?\n\nVanilla\nChocolate', True),
     ('Which flavours?\nVanilla\nChocolate', False),
-    ('Which flavours? Vanilla. Chocolate.', True),
+    (STEM + '\nPlease shorten the question and keep the existing answers.', True),
+    ('Consider these changes.\nVanilla\nExplain that respondents may skip this question.', True),
+    ('Which flavours?\nVanilla\nExplain that respondents may skip this question.', True),
+    ('Which flavours?\nVanilla\nChocolate\nNeither of these', True),
+    ('Question: Which flavours?\nAnswer choices:\nVanilla\nPlease keep existing answers.', True),
+    ('Question: Which flavours?\nAnswer choices:\n- Vanilla\nExplain that respondents may skip.', True),
 ])
 def test_ambiguous_or_unmarked_text_is_not_guessed_into_a_bundle(browser, base_url, text, structural):
     context, page, detail, writes, errors = open_review(browser, base_url,
@@ -106,12 +111,43 @@ def test_ambiguous_or_unmarked_text_is_not_guessed_into_a_bundle(browser, base_u
     context.close()
 
 
+def test_grounded_unlabelled_bundle_requires_complete_captured_answers(browser, base_url):
+    text = '\n'.join(['Which flavours would you buy?', *OLD])
+    context, page, detail, writes, errors = open_review(browser, base_url,
+        prepare=lambda d: recommendation(d, text))
+    assert page.locator('.suggestion-question').inner_text() == 'Which flavours would you buy?'
+    assert page.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == OLD
+    assert not writes and not errors
+    context.close()
+
+
+def test_mixed_alternative_single_line_uses_question_diff_not_answer_bundle(browser, base_url):
+    plain = 'Which flavours would you buy?'
+    def prepare(detail):
+        finding = recommendation(detail)
+        finding['options'] = [dict(label='Bundle', text=TEXT), dict(label='Question only', text=plain)]
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    page.get_by_role('button', name='Question only', exact=True).focus()
+    page.keyboard.press('Enter')
+    box = page.locator('#coach .suggested')
+    assert box.locator('.diff').count() == 1
+    assert box.locator('.diff del').inner_text() == 'try'
+    assert box.locator('.diff ins').inner_text() == 'buy'
+    assert 'Vanilla' not in box.inner_text()
+    page.locator('#use-change').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
+    assert writes[-1]['picked_text'] == plain
+    assert page.evaluate('navigator.clipboard.readText()') == plain
+    assert not errors
+    context.close()
+
+
 def test_structured_text_is_escaped_and_raw_copy_is_unchanged(browser, base_url):
-    text = 'Which <img src=x onerror=alert(1)> flavours?\nVanilla\n<script>window.pwned=1</script>\nChocolate & mint'
+    text = 'Question: Which <img src=x onerror=alert(1)> flavours?\nAnswer choices:\n- Vanilla\n- <script>window.pwned=1</script>\n- Chocolate & mint'
     context, page, detail, writes, errors = open_review(browser, base_url,
         prepare=lambda d: recommendation(d, text))
     box = page.locator('#coach .suggested')
-    assert box.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == text.split('\n')[1:]
+    assert box.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == ['Vanilla', '<script>window.pwned=1</script>', 'Chocolate & mint']
     assert box.locator('img, script').count() == 0
     assert page.evaluate('window.pwned') is None
     page.locator('#use-change').click()

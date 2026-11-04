@@ -14,7 +14,7 @@ Owner: code-puppy-0807de. Parent owns final independent review/integration.
 - New `site/suggestion.js` exports `SC.bundleParts` and `SC.renderSuggestion`.
 - Inspected `surveycoach/judge/prompts.py`: known format is question on first line, one answer per subsequent line. `judge/grounding.py` marks **any** multiline candidate structural, so the flag alone cannot establish question/answers.
 - No existing `SC.bundleParts` or equivalent JS model parser existed at task start. Reused existing `SC.renderDiff`, `SC.h`, and original/choice model paths rather than duplicating them.
-- Recognize only structural, non-add-answer candidates on a uniquely located captured choice question, with nonempty lines and an unchanged captured stem or at least one unchanged answer. Blank-line/prose/ungrounded bundles remain verbatim; unmarked multiline wording remains a wording diff. This intentionally favors safe fallback when all captured wording changes.
+- Recognize only structural, non-add-answer candidates on a uniquely located captured choice question. Following independent review, partial stem/answer overlap is no longer sufficient: changed answers require exact explicit `Question: …`, `Answer choices:`, and `- …` list-line syntax; legacy unlabelled candidates require the complete captured answer sequence unchanged and in order. All other multiline structural candidates remain verbatim. Unmarked wording remains a wording diff; no punctuation/sentence heuristics.
 - Recognized bundles show Question and Answer choices headings, the proposed question alone, and a semantic named `ul`/`li` list. They do not interleave deleted answers into the proposed list. Existing Details → Original remains the discoverable complete old wording/answers, now preserving line breaks visibly.
 - Plain wording retains the existing word-level diff. Add-answer retains its existing action heading plus explicit Answer choice label, without presenting/replacing the question.
 - Alternative switches rerender presentation using the selected text. Copy/save handlers and `choice.text` remain untouched (including whitespace/CRLF); no persistence migration, preview changes, fingerprint changes, or text reconstruction.
@@ -45,6 +45,22 @@ Broader related (not full suite):
 **122 passed, 1 warning in 30.27s.** Warning: existing Starlette TestClient/httpx deprecation.
 
 `git diff --check` clean. Owned source line counts: coach89, suggestion35, CSS113, index55, review58; new test122. No file approaches600.
+
+## Independent review fixes (two P2s)
+
+Read `.superpowers/sdd/structured-suggestions-review.md`. Both reported cases fixed in owned `site/suggestion.js`, with regressions in the existing owned test file; no other source paths changed in this follow-up.
+
+1. Removed partial-overlap classification. Added exact review examples (original stem plus authoring instruction; one answer plus explanatory prose), an additional partial-overlap variant, changed unlabelled answers, and malformed explicit-label variants. Changed-answer positive fixtures now explicitly label the Question and Answer choices and mark each list item. Added an unchanged-complete-answer legacy positive case. This intentionally sacrifices automatic formatting for ambiguous unlabelled answer edits; no typed server schema or persistence was introduced.
+2. Selected single-line candidates now receive `SC.renderDiff` even if another alternative sets the finding-wide structural flag. Shared captured-question lookup supplies the original stem, not `originalOf`'s expanded answer bundle. Keyboard mixed-alternative test checks only try→buy is diffed, answers are absent from the diff, and exact copied/persisted text is unchanged.
+
+Exact follow-up red/green runs:
+- Before production edits, `.venv/bin/python -m pytest tests/test_structured_suggestions_ui.py -q` → **4 failed, 9 passed in 2.95s**: all three partial-overlap prose variants wrongly produced lists, and mixed alternative had no diff.
+- After updating positive fixtures to require explicit labels and adding complete-answer legacy coverage, before production edits, `.venv/bin/python -m pytest tests/test_structured_suggestions_ui.py -q --tb=no` → **8 failed, 6 passed in 33.34s** (includes unsupported explicit-format assertions).
+- After parser/diff fix, `.venv/bin/python -m pytest tests/test_structured_suggestions_ui.py -q` → **14 passed in 3.38s**.
+- Added three additional conservative fallback guard cases, then reran the **same exact targeted command above** → **119 passed in 23.71s** (17 structured suggestion cases).
+- Reran the **same exact broader-related command above** → **122 passed, 1 warning in 30.53s**. Existing Starlette/httpx warning remains. Shell also emitted a partial ephemeral static HTTP fixture request-handler exception during teardown; both pytest processes exited0, no failed test. No full-suite run.
+
+Follow-up `git diff --check` clean. Parser47 lines; tests158 lines. Only parser, owned tests, and this report in follow-up commit. Existing staged progress untouched. All verification remains synthetic browser assertions, not visual design judgment.
 
 ## Boundaries
 

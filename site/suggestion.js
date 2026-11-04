@@ -4,19 +4,29 @@
   const SC = window.SC, {h} = SC;
   const choiceKinds = new Set(['single_choice', 'multi_choice', 'dropdown']);
 
-  /** Judge contract: first line is the stem, then one answer per line.
-   * `structural` alone only means multiline. Corroborate with captured choices
-   * or an unchanged stem; prose and ungrounded bundles remain verbatim.
+  const capturedQuestion = (finding, snapshot) => {
+    const questions = (snapshot?.pages || []).filter(p => !finding.page_id || p.id === finding.page_id)
+      .flatMap(p => p.questions || []).filter(q => q.id === finding.question_id);
+    return questions.length === 1 ? questions[0] : null;
+  };
+
+  /** Never infer answer roles from partial lexical overlap. Changed answers
+   * require explicit labels and list markers. The legacy unlabelled contract
+   * is supported only when the complete captured answer sequence is unchanged.
    */
   SC.bundleParts = (finding, text, snapshot) => {
     if (!finding.structural || finding.edit_kind === 'add_answer' || !text) return null;
-    const questions = (snapshot?.pages || []).filter(p => !finding.page_id || p.id === finding.page_id)
-      .flatMap(p => p.questions || []).filter(q => q.id === finding.question_id);
-    if (questions.length !== 1 || !choiceKinds.has(questions[0].kind)) return null;
-    const question = questions[0], lines = text.trim().split(/\r?\n/).map(line => line.trim());
+    const question = capturedQuestion(finding, snapshot);
+    if (!question || !choiceKinds.has(question.kind)) return null;
+    const lines = text.trim().split(/\r?\n/).map(line => line.trim());
     if (lines.length < 2 || lines.some(line => !line)) return null;
-    const [stem, ...answers] = lines, known = new Set((question.options || []).map(o => o.label.trim()));
-    if (!known.size || (stem !== question.text.trim() && !answers.some(answer => known.has(answer)))) return null;
+    const labelled = /^Question: (.+)$/.exec(lines[0]);
+    if (labelled && lines[1] === 'Answer choices:' && lines.length > 2) {
+      const answers = lines.slice(2).map(line => /^- (.+)$/.exec(line));
+      return answers.every(Boolean) ? {question:labelled[1], answers:answers.map(match => match[1])} : null;
+    }
+    const [stem, ...answers] = lines, known = (question.options || []).map(o => o.label.trim());
+    if (!known.length || answers.length !== known.length || answers.some((answer, i) => answer !== known[i])) return null;
     return {question:stem, answers};
   };
 
@@ -30,6 +40,8 @@
       h('ul', {'aria-label':'Answer choices'}, parts.answers.map(answer => h('li', null, answer))));
     // A structural bundle is not one replaceable sentence. Avoid interleaving
     // deleted answers with new answers; Details retains the complete original.
-    return finding.structural ? h('blockquote', null, text) : SC.renderDiff(before, text);
+    if (finding.structural && /[\r\n]/.test(text)) return h('blockquote', null, text);
+    const original = finding.structural ? capturedQuestion(finding, snapshot)?.text || finding.current_text || before : before;
+    return SC.renderDiff(original, text);
   };
 })();
