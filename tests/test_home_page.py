@@ -154,6 +154,44 @@ def test_reading_state_tracks_actual_job_and_capture(browser, studio):
     page.close()
 
 
+def test_new_zero_capture_job_clears_previous_survey_preview(browser, studio):
+    page = browser.new_page()
+    page.goto(studio + '/local.html')
+    page.route('**/api/reader/jobs/*/preview/*', lambda route: route.abort())
+
+    def render(job_id, **job):
+        page.evaluate('args => SC.renderReadProgress(args.job, args.id)',
+                      {'id': job_id, 'job': job})
+
+    render('previous-survey', status='failed', stage='checking', pages_captured=4,
+           error='Previous captured read failed')
+    assert page.locator('#reading-preview img').get_attribute('src') == (
+        '/api/reader/jobs/previous-survey/preview/3')
+    assert page.locator('#reading-steps [data-complete=true]').count() == 1
+
+    for status, stage, error, expected in [
+        ('queued', None, None, 'Review queued…'),
+        ('running', 'reading', None, 'Opening the test survey…'),
+        ('failed', 'reading', 'New read failed before capture', 'New read failed before capture'),
+    ]:
+        render('new-survey', status=status, stage=stage, pages_captured=0, error=error)
+        assert page.locator('#reading-preview img').count() == 0
+        assert page.locator('#reading-preview [src]').count() == 0
+        assert page.locator('#reading-preview .reading-phone > svg').count() == 1
+        assert page.locator('#reading-progress').inner_text() == expected
+        assert page.locator('#reading-steps [data-complete=true]').count() == 0
+        assert page.locator('#reading-steps [data-complete=false]').count() == 3
+        assert 'previous-survey' not in page.locator('#reading-preview').inner_html()
+        assert 'Reading screen 1' not in page.locator('#reading-preview').inner_text()
+
+    render('new-survey', status='running', stage='reading', pages_captured=1)
+    assert page.locator('#reading-preview img').get_attribute('src') == (
+        '/api/reader/jobs/new-survey/preview/0')
+    assert page.locator('#reading-progress').inner_text() == 'Reading screen 1…'
+    assert page.locator('#reading-preview').count() == 1
+    page.close()
+
+
 def test_list_does_not_promote_incomplete_evidence(tmp_path, monkeypatch):
     from surveycoach.server.repository import Repository
     from tests.builders import one_question_survey, question

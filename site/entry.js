@@ -43,6 +43,9 @@
       }
       const source=`/api/reader/jobs/${encodeURIComponent(jobId)}/preview/${count-1}`;
       if(image.getAttribute('src')!==source) image.src=source;
+    } else {
+      // Zero captures belongs to this job, never the previous survey's image.
+      SC.mount(preview.querySelector('.reading-phone'), SC.icon('eye'));
     }
     preview.querySelector('figcaption').textContent=job.status==='failed' ? job.error || 'Review did not finish.'
       : completed ? 'Review saved.'

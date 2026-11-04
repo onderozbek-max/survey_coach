@@ -35,3 +35,27 @@ All commands ran in `/Users/o0o02dn/Documents/adminAI/survey-coach`, using tempo
 No delegation, scaffold, worktree, push, live database, external service request or protected original image changes. Existing untracked `review/` and `uglyhome.png` untouched. Other chapters are not redesigned. Automated Chromium desktop/mobile/keyboard/reduced-motion checks were run; no manual screenshot/visual-quality audit claimed.
 
 Reusing full detail for each list item favors correctness/DRY in this local pilot; it adds per-survey projection work (including immediate prior-version comparison). A dedicated shared lightweight projection can be extracted if real list scale requires it; no speculative caching added. The brief's three allowed status labels mean incomplete zero-must-fix evidence remains Checking rather than falsely Ready, even when the saved job has ended; its six signal labels retain the actual checked/unknown evidence.
+
+## B8 review follow-up — P2 stale capture state
+
+Base: `66066f7`. Read `b8-review.md` and the B8 brief/report before changes.
+
+- [x] Reproduce with a failing two-job Home regression before implementation.
+- [x] Clear the captured phone image for every zero-capture render, before current-job caption/steps render.
+- [x] Run targeted RED/GREEN and focused Home/reading/entry/claims checks.
+- [x] Record P3 listing scaling as a minor, deferred local-pilot tradeoff; no repository/listing changes.
+
+Root cause: the reused Home figure only updated its image when `pages_captured` was positive. A different queued/opening/failed job with zero captures retained the previous survey's image. The minimal fix restores the existing eye placeholder in the zero-capture branch. No synthetic capture image, invented screen number, backend change or extra job-identity state is needed: capture presence is rendered directly from each current job payload. Caption and completion steps continue to rebuild synchronously from that payload; non-Home rechecks remain unchanged.
+
+Regression: `test_new_zero_capture_job_clears_previous_survey_preview` renders a captured failure (4 screens, checking step complete), then a different queued job, opening job and zero-capture failure. Each new state asserts no image/src/previous-survey reference, the eye placeholder, exact current-job caption and all three steps incomplete. A subsequent real capture uses the new job's `/preview/0` and only then says Reading screen 1.
+
+Exact commands and results (working directory `/Users/o0o02dn/Documents/adminAI/survey-coach`):
+
+1. RED: `.venv/bin/python -m pytest tests/test_home_page.py::test_new_zero_capture_job_clears_previous_survey_preview -q --tb=short` — **1 failed, 1 warning in 1.93s**. Expected failure: `tests/test_home_page.py:178`, `assert page.locator('#reading-preview img').count() == 0`, actual `1 == 0` on the new queued job.
+2. GREEN, same command — **1 passed, 1 warning in 1.66s**.
+3. Focused GREEN: `.venv/bin/python -m pytest tests/test_home_page.py tests/test_reader_progress.py tests/test_start_review_e2e.py tests/test_mvp_preview.py tests/test_copy_guard.py -q --tb=short` — **22 passed, 1 warning in 6.39s**.
+4. Warning in each run: existing Starlette/httpx TestClient deprecation. `git diff --check` clean. No full-suite rerun claimed for this three-line fix.
+
+P3 disposition: **minor / deferred for the local pilot**. Full `detail()` projection per unpaginated listing item still warrants a shared lightweight authoritative projection or bounded listing before scaling, with projection-budget and stored-evidence immutability assertions. No second signal algorithm, cache or unrelated expansion added here.
+
+Boundaries: synthetic localhost browser routes and temporary SQLite only; no delegation, push, live database, external service call or protected original/image changes. Existing untracked `review/` and `uglyhome.png` untouched. Only `site/entry.js`, `tests/test_home_page.py` and this report are included in the fix commit.
