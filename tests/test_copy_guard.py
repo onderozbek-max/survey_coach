@@ -39,11 +39,6 @@ def _find_claims(root):
     ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ForbiddenClaimError,
-    reason="Old local.html hero claims outcomes; remove in Part B Task 10 copy sweep",
-)
 def test_product_copy_does_not_claim_member_outcomes():
     claims = _find_claims(ROOT)
     if claims:

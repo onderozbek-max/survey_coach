@@ -169,29 +169,31 @@ class Repository:
 
     def list_surveys(self) -> list[dict]:
         with self.transaction() as db:
-            rows = db.execute("SELECT v.survey_id AS id,v.title,v.version,v.content_hash,v.created_at,"
-                              "v.snapshot,s.survey_type,s.display_title FROM versions v "
-                              "JOIN surveys s ON s.id=v.survey_id WHERE v.version=(SELECT MAX(v2.version) FROM versions v2 "
+            rows = db.execute("SELECT v.survey_id AS id,v.version,v.content_hash,v.created_at "
+                              "FROM versions v WHERE v.version=(SELECT MAX(v2.version) FROM versions v2 "
                               "WHERE v2.survey_id=v.survey_id) ORDER BY v.created_at DESC, v.survey_id").fetchall()
-            surveys = []
-            for row in rows:
-                item = dict(row) | {"readiness": None, "must_fix": None, "score_checked": None}
-                snapshot = json.loads(item.pop("snapshot"))
-                item["survey_type"] = row["survey_type"] or snapshot["survey_type"]
-                item["survey_type_chosen"] = bool(row["survey_type"])
-                if title := item.pop("display_title"):
-                    item["title"] = title
-                data = self._latest_review(db, row["id"], row["version"])
-                if data:
-                    review = project_review(dict(snapshot, survey_type=item["survey_type"]), data["review"])
-                    self._qualify(review, self._coverage(db, row["id"], row["version"]))
-                    card = review["scorecard"]
-                    item.update(readiness=card["readiness"],
-                                must_fix=sum(f["severity"] == "must_fix" for f in review["findings"]),
-                                score_checked=[round(card["score"] if "checked_points" in card else card["score"] - card["unchecked_points"]),
-                                               card.get("checked_points", 100 - card["unchecked_points"]) ])
-                surveys.append(item)
-            return surveys
+            surveys = [dict(row) for row in rows]
+        # Reuse authoritative detail projection (including effective type and valid
+        # decisions); Home must not invent a second signal/readiness calculation.
+        for item in surveys:
+            detail = self.detail(item["id"], item["version"])
+            signals = detail.get("overview", {}).get("signals", [])
+            item.update({key: detail[key] for key in ("title", "survey_type", "survey_type_chosen")})
+            item.update(signals=signals, job=detail.get("job"), readiness=None, must_fix=None, score_checked=None)
+            review = detail.get("review") or {}
+            if review:
+                card = review["scorecard"]
+                item.update(readiness=card["readiness"],
+                            must_fix=sum(f["severity"] == "must_fix" for f in review["findings"]),
+                            score_checked=[round(card["score"]), card["checked_points"]])
+            coverage = detail.get("coverage")
+            item["ready_to_share"] = bool(
+                review and item["readiness"] == "ready" and item["must_fix"] == 0
+                and len(signals) == 6 and all(s["state"] == "strong" for s in signals)
+                and not review.get("unchecked")
+                and (not coverage or coverage.get("full_branching_coverage") is True)
+                and (item["job"] or {}).get("status") == "completed")
+        return surveys
 
     def _raw_detail(self, survey_id: str, version: int | None = None) -> dict:
         with self.transaction() as db:

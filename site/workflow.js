@@ -1,7 +1,7 @@
 /* Private local workflow; never stores real survey content in the public demo or browser storage. */
 (() => {
   "use strict";
-  const { h, mount, $, plural, READINESS } = window.SC;
+  const { h, mount, $, plural } = window.SC;
   const params = new URLSearchParams(location.search), surveyId = params.get("id");
   let detail;
   const endpoint = (version = detail.version) => `/api/surveys/${encodeURIComponent(surveyId)}/versions/${version}`;
@@ -23,7 +23,7 @@
     for (let attempt = 0; attempt < 600; attempt++) {
       const job = await api(`/api/jobs/${encodeURIComponent(jobId)}`);
       window.SC.renderReadProgress?.(job, jobId);
-      const stage = job.stage === 'reading' ? `Reading screen ${job.pages_captured || 1}…`
+      const stage = job.stage === 'reading' ? job.pages_captured ? `Reading screen ${job.pages_captured}…` : 'Opening the test survey…'
         : job.stage === 'checking' ? `${job.pages_captured || 0} screens captured. Checking wording and flow…`
         : job.status === 'running' ? 'Checking survey wording and flow. AI checks can take a few minutes…' : 'Review queued…';
       message(outputId, stage, "progress");
@@ -68,7 +68,7 @@
       }
       await waitForJob(result.job_id, "import-status");
       const job = await api(`/api/jobs/${encodeURIComponent(result.job_id)}`);
-      location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}${result.deduplicated || job.deduplicated ? '&unchanged=1' : ''}`;
+      location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}${result.deduplicated || job.deduplicated ? '&unchanged=1' : ''}${surveyId ? '' : '#overview'}`;
     } catch (error) { message("import-status", error.message, "error"); }
     finally { button.disabled = false; }
   }
@@ -80,14 +80,24 @@
     if (Math.abs(minutes) < 1440) return rtf.format(Math.round(minutes / 60), "hour");
     return rtf.format(Math.round(minutes / 1440), "day");
   };
-  const surveyCard = (s) => h("a", { class: "survey-card", href: `review.html?id=${encodeURIComponent(s.id)}` },
-    h("div", null, h("span", { class: `chip ${s.readiness || ""}` }, READINESS[s.readiness] || "Not reviewed")),
-    h("h3", null, s.title),
-    h("div", { class: "card-meta" },
-      s.must_fix != null && h("span", { class: s.must_fix ? "red" : null }, `${s.must_fix} to fix before launch`),
-      s.score_checked && h("span", null, `${s.score_checked[0]} of ${s.score_checked[1]} checked points`),
-      h("span", null, `Round ${s.version}`), h("span", null, `Updated ${since(s.created_at)}`)),
-    h("span", { class: "card-open", "aria-hidden": "true" }, "Open review →"));
+  const signalNames = ['Time', 'Clarity', 'Honest answers', 'Energy & flow', 'Tone & fun', 'Phone comfort'];
+  const signalIcons = {strong:'check', mixed:'minus', needs_work:'alert', unknown:'clock'};
+  function surveyCard(s) {
+    const signals = signalNames.map((name, index) => s.signals?.[index]
+      || {name, state:'unknown', label:'Not checked yet'});
+    const pending = s.job && ['queued', 'running'].includes(s.job.status);
+    const must = !pending && s.must_fix > 0;
+    const ready = !pending && !must && s.ready_to_share === true;
+    const label = must ? `${s.must_fix} must-fixes` : ready ? 'Ready to share' : 'Checking…';
+    return h('a', {class:'survey-card', href:`review.html?id=${encodeURIComponent(s.id)}#overview`},
+      h('h3', null, s.title?.trim() || 'Untitled survey'),
+      h('span', {class:'chip', 'data-state':must ? 'needs_work' : ready ? 'strong' : 'unknown'},
+        window.SC.icon(must ? 'alert' : ready ? 'check' : 'clock'), label),
+      h('div', {class:'signals', role:'img', 'aria-label':signals.map(v => `${v.name}: ${v.label}`).join(', ')},
+        signals.map(v => h('span', {class:'signal-dot', 'data-state':v.state, title:`${v.name}: ${v.label}`, 'aria-hidden':'true'},
+          window.SC.icon(signalIcons[v.state] || 'clock')))),
+      h('p', {class:'meta'}, `Version ${s.version} · ${since(s.created_at)}`));
+  }
   async function home() {
     const data = await api("/api/surveys");
     message("survey-count", data.surveys.length ? plural(data.surveys.length, "survey") : "");
@@ -190,7 +200,7 @@
     try {
       const result = await api("/api/samples/boxer-briefs", "POST", {});
       await waitForJob(result.job_id, "import-status");
-      location.href = `review.html?id=${encodeURIComponent(result.id)}`;
+      location.href = `review.html?id=${encodeURIComponent(result.id)}#overview`;
     } catch (error) { message("import-status", error.message, "error"); $("sample-start").disabled = false; }
   });
   // One accessible inline error path for both malformed and disallowed URLs.
