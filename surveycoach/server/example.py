@@ -3,6 +3,8 @@ from pathlib import Path
 
 from surveycoach.judge import JudgeCache
 from surveycoach.review import run_review
+from surveycoach.rubric import load_rubric
+from surveycoach.server.present import enrich
 from surveycoach.snapshot import SurveySnapshot
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,9 +36,13 @@ def run_example(repository, job_id):
         encoded = result.model_dump(mode='json',exclude={'timing'})
         for finding, item in zip(result.findings,encoded['findings']):
             item['fingerprint'] = finding.fingerprint
-        repository.finish(job_id, {'review':encoded,
+        payload = {'review':encoded,
             'timeline':[{'page_id':page.page_id,'seconds':round(page.cumulative_seconds)} for page in result.timing.pages],
             'total_seconds':round(result.timing.total_seconds),
-            'example':True})
+            'example':True}
+        # Persist raw assessment evidence, never derived screens or curation.
+        projected = enrich({**detail, **payload}, load_rubric())
+        repository.finish(job_id, payload)
+        return projected
     except Exception:
         repository.finish(job_id,error='The worked example could not load. No live survey or AI request was made.')

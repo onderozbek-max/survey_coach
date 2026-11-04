@@ -4,6 +4,11 @@ from __future__ import annotations
 from copy import deepcopy
 import re
 
+from surveycoach.labels import screen_labels
+from surveycoach.server.plan import build_plan
+from surveycoach.signals import build_overview
+from surveycoach.snapshot import SurveySnapshot
+
 ABSORBS = {
     "B1": {"5.1", "5.2", "5.3"}, "B2": {"4.1", "4.3", "8.4"},
     "B5": {"1.4"}, "B7": {"7.1", "7.3", "7.6"},
@@ -53,7 +58,7 @@ def present_findings(findings: list[dict], titles: dict[str, str]) -> list[dict]
 
     Absorption is recomputed each time; titles survive a second projection after
     their bookkeeping sentence has already been removed. No scoring or decisions
-    belong here, and no repository or enrichment wiring is needed yet.
+    belong here.
     """
     out = deepcopy(findings)
     for finding in out:
@@ -72,3 +77,27 @@ def present_findings(findings: list[dict], titles: dict[str, str]) -> list[dict]
                 other["absorbed_by"] = blocker["fingerprint"]
                 blocker.setdefault("also_affects", []).append(other["fingerprint"])
     return out
+
+
+def enrich(data: dict, rubric) -> dict:
+    """Return a detached presentation payload; never decorate stored evidence.
+
+    Repository rounds present findings before comparison. Re-presenting here is
+    deliberately idempotent, so offline payloads use exactly the same contract.
+    Curation always uses the caller's final validated/carried decisions.
+    """
+    data = deepcopy(data)
+    snapshot = SurveySnapshot.model_validate(dict(
+        data["snapshot"], survey_type=data.get("survey_type")
+        or data["snapshot"].get("survey_type", "non_ihut_product")))
+    data["screens"] = screen_labels(snapshot)
+    if data.get("review"):
+        titles = {c.id: c.title for c in rubric.criteria} | {b.id: b.title for b in rubric.blockers}
+        points = {c.id: c.points for c in rubric.criteria}
+        findings = present_findings(data["review"].get("findings", []), titles)
+        data["review"]["findings"] = findings
+        decisions = data.get("decisions", {})
+        data["plan"] = build_plan(findings, decisions, points, data["screens"])
+        data["overview"] = build_overview(
+            snapshot, data["review"], decisions, data["screens"], data["plan"], rubric)
+    return data

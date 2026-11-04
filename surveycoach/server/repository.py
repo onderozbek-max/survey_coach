@@ -10,7 +10,8 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter
 
-from surveycoach.labels import screen_labels
+from surveycoach.rubric import load_rubric
+from surveycoach.server.present import enrich, present_findings
 from surveycoach.recommendations import guard_recommendation
 
 from surveycoach.snapshot import SurveySnapshot, SurveyType
@@ -224,14 +225,16 @@ class Repository:
             data["coverage"] = self._coverage(db, survey_id, version)
             return data
 
-    def _project_detail(self, data):
+    def _project_detail(self, data, rubric=None):
         """Project one round only. This never loads or walks historical rounds."""
         effective = dict(data["snapshot"], survey_type=data["survey_type"])
-        data["screens"] = screen_labels(SurveySnapshot.model_validate(effective))
         if data["review"]:
             data["review"] = project_review(effective, data["review"])
             data["review"]["findings"] = [guard_recommendation(finding, effective)
                                            for finding in data["review"].get("findings", [])]
+            rubric = rubric or load_rubric()
+            titles = {c.id: c.title for c in rubric.criteria} | {b.id: b.title for b in rubric.blockers}
+            data["review"]["findings"] = present_findings(data["review"]["findings"], titles)
         self._qualify(data["review"], data["coverage"])
         data["decisions"] = valid_decisions(data)
         return data
@@ -243,17 +246,19 @@ class Repository:
             data = self._raw_detail(survey_id, version)
             version = data["version"]
             prior = self._raw_detail(survey_id, version - 1) if version > 1 else None
-        data = self._project_detail(data)
+        rubric = load_rubric()
+        data = self._project_detail(data, rubric)
         data["round"] = version
         data["round_changes"] = {key: [] for key in ("fixed", "still", "new", "uncertain")}
         data["carried"] = {}
         if prior:
-            data["round_changes"], carried = compare_rounds(self._project_detail(prior), data)
+            data["round_changes"], carried = compare_rounds(self._project_detail(prior, rubric), data)
             data["carried"] = {key: value for key, value in carried.items() if key not in data["decisions"]}
             data["decisions"] = {**data["carried"], **data["decisions"]}
             data["round_changes"]["compared_to_round"] = version - 1
         data["round_changes"]["unchecked_paths"] = presentation(data)["scope"]["unchecked_paths"]
         data["carried_decisions"] = data["carried"]
+        data = enrich(data, rubric)
         data["presentation"] = presentation(data)
         data["change_sheet"] = change_sheet(data)
         return data

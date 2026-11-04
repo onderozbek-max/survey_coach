@@ -17,6 +17,7 @@ from surveycoach.llm.base import ASSESSMENT_MODEL
 from surveycoach.review import run_review
 from surveycoach.rubric import load_rubric
 from surveycoach.snapshot import SurveySnapshot
+from surveycoach.server.present import enrich
 
 ROOT = Path(__file__).parent.parent
 SITE_DATA = ROOT / "site" / "data.js"
@@ -59,13 +60,16 @@ class ReviewedDemoCache(JudgeCache):
 def _survey(sample_id: str, blurb: str, provider=None) -> dict:
     snapshot = SurveySnapshot.model_validate_json((ROOT / "fixtures" / f"{sample_id}.json").read_text())
     review = run_review(snapshot, provider=provider or CacheOnlyProvider(), cache=ReviewedDemoCache(AI_CACHE))
-    return {
+    encoded = review.model_dump(mode="json", exclude={"timing"})
+    encoded["findings"] = [f.model_dump(mode="json") | {"fingerprint": f.fingerprint}
+                           for f in review.findings]
+    return enrich({
         "id": sample_id, "title": snapshot.title, "blurb": blurb,
-        "review": review.model_dump(mode="json", exclude={"results", "timing"}),
+        "review": encoded,
         "timeline": [{"page_id": p.page_id, "seconds": round(p.cumulative_seconds)} for p in review.timing.pages],
         "total_seconds": round(review.timing.total_seconds),
         "snapshot": snapshot.model_dump(mode="json", exclude_defaults=True),
-    }
+    }, load_rubric())
 
 
 def build_demo_data(provider=None) -> dict:
@@ -82,7 +86,7 @@ def build_demo_data(provider=None) -> dict:
 
 def render_data_js(data: dict) -> str:
     """ASCII-only (emoji and accents become escapes), stable output."""
-    return "window.SURVEYCOACH_DEMO = " + json.dumps(data, indent=1, ensure_ascii=True) + ";\n"
+    return "window.SURVEYCOACH_DEMO = " + json.dumps(data, ensure_ascii=True, separators=(",", ":")) + ";\n"
 
 
 def main(argv: list[str] | None = None) -> None:

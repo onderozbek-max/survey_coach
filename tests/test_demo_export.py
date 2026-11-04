@@ -19,6 +19,10 @@ def test_committed_site_data_is_not_stale():
         "Run: .venv/bin/python -m surveycoach.demo_export"
 
 
+def test_generated_bundle_stays_compact():
+    assert len(render_data_js(build_demo_data()).splitlines()) < 600
+
+
 def test_data_js_is_pure_ascii_so_no_literal_emoji_in_any_file():
     assert render_data_js(build_demo_data()).isascii()
 

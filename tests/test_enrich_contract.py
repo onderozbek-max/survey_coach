@@ -1,0 +1,145 @@
+"""One read-time contract for workspace, offline demo and worked example."""
+from copy import deepcopy
+
+from fastapi.testclient import TestClient
+
+from builders import intro, page, question, survey, thank_you
+from surveycoach.demo_export import build_demo_data
+from surveycoach.review import run_review
+from surveycoach.rubric import load_rubric
+from surveycoach.server import create_app
+from surveycoach.server.example import run_example
+from surveycoach.server.repository import Repository
+
+
+def assert_contract(data):
+    assert data["screens"]
+    assert set(data["plan"]["counts"]) == {"must_fix", "quick_wins", "more", "open_must_fix"}
+    assert data["overview"]["headline"]
+    assert len(data["overview"]["signals"]) == 6
+    assert all("also_covers" in f for f in data["review"]["findings"])
+    visible = {f["fingerprint"] for f in data["review"]["findings"] if not f.get("absorbed_by")}
+    planned = {fp for tier in ("must_fix", "quick_wins", "more")
+               for item in data["plan"][tier] for fp in item["fingerprints"]}
+    assert planned == visible
+
+
+def encoded(snapshot):
+    result = run_review(snapshot)
+    review = result.model_dump(mode="json", exclude={"timing"})
+    review["findings"] = [f.model_dump(mode="json") | {"fingerprint": f.fingerprint}
+                          for f in result.findings]
+    return {"review": review}
+
+
+def test_sample_api_and_demo_share_contract_without_enriching_stored_evidence(tmp_path):
+    app = create_app(tmp_path / "test.db")
+    with TestClient(app, base_url="http://localhost") as client:
+        created = client.post("/api/samples/boxer-briefs", json={}).json()
+        repo = app.state.repository
+        before = list(repo.db.iterdump())
+        data = client.get(f"/api/surveys/{created['id']}").json()
+        assert_contract(data)
+        assert client.get(f"/api/surveys/{created['id']}").json() == data
+        assert not data["change_sheet"]  # Never copy a suggestion before a choice.
+        assert list(repo.db.iterdump()) == before
+    for data in build_demo_data()["surveys"]:
+        assert_contract(data)
+        assert data["review"]["results"]  # Assessed evidence, not inferred strengths.
+
+
+def test_enrich_is_detached_repeatable_and_uses_effective_type():
+    from surveycoach.server.present import enrich
+
+    snap = survey(page(1, text="word " * 2695))
+    data = {"snapshot": snap.model_dump(mode="json"), "survey_type": "community_pulse",
+            **encoded(snap), "decisions": {}}
+    before = deepcopy(data)
+    first = enrich(data, load_rubric())
+    assert_contract(first)
+    assert data == before
+    assert enrich(first, load_rubric()) == first
+    assert first["review"]["results"] == data["review"]["results"]
+    assert first["review"]["scorecard"] == data["review"]["scorecard"]
+    assert "Community surveys aim for 5 minutes" in first["overview"]["signals"][0]["summary"]
+    first["snapshot"]["pages"].clear()
+    first["review"]["results"].clear()
+    assert data == before
+
+
+def test_pending_payload_gets_screens_but_no_invented_review():
+    from surveycoach.server.present import enrich
+
+    data = {"snapshot": survey(page(1, question())).model_dump(mode="json"), "review": None}
+    before = deepcopy(data)
+    projected = enrich(data, load_rubric())
+    assert projected["screens"]
+    assert "plan" not in projected and "overview" not in projected
+    assert data == before
+
+
+def test_example_returns_enriched_payload_but_persists_only_raw_evidence(tmp_path):
+    from surveycoach.server.example import ROOT
+    from surveycoach.snapshot import SurveySnapshot
+
+    repo = Repository(tmp_path / "example.db")
+    try:
+        snap = SurveySnapshot.model_validate_json((ROOT / "fixtures/boxer-briefs.json").read_text())
+        created = repo.submit(snap, ai=False)
+        data = run_example(repo, created["job_id"])
+        assert_contract(data)
+        stored = repo._latest_review(repo.db, created["id"], 1)
+        assert not {"screens", "plan", "overview"} & stored.keys()
+        assert all("also_covers" not in f for f in stored["review"]["findings"])
+        assert stored["review"]["results"]
+        assert_contract(repo.detail(created["id"]))
+    finally:
+        repo.close()
+
+
+def test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry(tmp_path):
+    repo = Repository(tmp_path / "rounds.db")
+    try:
+        snap = survey(intro(), page(1, question()), thank_you())
+        payload = encoded(snap)
+        # Retained historical AI evidence: same scope, different roots, absorbable family.
+        for cid, severity, fp in [("B1", "must_fix", "root"),
+                                  ("5.1", "worth_improving", "child")]:
+            payload["review"]["findings"].append({
+                "criterion_id": cid, "severity": severity, "fingerprint": fp,
+                "headline": fp, "evidence": snap.pages[1].questions[0].text,
+                "explanation": "Make it clear. Also covers 5.1.",
+                "member_impact": "Clearer", "source": "ai", "page_id": "p1", "question_id": "q1"})
+        first = repo.submit(snap, ai=False)
+        repo.finish(first["job_id"], payload)
+        for fp in ("root", "child"):
+            repo.save_decision(first["id"], 1, fp, {"action": "keep", "reason": "Tracker"})
+        second = repo.submit(snap.model_copy(update={"title": "Round two"}),
+                             ai=False, survey_id=first["id"])
+        repo.finish(second["job_id"], payload)
+        before = list(repo.db.iterdump())
+        data = repo.detail(first["id"])
+        assert_contract(data)
+        child = next(f for f in data["review"]["findings"] if f["fingerprint"] == "child")
+        assert child["absorbed_by"] == "root"
+        entry = next(e for e in data["round_changes"]["still"]
+                     if e["current_finding"]["fingerprint"] == "child")
+        assert entry["prior_finding"]["absorbed_by"] == "root"
+        assert entry["current_finding"]["absorbed_by"] == "root"
+        assert "child" not in {line["fingerprint"] for line in data["change_sheet"]}
+        assert data["carried"]["root"]["reason"] == "Tracker"
+        assert data["plan"]["counts"]["open_must_fix"] == 0
+        assert data["overview"]["headline"] == "No must-fixes found in what we checked"
+        assert all("Also covers" not in line["instructions"] for line in data["change_sheet"])
+        assert data == repo.detail(first["id"])
+        assert list(repo.db.iterdump()) == before
+        # A current explicit reopen wins over carry-over in both curated projections.
+        repo.save_decision(first["id"], 2, "root", {"action": "open"})
+        reopened = repo.detail(first["id"])
+        assert reopened["plan"]["counts"]["open_must_fix"] == 1
+        assert reopened["overview"]["headline"].startswith("1 must-fix")
+        # A keep without a reason is not a completed plan choice.
+        repo.save_decision(first["id"], 2, "root", {"action": "keep", "reason": " "})
+        assert repo.detail(first["id"])["plan"]["counts"]["open_must_fix"] == 1
+    finally:
+        repo.close()

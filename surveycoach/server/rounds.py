@@ -209,6 +209,8 @@ def change_sheet(detail):
     places = locations(detail["snapshot"])
     lines = []
     for finding in (detail.get("review") or {}).get("findings", []):
+        if finding.get("absorbed_by"):
+            continue  # The parent owns this change; retain the child as evidence only.
         decision = detail.get("decisions", {}).get(finding["fingerprint"], {})
         if decision.get("action") not in {"pick", "keep"}:
             continue
