@@ -73,7 +73,9 @@
     });
     const whole = { index: -1, page: null, name: "Whole survey", topic: "Applies to every screen", entries: [] };
 
-    review.findings.forEach((f, key) => (items[locate(f)] || whole).entries.push({ f, key }));
+    review.findings.forEach((f, key) => {
+      if (!f.absorbed_by) (items[locate(f)] || whole).entries.push({ f, key });
+    });
     for (const item of [...items, whole]) {
       item.entries.sort((a, b) => RANK[a.f.severity] - RANK[b.f.severity] || a.key - b.key);
       item.entries.forEach((entry, i) => { entry.n = i + 1; });

@@ -25,11 +25,10 @@
       return;
     }
   }
-  const DEVICES = [["iPhone SE", 320], ["iPhone 16", 390], ["Android XL", 412]];
   const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
-  let model;
-  let comparing = false, playing = false;
+  let model, queue;
+  let comparing = false, playing = false, settingsOpen = false;
   const playback = SC.createPlayback({
     seconds:() => survey().overview.energy.screens[pageItem().index]?.seconds || 1,
     advance:() => {
@@ -74,9 +73,11 @@
   async function copy(text, msg) {
     try {
       await navigator.clipboard.writeText(text);
-      msg.textContent = "Copied. Paste it into RedJade yourself: SurveyCoach does not change your survey.";
+      msg.textContent = "Copied. Paste it into RedJade.";
+      return true;
     } catch (_) {
-      msg.textContent = "Copy is not available in this browser. Select the suggested text and copy it.";
+      msg.textContent = "Copy unavailable. Select the suggested text and copy it.";
+      return false;
     }
   }
 
@@ -85,24 +86,6 @@
     if (!pinEl || !screen) return;
     const s = screen.getBoundingClientRect(), p = pinEl.getBoundingClientRect();
     screen.scrollTop += p.top - s.top - s.height / 3;   // scroll the phone only, never the page
-  }
-
-  function select(key, focusCard) {
-    state.screen = Math.max(0, model.order.findIndex((item) => item.entries.some((e) => e.key === key)));
-    state.selected = key;
-    renderAll();
-    scrollPhoneTo(key);
-    if (focusCard) {
-      const head = document.querySelector(`[data-fk="card-${key}"]`);
-      head.focus();
-      head.scrollIntoView({ block: "nearest" });
-    }
-  }
-
-  function goToScreen(i) {
-    state.screen = i;
-    state.selected = current().entries.length ? current().entries[0].key : null;
-    renderAll();
   }
 
   /** One render's view of the world. "Applied" means the phone really changed: the same function decides both. */
@@ -117,37 +100,49 @@
     return {
       data: DATA, review: survey().review, selected: state.selected, device: state.device, large: state.large,
       total: model.items.length, pageId: page.id, plan, applied, blocked, offscreen, choiceOf, originalOf,
-      onPin: (key) => select(key, true), onSelect: (key) => select(key, false),
-      decisionOf: key => localDetail?.decisions[survey().review.findings[key].fingerprint],
+      onPin: key => { queue.focus(survey().review.findings[key].fingerprint); document.querySelector('#coach h3')?.focus(); },
+      onSelect: key => queue.focus(survey().review.findings[key].fingerprint),
+      decisionOf: key => survey().decisions[survey().review.findings[key].fingerprint],
       onKeep: (key, reason) => context().onChoose(key, 'original', reason),
-      onChoose: async (key, value, reason) => {
-        const choiceKey = `${state.survey}:${key}`, previousChoice = state.choices[choiceKey];
-        state.choices[choiceKey] = value; renderAll();
-        if (localDetail) {
-          const f = survey().review.findings[key], prior = localDetail.decisions[f.fingerprint] || {};
-          const picked = SC.chosenChoice(f, value);
-          const revision = (decisionRevisions.get(f.fingerprint) || 0) + 1;
-          decisionRevisions.set(f.fingerprint, revision);
-          try {
-            const response = await fetch(`/api/surveys/${encodeURIComponent(localId)}/versions/${localDetail.version}/decisions/${f.fingerprint}`, {
-              method: "PUT", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: picked ? "pick" : reason ? "keep" : "original", picked_text: picked?.text || null, reason: reason ?? prior.reason ?? "", manual_done: false, client_id: decisionClient, revision }),
-            });
-            if (!response.ok) throw new Error("Could not save");
-            const saved = await response.json();
-            if (revision !== decisionRevisions.get(f.fingerprint)) return false;
-            if (revision === decisionRevisions.get(f.fingerprint)) {
-              localDetail.decisions[f.fingerprint] = saved;
-              window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail:localDetail}));
-              renderAll();
-              say("Your choice is saved on this computer.");
-            }
-          } catch (_) { if (revision === decisionRevisions.get(f.fingerprint)) { state.choices[choiceKey] = previousChoice; renderAll(); } say("Your choice could not be saved. Try again before leaving this page."); return false; }
-        }
-        return true;
+      onChoose: (key, value, reason) => {
+        const f = survey().review.findings[key], picked = SC.chosenChoice(f, value);
+        return saveDecision(key, {action:picked ? 'pick' : reason ? 'keep' : 'original',
+          picked_text:picked?.text || null, reason:reason || '', manual_done:false});
       },
+      onRestore: (key, prior) => saveDecision(key, prior || {action:'open'}),
       onCopy: copy,
     };
+  }
+
+  async function saveDecision(key, decision) {
+    const detail = survey(), f = detail.review.findings[key], choiceKey = `${state.survey}:${key}`;
+    const priorChoice = state.choices[choiceKey];
+    const revision = (decisionRevisions.get(f.fingerprint) || 0) + 1;
+    decisionRevisions.set(f.fingerprint, revision);
+    const payload = {action:decision.action, picked_text:decision.picked_text || null,
+      reason:decision.reason || '', manual_done:decision.manual_done || false, client_id:decisionClient, revision};
+    state.choices[choiceKey] = payload.action === 'pick'
+      ? SC.choicesOf(f).find(c => c.text === payload.picked_text)?.value || 'open'
+      : payload.action === 'open' ? 'open' : 'original';
+    renderAll();
+    try {
+      let saved = payload;
+      if (localDetail) {
+        const response = await fetch(`/api/surveys/${encodeURIComponent(localId)}/versions/${detail.version}/decisions/${f.fingerprint}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
+        });
+        if (!response.ok) throw Error('Could not save');
+        saved = await response.json();
+      }
+      if (revision !== decisionRevisions.get(f.fingerprint)) return false;
+      detail.decisions[f.fingerprint] = saved;
+      window.dispatchEvent(new CustomEvent('surveycoach-choice-saved', {detail}));
+      renderAll();
+      return true;
+    } catch (_) {
+      if (revision === decisionRevisions.get(f.fingerprint)) { state.choices[choiceKey] = priorChoice; renderAll(); }
+      return false;
+    }
   }
 
   /* ---------- header ---------- */
@@ -173,7 +168,7 @@
       : [`AI checked ${ai.checked.length} of ${ai.checked.length + failed.length} parts`,
         failed.length && `could not check ${failed.map((id) => DATA.ai_batches[id]).join(", ")}`,
         card.unchecked_points && `${card.unchecked_points} points still unchecked (${review.unchecked.join(", ")})`].filter(Boolean).join("; ");
-    if (SC.workspaceDetail) {
+    if (localDetail) {
       const kept = f => ['keep','original'].includes(localDetail.decisions[f.fingerprint]?.action) && !!localDetail.decisions[f.fingerprint]?.reason?.trim();
       const remaining = review.findings.filter(f => f.severity === 'must_fix' && !kept(f)).length;
       const acknowledged = review.findings.filter(f => f.severity === 'must_fix' && kept(f)).length;
@@ -208,32 +203,10 @@
   }
 
   /* ---------- stage ---------- */
-  const seg = (label, options, value, onPick, prefix, disabled = []) =>
-    h("div", { class: "seg", role: "group", "aria-label": label },
-      options.map(([v, text]) => h("button", { type: "button", "aria-pressed": String(v === value), "data-fk": `${prefix}-${v}`, disabled: disabled.includes(v), onclick: () => onPick(v) }, text)));
-
-  function nextIssue() {
-    const entries = model.order.flatMap(item=>item.entries.map(entry=>({...entry,item})))
-      .sort((a,b)=>(a.f.severity === 'must_fix'?0:1)-(b.f.severity === 'must_fix'?0:1));
-    const next = entries[(entries.findIndex(entry=>entry.key===state.selected)+1)%entries.length];
-    if (!next) return;
-    state.screen=model.order.indexOf(next.item); state.selected=next.key; renderAll();
-  }
-
   function goToPage(index) {
     state.screen = model.order.indexOf(model.items[index]);
     state.selected = current().entries.length ? current().entries[0].key : null;
-    renderAll();
-  }
-
-  /** Contextual shortcut below the phone on small screens. */
-  function leadLine() {
-    const entry = current().entries.find((e) => e.key === state.selected);
-    if (!entry) return null;
-    return h("button", { type: "button", class: `lead ${entry.f.severity}`, "data-fk": "lead", onclick: () => {
-      const head = document.querySelector(`[data-fk="card-${entry.key}"]`);
-      head.focus(); head.scrollIntoView({ block: "center" });
-    } }, h("span", { class: "badge-n" }, String(entry.n)), h("span", null, entry.f.headline), h("span", { class: "more" }, "Details"));
+    queue.screen(model.items[index].page.id);
   }
 
   function renderStage() {
@@ -247,23 +220,14 @@
     const rewrittenCtx = {...context(),plan:previewPlan(true),applied:e=>SC.hitsOn(item.page,previewPlan(true)).has(e.key)};
     mount($("stage"),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
-      h("label", {class: 'screen-picker'}, 'Survey screen',
-        h('select', {'data-fk': 'screen-picker', onchange: event => goToScreen(Number(event.target.value))},
-          model.order.map((screen, i) => h('option', {value: i, selected: i === state.screen},
-            `${screen.name}${screen.topic ? ` · ${screen.topic}` : ''} · ${screen.entries.length ? plural(screen.entries.length, 'issue') : s.review.ai ? 'Nothing flagged' : 'Nothing flagged yet'}`)))),
-      h("div", { class: "preview-controls" },
-        seg("View", [["current", localDetail ? "Original" : "Current"], ["fixes", localDetail ? "Rewritten" : "With fixes"]], state.mode, (v) => { state.mode = v; renderAll(); say(v === "fixes" ? `${plural(changes, 'text change')} previewed. Hypothetical only; no decision saved.` : "Showing the original survey wording."); }, "mode", localDetail && !changes ? ['fixes'] : []),
-        !localDetail && seg("Device", DEVICES.map(([name, w]) => [String(w), name]), String(state.device), (v) => { state.device = Number(v); renderAll(); }, "dev"),
-        h("button", { type: "button", class: "toggle", "aria-pressed": String(state.large), "data-fk": "large", onclick: () => { state.large = !state.large; renderAll(); } }, "Large text")),
+      h('details', {class:'preview-settings',open:settingsOpen,ontoggle:event => { settingsOpen = event.currentTarget.open; }}, h('summary', null, 'Preview settings'),
+        h('button', {type:'button', 'aria-pressed':String(state.large), 'data-fk':'large', onclick:() => { state.large = !state.large; renderAll(); }}, 'Larger preview text'),
+        h('button', {type:'button',disabled:!changes && !comparing,onclick:() => { comparing = !comparing; renderAll(); }}, comparing ? 'Close comparison' : 'Compare wording'),
+        h('button', {type:'button',onclick:() => playing ? playback.pause() : playback.play()}, playing ? 'Pause walkthrough' : 'Play as a member')),
       comparing ? h('div', {class:'comparison-phones'},
         h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
         h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
-      !localDetail && leadLine(),
       localDetail && h('p', {class:'preview-effect',role:'status'}, comparison.replace('See the coach','See the issues')),
-      h('div', {class:'member-controls'},
-        h('button', {type:'button','aria-pressed':String(comparing),disabled:!changes && !comparing,onclick:()=>{comparing=!comparing;renderAll();}},comparing?'Close comparison':'Compare wording'),
-        h('button', {type:'button',onclick:()=>playing ? playback.pause() : playback.play()},playing?'Pause walkthrough':'Play as a member'),
-        h('button', {type:'button',onclick:()=>nextIssue()},'Next issue →')),
       comparing && h('p', {class:'comparison-note'}, `Estimated reading-time change: ${Math.abs(SC.previewReadingDelta(item.page,previewPlan(true)))} seconds ${SC.previewReadingDelta(item.page,previewPlan(true)) < 0 ? 'longer' : 'shorter'}. Layout, typing and unvisited paths are not reassessed.`),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
         current().entries.length ? `Review ${plural(current().entries.length, 'issue')} on this screen ↓` : 'Read the coach notes ↓'),
@@ -280,7 +244,8 @@
   function restoreFocus(key) {
     if (!key) return;
     const target = document.querySelector(`[data-fk="${key}"]`);
-    const usable = target && !target.disabled ? target : $("stage").querySelector(".pager button:not(:disabled)");
+    const usable = target && !target.disabled ? target : null;
+    if (usable?.closest('.preview-settings')) usable.closest('.preview-settings').open = true;
     if (usable) usable.focus({ preventScroll: true });
   }
 
@@ -291,10 +256,12 @@
     if (SC.currentChapter() !== 'improve') return;
     improveDirty = false;
     const active = document.activeElement, key = active && active.dataset ? active.dataset.fk : null;
+    const energyPage = active?.closest('#improve-bar .energy-bar')?.dataset.page;
     const before = document.querySelector("#stage .phone-screen"), keepTop = before ? before.scrollTop : 0;
     const pageKey = `${state.survey}:${pageItem().index}`, samePage = pageKey === lastPage;
     lastPage = pageKey;
     renderTop();
+    mount($('improve-bar'), queue.renderBar(state.mode, value => { state.mode = value; renderAll(); }, pageItem().page.id));
     if ($('strip')) mount($("strip"), h("span", { class: "long" }, DATA.disclaimer), h("span", { class: "short" }, DATA.disclaimer_short));
     renderStage();
     if (comparing) {
@@ -303,22 +270,30 @@
         for (const other of screens) if(other!==screen && Math.abs(other.scrollTop-screen.scrollTop)>2) other.scrollTop=screen.scrollTop;
       });
     }
-    mount($("coach"), SC.renderCoach(current(), context()));
+    mount($("coach"), queue.render(context()));
     if (samePage) document.querySelector("#stage .phone-screen").scrollTop = keepTop;
     else document.querySelector('#stage .phone-screen').scrollTop = 0;
     restoreFocus(key);
+    if (energyPage) [...document.querySelectorAll('#improve-bar .energy-bar')].find(b => b.dataset.page === energyPage)?.focus({preventScroll:true});
   }
 
   function chooseSurvey(i) {
     stopPlayback(); comparing = false;
     state.survey = i;
     model = SC.buildModel(survey());
+    survey().decisions ||= {};
+    SC.workspaceDetail = survey();
+    queue = SC.createQueue(survey(), entry => {
+      if (!entry) return;
+      state.screen = Math.max(0, model.order.findIndex(item => item.entries.some(e => e.key === entry.key)));
+      state.selected = entry.key;
+    }, renderAll);
     SC.renderOverview(survey());
     state.mode = "current";
     const start = model.start;
     state.screen = model.order.indexOf(start);
     state.selected = start.entries.length ? start.entries[0].key : null;
-    renderAll();
+    queue.start();
     say(`Showing the sample survey: ${survey().title}. ${SC.READINESS[survey().review.scorecard.readiness]}.`);
   }
 
@@ -326,13 +301,15 @@
     document.body.insertBefore(h("nav", { class: "local-nav", "aria-label": "Private workspace" }, h("a", { href: "local.html" }, "Open My surveys — requires the local SurveyCoach server")), $("workspace"));
   }
   window.addEventListener('surveycoach-focus-finding', event => {
-    const key = survey().review.findings.findIndex(f => f.fingerprint === event.detail);
-    const item = model.order.find(item => item.entries.some(entry => entry.key === key));
-    if (!item) return;
-    state.screen = model.order.indexOf(item);
-    state.selected = key;
+    queue.focus(event.detail);
     SC.goChapter('improve');
     renderAll();
+  });
+  window.addEventListener('surveycoach-screen', event => {
+    const item = model.items.find(item => item.page.id === event.detail);
+    if (!item) return;
+    state.screen = model.order.indexOf(item);
+    queue.screen(event.detail);
   });
   window.addEventListener('surveycoach-decisions', event => {
     if (!localDetail) return;
@@ -353,18 +330,18 @@
     localDetail = event.detail;
     DATA.surveys[state.survey] = localDetail;
     model = SC.buildModel(localDetail);
+    SC.workspaceDetail = localDetail;
+    queue.update(localDetail);
     renderAll();
   });
   window.addEventListener('surveycoach-chapter', event => {
     if (event.detail.name === 'improve' && Object.keys(event.detail.options || {}).length) {
       const options = event.detail.options;
       SC.improveFilter = options;
-      const group = survey().plan[options.tab];
-      const target = options.page_id || survey().screens.find(screen => screen.screen === group?.[0]?.screen)?.page_id;
-      const item = model.items.find(item => item.page.id === target);
-      if (item) {
-        state.screen = model.order.indexOf(item);
-        state.selected = item.entries.find(entry => options.fingerprints?.includes(entry.f.fingerprint))?.key ?? item.entries[0]?.key ?? null;
+      queue.options(options);
+      if (options.page_id) {
+        const item = model.items.find(item => item.page.id === options.page_id);
+        if (item) state.screen = model.order.indexOf(item);
       }
       improveDirty = true;
     }

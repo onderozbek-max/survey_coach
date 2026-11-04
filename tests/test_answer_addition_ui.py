@@ -9,13 +9,14 @@ def test_added_answer_card_copies_only_label_and_sheet_never_says_replace(browse
     finding.update(edit_kind='add_answer',structural=True,
                    suggested_text='I did not shop this year',options=[],
                    explanation='Keep the question. Add this answer and make it exclusive.')
-    page.reload(); page.locator('#coach .card-head').wait_for()
+    page.reload(); page.locator('#coach h3.headline').wait_for()
     focus(page,finding)
     assert page.locator('#coach').get_by_role('heading',name='Add answer option',exact=True).count()==1
-    assert page.locator('#coach').get_by_text('Keep this question',exact=True).count()==1
+    page.locator('#coach details.more > summary').click()
+    assert page.locator('#coach details.more').get_by_text('Keep this question',exact=True).count()==1
     assert not writes
-    page.get_by_role('button',name='Use this answer option',exact=True).click()
-    page.wait_for_function("document.querySelector('.issue-save-status').textContent.includes('Copied')")
+    page.get_by_role('button',name='Use this change',exact=True).click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
     assert page.evaluate('navigator.clipboard.readText()')=='I did not shop this year'
     page.locator('.change-sheet > summary').click()
     text=page.locator('.change-sheet pre').inner_text()

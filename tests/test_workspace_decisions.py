@@ -16,30 +16,32 @@ def open_sample(browser, studio):
 
 def focus_finding(page, finding):
     page.evaluate("fingerprint => dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:fingerprint}))", finding['fingerprint'])
-    assert page.locator('#coach .card-head').inner_text() == finding['headline']
+    assert page.locator('#coach h3.headline').inner_text() == finding['headline']
 
 
 def finding_with(page, rewrite):
     # Workflow exposes detail before the dynamically loaded app registers navigation.
-    page.locator('#coach .card-head').wait_for()
+    page.locator('#coach h3.headline').wait_for()
     findings = page.evaluate('SC.workspaceDetail.review.findings')
     return next(f for f in findings if bool(f.get('suggested_text') or f.get('options')) == rewrite)
 
 
 def keep_mine(page, reason):
-    page.get_by_role('button', name='Keep mine', exact=True).click()
+    page.get_by_role('button', name='Keep as is', exact=True).click()
+    page.get_by_role('button', name='Other…', exact=True).click()
     page.get_by_label('Reason for keeping', exact=False).fill(reason)
-    page.get_by_role('button', name='Save reason & keep mine').click()
-    page.locator('.accepted-risk').wait_for()
+    page.get_by_role('button', name='Save reason').click()
+    page.locator('#toast').wait_for()
 
 
 def test_action_only_keeps_reason_without_claiming_verification(browser, studio):
     context, page = open_sample(browser, studio)
     finding = finding_with(page, False)
     focus_finding(page, finding)
-    assert page.locator('#coach .issue-rewrite').count() == 0
+    assert page.locator('#coach .use-change').count() == 0
     reason = 'Intentional research stimulus; keep full image.'
     keep_mine(page, reason)
+    focus_finding(page, finding)
     assert 'not a verified fix' in page.locator('.accepted-risk').inner_text()
     page.reload()
     page.locator('#stage .phone-screen').wait_for()
@@ -62,7 +64,7 @@ def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studi
             route.continue_()
     page.route('**/decisions/*', hold_first)
     page.evaluate("navigator.clipboard.writeText('unchanged clipboard')")
-    page.locator('#coach .issue-rewrite .btn').first.click()
+    page.locator('#coach .use-change').first.click()
     page.wait_for_timeout(100)
     assert pending
     # A new contextual card lets the researcher change their mind during the save.

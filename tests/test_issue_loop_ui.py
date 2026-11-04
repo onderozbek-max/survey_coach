@@ -15,8 +15,18 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
     detail = page.evaluate('structuredClone(SURVEYCOACH_DEMO.surveys[0])')
     detail.update(id='synthetic', version=2, versions=[{'version': 1}, {'version': 2}], decisions={})
     detail['snapshot']['source_url'] = 'https://tests.redjade.net/preview/synthetic'
+    fingerprints = {}
     for index, finding in enumerate(detail['review']['findings']):
+        fingerprints[finding['fingerprint']] = f'fingerprint-{index}'
         finding['fingerprint'] = f'fingerprint-{index}'
+    for finding in detail['review']['findings']:
+        if finding.get('also_affects'):
+            finding['also_affects'] = [fingerprints[fp] for fp in finding['also_affects']]
+        if finding.get('absorbed_by'):
+            finding['absorbed_by'] = fingerprints[finding['absorbed_by']]
+    for group in ('must_fix', 'quick_wins', 'more'):
+        for item in detail['plan'][group]:
+            item['fingerprints'] = [fingerprints[fp] for fp in item['fingerprints']]
     detail['round_changes'] = {'fixed': [], 'still': [], 'new': [], 'uncertain': []}
     metadata = page.evaluate('({criteria:SURVEYCOACH_DEMO.criteria, dimensions:SURVEYCOACH_DEMO.dimensions, ai_batches:SURVEYCOACH_DEMO.ai_batches})')
     if prepare:
@@ -61,21 +71,22 @@ def test_contextual_use_copies_only_after_explicit_choice(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
     finding = next(f for f in detail['review']['findings'] if f.get('suggested_text') or f.get('options'))
     focus(page, finding)
-    assert page.get_by_role('tab').count() == 0
+    assert page.get_by_role('tab').count() == 3
     assert page.locator('#coach .card').count() == 1
     assert not writes
     assert page.locator('#copy-all').inner_text() == 'Copy all changes (0)'
-    page.locator('#coach .issue-rewrite .btn').first.click()
+    page.locator('#coach .use-change').first.click()
     page.wait_for_function("document.querySelector('#copy-all').textContent === 'Copy all changes (1)'")
     assert writes[-1]['action'] == 'pick'
     assert writes[-1]['revision'] == 1
     assert writes[-1]['client_id']
-    page.wait_for_function("document.querySelector('.issue-save-status').textContent.includes('Copied')")
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
     assert page.evaluate('navigator.clipboard.readText()') == writes[-1]['picked_text']
-    page.locator('#issues-view > summary').click()
-    assert page.locator('#fix-list select, #fix-list textarea, #fix-list input').count() == 0
-    assert page.locator('#fix-list').get_by_text('Ask the coach').count() == 0
-    assert 'fingerprint-' not in page.locator('#fix-list').inner_text()
+    page.locator('#all-screens').click()
+    assert page.locator('#screen-drawer select, #screen-drawer textarea').count() == 0
+    assert page.locator('#screen-drawer').get_by_text('Ask the coach').count() == 0
+    assert 'fingerprint-' not in page.locator('#screen-drawer').inner_text()
+    page.get_by_role('button', name='Close all screens').click()
     page.locator('.change-sheet > summary').click()
     sheet = page.locator('.change-sheet pre').inner_text()
     assert 'Find:' in sheet and 'Replace with:' in sheet
@@ -88,14 +99,16 @@ def test_action_only_keep_requires_reason_and_mobile_finish_loop(browser, base_u
     context, page, detail, writes, errors = open_review(browser, base_url, width=390)
     finding = next(f for f in detail['review']['findings'] if not f.get('suggested_text') and not f.get('options'))
     focus(page, finding)
-    page.get_by_role('button', name='Keep mine', exact=True).click()
-    page.get_by_role('button', name='Save reason & keep mine').click()
+    page.get_by_role('button', name='Keep as is', exact=True).click()
+    page.get_by_role('button', name='Other…', exact=True).click()
+    page.get_by_role('button', name='Save reason').click()
     assert not writes
-    page.get_by_role('button', name='Intentional research design', exact=True).click()
-    page.get_by_role('button', name='Save reason & keep mine').click()
+    page.get_by_role('button', name='Intentional for this study', exact=True).click()
+    page.wait_for_function("document.querySelector('#toast') !== null")
+    focus(page, finding)
     page.wait_for_function("document.querySelector('.accepted-risk') !== null")
     assert writes[-1]['action'] == 'keep'
-    assert writes[-1]['reason'] == 'Intentional research design'
+    assert writes[-1]['reason'] == 'Intentional for this study'
     assert 'accepted risk' in page.locator('#decision-verdict').inner_text()
     assert page.locator('#copy-all').is_disabled()
     page.locator('#check-again').click()
@@ -142,14 +155,15 @@ def test_stale_use_this_response_does_not_copy_over_newer_keep(browser, base_url
             route.fallback()
     page.route('**/decisions/*', hold_first)
     page.evaluate("navigator.clipboard.writeText('unchanged clipboard')")
-    page.locator('#coach .issue-rewrite .btn').first.click()
+    page.locator('#coach .use-change').first.click()
     page.wait_for_timeout(100)
     assert pending
     # Navigating away/back can replace the busy card while a request is pending.
     focus(page, finding)
-    page.get_by_role('button', name='Keep mine', exact=True).click()
-    page.get_by_role('button', name='Required wording', exact=True).click()
-    page.get_by_role('button', name='Save reason & keep mine').click()
+    page.get_by_role('button', name='Keep as is', exact=True).click()
+    page.get_by_role('button', name='Stakeholder requirement', exact=True).click()
+    page.wait_for_function("document.querySelector('#toast') !== null")
+    focus(page, finding)
     page.wait_for_function("document.querySelector('.accepted-risk') !== null")
     pending[0].fulfill(json=pending[0].request.post_data_json)
     page.wait_for_timeout(100)
@@ -167,8 +181,8 @@ def test_failed_save_never_copies_and_round_evidence_is_readable(browser, base_u
     focus(page, finding)
     page.route('**/decisions/*', lambda route: route.fulfill(status=503, json={'detail': 'Unavailable'}))
     page.evaluate("navigator.clipboard.writeText('unchanged clipboard')")
-    page.locator('#coach .issue-rewrite .btn').first.click()
-    page.wait_for_function("document.querySelector('.issue-save-status').textContent.includes('could not be saved')")
+    page.locator('#coach .use-change').first.click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('could not be saved')")
     assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
     assert page.locator('#copy-all').is_disabled()
     text = page.evaluate('''() => {

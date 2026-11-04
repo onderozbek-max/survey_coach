@@ -141,7 +141,7 @@
   SC.renderPhone = (item, ctx) =>
     h("div", { class: "phone-wrap" },
       h("div", { class: `phone${ctx.large ? " large" : ""}`, style: `--w:${ctx.device}px` },
-        h("div", { class: "phone-bar" }, h("span", null, `${item.name} \u2022 screen ${item.index + 1} of ${ctx.total}`), h("span", null, KIND[item.page.kind] || item.page.kind)),
+        h("div", { class: "phone-bar" }, h("span", null, `${item.name}${item.topic ? ` · ${item.topic}` : ""} · screen ${item.index + 1} of ${ctx.total}`), h("span", null, KIND[item.page.kind] || item.page.kind)),
         h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" },
           (item.page.media || []).map((m) => mediaBox(m, item.entries, ctx)), renderPage(item, ctx))));
 })();

@@ -47,11 +47,10 @@ def test_signal_energy_and_plan_routes_select_canonical_screen(browser, base_url
     page.locator(f'[data-signal={signal["id"]}] .signal-link').click()
     assert page.url.endswith('#improve')
     assert page.evaluate('SC.improveFilter.signal') == signal['id']
-    assert page.locator('.screen-picker select').input_value() == str(
-        next(i for i, s in enumerate(detail['screens']) if s['page_id'] == signal['pages'][0]))
+    assert detail['screens'][next(i for i,s in enumerate(detail['screens']) if s['page_id'] == signal['pages'][0])]['name'] in page.locator('#stage .phone-bar').inner_text()
     page.locator('[data-chapter=overview]').click()
     page.locator('#energy-map .energy-bar').nth(3).click()
-    assert page.locator('.screen-picker select').input_value() == '3'
+    assert detail['screens'][3]['name'] in page.locator('#stage .phone-bar').inner_text()
     page.locator('[data-chapter=overview]').click()
     page.locator('#plan-summary button').nth(1).click()
     assert page.evaluate('SC.improveFilter.tab') == 'quick_wins'

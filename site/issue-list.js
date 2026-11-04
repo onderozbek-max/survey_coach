@@ -1,27 +1,31 @@
-/* A navigator, never a second decision editor. */
+/* The All screens drawer navigates canonical labels, never edits decisions. */
 (() => {
   'use strict';
   const SC = window.SC, {h} = SC;
-  SC.renderIssueList = detail => Object.entries(SC.ISSUE_TIERS).map(([tier, label]) => {
-    const findings = detail.review.findings.filter(f => SC.issueTier(f) === tier)
-      .sort((a,b) => SC.issueLocation(a, detail.snapshot).screen - SC.issueLocation(b, detail.snapshot).screen);
-    const groups = new Map();
-    for (const finding of findings) {
-      const key = tier === 'polish' ? finding.criterion_id : SC.issueLocation(finding,detail.snapshot).label;
-      if (!groups.has(key)) groups.set(key,[]);
-      groups.get(key).push(finding);
-    }
-    const rows = list => list.map(f => {
-      const d = SC.issueDecision(f,detail), location = SC.issueLocation(f,detail.snapshot);
-      return h('li',null,h('button',{type:'button',class:'issue-jump',onclick:()=>{
-        window.dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:f.fingerprint}));
-        document.getElementById('coach')?.scrollIntoView({block:'start',behavior:'smooth'});
-      }},h('span',{class:'issue-place'},location.label),h('strong',null,f.headline),
-      h('span',{class:'issue-state'},SC.acceptedRisk(f,detail)?'Kept on purpose · accepted risk':d?.action==='pick'?'Rewrite chosen · check again to verify':'Review in context →')));
-    });
-    return findings.length && h('section', {class:'issue-list-group'}, h('h3', null, `${label} (${findings.length})`),
-      [...groups.values()].map(group => group.length > 1
-        ? h('details',{class:'issue-pattern'},h('summary',null,`${tier === 'polish' ? detail.metadata?.criteria?.[group[0].criterion_id]?.title || 'Style pattern' : SC.issueLocation(group[0],detail.snapshot).label} · ${group.length} places to review`),h('ul',null,rows(group)))
-        : h('ul',null,rows(group))));
-  });
+  SC.renderIssueList = () => []; // Workflow refreshes decisions; drawer reads current detail on open.
+  SC.openScreens = detail => {
+    document.getElementById('screen-drawer')?.remove();
+    const opener = document.activeElement;
+    const search = h('input', {type:'search','aria-label':'Search screens',placeholder:'Q label or topic words'});
+    const list = h('ul', {class:'screen-list'});
+    const dialog = h('dialog', {id:'screen-drawer','aria-labelledby':'screens-heading'},
+      h('header', null, h('h2', {id:'screens-heading'}, 'All screens'),
+        h('button', {type:'button','aria-label':'Close all screens',onclick:() => dialog.close()},'Close')), search, list);
+    const render = () => SC.mount(list, detail.screens.filter(screen =>
+      `${screen.name} ${screen.topic}`.toLowerCase().includes(search.value.trim().toLowerCase())).map(screen => {
+      const members = detail.plan.must_fix.concat(detail.plan.quick_wins,detail.plan.more).flatMap(item => item.fingerprints);
+      const findings = detail.review.findings.filter(f => members.includes(f.fingerprint) &&
+        (f.page_id === screen.page_id || screen.questions?.some(q => q.id === f.question_id)));
+      const must = findings.some(f => f.severity === 'must_fix');
+      return h('li', null, h('button', {type:'button',class:'screen-row',onclick:() => {
+        dialog.close(); window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:screen.page_id}));
+        document.querySelector('#coach h3')?.focus({preventScroll:true});
+      }}, h('span', {class:`screen-dot ${must ? 'must' : ''}`,'aria-hidden':'true'},SC.icon(findings.length ? 'alert' : 'check')),
+        h('strong', null,screen.name), h('span', null,screen.topic),
+        h('span', {class:'sr-only'}, `${findings.length} findings${must ? ', includes must-fix' : ''}`)));
+    }));
+    search.addEventListener('input', render);
+    dialog.addEventListener('close', () => opener?.focus({preventScroll:true}));
+    document.body.append(dialog); render(); dialog.showModal(); search.focus();
+  };
 })();

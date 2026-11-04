@@ -9,7 +9,11 @@
     return SC.CHAPTERS.includes(name) ? name : 'overview';
   };
   SC.showChapter = (name, options = {}) => {
-    if (!SC.CHAPTERS.includes(name) || shown === name) return;
+    if (!SC.CHAPTERS.includes(name)) return;
+    if (shown === name) {
+      if (Object.keys(options).length) window.dispatchEvent(new CustomEvent('surveycoach-chapter', {detail:{name,options}}));
+      return;
+    }
     shown = name;
     for (const chapter of SC.CHAPTERS) {
       document.getElementById(`chapter-${chapter}`).hidden = chapter !== name;

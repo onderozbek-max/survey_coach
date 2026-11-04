@@ -11,9 +11,9 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('#stage .phone-screen').wait_for()
     assert page.locator('link[href="design-system.css"]').count() == 1
-    assert page.get_by_role('tab').count() == 0
-    page.locator('#issues-view > summary').click()
-    page.locator('.issue-jump').first.click()
+    assert page.get_by_role('tab').count() == 3
+    page.locator('#all-screens').click()
+    page.locator('.screen-row').first.click()
     assert page.locator('#coach .card').count() == 1
     assert page.locator('#stage .phone-screen').is_visible()
     sign_off = page.get_by_role('link', name='Share for sign-off', exact=True)

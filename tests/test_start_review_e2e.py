@@ -45,11 +45,9 @@ def test_link_start_to_saved_review_preserves_partial_coverage(browser, studio, 
         if reload:
             page.reload()
         page.locator('#chapter-nav [data-chapter=improve]').click()
-        page.locator('#issues-view > summary').click()
-        jump = page.locator('.issue-jump').first
-        jump.wait_for(state='attached')
-        if not jump.is_visible():
-            jump.locator('xpath=ancestor::details[1]').locator(':scope > summary').click()
+        page.locator('#all-screens').click()
+        jump = page.locator('.screen-row').first
+        jump.wait_for(state='visible')
         jump.click()
         page.locator('#coach .card').wait_for()
         page.locator('.checked-summary > summary').click()

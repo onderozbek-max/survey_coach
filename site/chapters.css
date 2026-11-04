@@ -14,8 +14,6 @@
 .screen-picker { display:flex; flex-direction:column; gap:6px; font-size:12px; margin-bottom:12px; }
 .screen-picker select { width:100%; min-width:0; min-height:44px; }
 .preview-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center; }
-.review-studio .studio, .review-studio .studio:has(.comparing) { grid-template-columns:minmax(0,1fr) minmax(300px,390px); grid-template-areas:'stage coach'; }
-body:not(.review-studio) #chapter-improve .studio { grid-template-columns:minmax(0,1fr) minmax(300px,440px); }
 body:not(.review-studio) #strip { grid-column:1 / -1; }
 @media(max-width:700px) {
   .app-bar { padding:8px 14px; gap:4px 12px; }

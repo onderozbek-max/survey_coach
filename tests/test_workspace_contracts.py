@@ -37,22 +37,22 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     page.wait_for_url('**/review.html?**')
     page.locator('#chapter-nav [data-chapter=improve]').click()
     page.locator('#stage .phone-screen').wait_for()
-    assert page.get_by_role('tab').count() == 0
-    summary = page.locator('#issues-view > summary')
+    assert page.get_by_role('tab').count() == 3
+    summary = page.locator('#all-screens')
     summary.focus()
     page.keyboard.press('Enter')
-    jump = page.locator('.issue-jump').first
+    jump = page.locator('.screen-row').first
     headline = jump.locator('strong').inner_text()
     jump.focus()
     page.keyboard.press('Enter')
     assert page.locator('#coach .card').count() == 1
-    assert page.locator('#coach .card-head').inner_text() == headline
+    assert page.locator('#stage .phone-bar').inner_text().startswith(headline)
     assert page.locator('#survey-view').is_visible()
     assert page.locator('#stage .phone-screen').is_visible()
     assert page.locator('#fix-list select, #fix-list textarea').count() == 0
-    assert page.locator('#issues-view').evaluate('e => e.tagName') == 'DETAILS'
-    assert page.locator('#fix-list .issue-jump').count() > 0
-    headings = page.locator('#fix-list h3, #fix-list .issue-place').all_inner_texts()
+    assert page.locator('#screen-drawer').evaluate('e => e.tagName') == 'DIALOG'
+    assert page.locator('#screen-drawer .screen-row').count() > 0
+    headings = page.locator('#screen-drawer strong').all_inner_texts()
     assert not any('fingerprint' in text or 'q-' in text for text in headings)
     assert page.locator('.review-actionbar #sign-off').inner_text() == 'Share for sign-off'
     assert page.locator('details.studio-tools').count() == 0

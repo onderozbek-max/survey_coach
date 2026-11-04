@@ -147,7 +147,7 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
                 completed.append(True)
 
         page.route("**/decisions/*", reorder)
-        page.locator('#coach .issue-rewrite .btn').first.click()
+        page.locator('#coach .use-change').first.click()
         page.wait_for_timeout(100)
         assert held
         focus_finding(page, finding)
@@ -156,6 +156,7 @@ def test_rapid_choice_changes_cannot_save_the_older_pick_last(browser, studio):
         response = held[0].fetch()
         held[0].fulfill(response=response)  # Old pick arrives after the keep decision.
         page.wait_for_timeout(100)
+        focus_finding(page, finding)
         assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
         page.reload()
         page.locator('#stage .phone-screen').wait_for()

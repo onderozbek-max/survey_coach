@@ -20,6 +20,7 @@
   <header id="topbar" class="topbar" aria-label="Review overview"><p>Loading review details…</p></header>
   <p id="decision-verdict" class="decision-verdict" role="status"></p>
   <section id="survey-view" aria-label="Survey and contextual coach">
+    <div id="improve-bar" class="improve-bar" aria-label="Improve queue"></div>
     <div class="studio">
       <section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"><p>Preparing the phone preview…</p></section>
       <aside id="coach" class="coach" aria-labelledby="coach-h"><p>Opening your issues…</p></aside>
@@ -27,7 +28,7 @@
     <p class="reconstruction-note">Reconstructed preview, not a live survey. Verify layout and imagery on a mobile device in RedJade.</p>
     <p id="strip" class="strip"></p>
   </section>
-  <details id="issues-view" class="review-details issue-drawer"><summary>All issues · jump to a screen</summary><p>Review and decide beside the phone. This list is just your navigator.</p><div id="fix-list"></div></details>
+  <div id="fix-list" hidden></div>
   <details class="review-details checked-summary"><summary>What we checked</summary><section id="review-summary" aria-label="What we checked"></section></details>
   <section id="version-changes" class="review-details" aria-label="Review rounds"></section>
   <div id="change-sheet"></div>
@@ -55,5 +56,5 @@
   <footer class="chapter-foot"><button type="button" id="about-review" class="btn-text">About this review</button></footer>
 </main>
 <p id="status" class="sr-only" role="status" aria-live="polite"></p>
-<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="icons.js"></script><script src="diff.js"></script><script src="toast.js"></script><script src="chapters.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="phone.js"></script><script src="energy.js"></script><script src="overview.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
+<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="icons.js"></script><script src="diff.js"></script><script src="toast.js"></script><script src="chapters.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="phone.js"></script><script src="energy.js"></script><script src="overview.js"></script><script src="improve-actions.js"></script><script src="queue.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="workflow.js"></script>
 </body></html>
