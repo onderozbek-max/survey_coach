@@ -33,9 +33,9 @@
           else act([entry], () => 'original', text, null, !pattern);
         }},text))), reason, saveReason);
       const location = SC.improveLocation(f, ctx.detail);
-      return h(pattern ? 'section' : 'div', {class:pattern ? 'pattern-row' : 'decision-content'},
+      return h(pattern ? 'section' : 'div', {class:pattern ? 'pattern-row' : 'decision-content', 'data-fingerprint':f.fingerprint},
         pattern && h('p', {class:'location'}, location),
-        pattern && h('h4', null, f.headline),
+        pattern && h('h4', {tabindex:'-1','data-fk':`pattern-${f.fingerprint}`}, f.headline),
         saved?.stale_pick && h('p', {class:'stale-pick'}, 'We improved this suggestion since you chose it. Choose again.'),
         saved?.carried_from_round && h('details', null, h('summary', null, `Choice carried from Version ${saved.carried_from_round}`),
           h('p', null, 'Still flagged; review it in this version’s context.')),
@@ -43,6 +43,7 @@
         suggested,
         choices.length > 1 && h('div', {class:'alternatives','aria-label':'Alternative wording'}, choices.map((c,index) =>
           h('button', {type:'button','aria-pressed':String(c === choice),onclick:event => {
+            if (ctx.operation.busy) return;
             choice = c; values.set(key,c.value); renderSuggestion();
             event.currentTarget.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === event.currentTarget)));
           }},c.label || ['Recommended','Shorter','Friendlier'][index] || `Alternative ${index + 1}`))),
@@ -56,6 +57,7 @@
         h('div', {class:'decision-actions'}, choice && h('button', {type:'button', id:pattern ? null : 'use-change',class:pattern ? 'btn use-change' : 'btn btn-primary use-change',
           onclick:() => act([entry], () => values.get(key), '', choice.text, !pattern)}, pattern ? 'Use' : 'Use this change'),
           h('button', {type:'button',id:pattern ? null : 'keep-as-is',class:'btn keep-as-is','aria-expanded':'false',onclick:event => {
+            if (ctx.operation.busy) return;
             keepPanel.hidden = !keepPanel.hidden; event.currentTarget.setAttribute('aria-expanded',String(!keepPanel.hidden));
             if (!keepPanel.hidden) keepPanel.querySelector('button').focus();
           }},pattern ? 'Keep' : 'Keep as is')), keepPanel,
@@ -68,8 +70,15 @@
       h('h3', {class:'headline',id:'coach-h',tabindex:'-1'}, item.headline),
       ctx.entries.some(({f}) => f.source === 'ai') && h('span', {class:'pill ai',title:'Written by AI. Read it before using.'}, SC.icon('sparkle'), 'AI suggestion'),
       rows,
+      ctx.operation.recovery?.fingerprints.some(fp => item.fingerprints.includes(fp)) &&
+        h('section', {class:'copy-recovery'}, h('label', null, 'Saved text — select and copy manually',
+          h('textarea', {readonly:true, rows:6, 'aria-label':'Saved text for manual copy'}, ctx.operation.recovery.text)),
+          h('button', {type:'button',class:'btn',onclick:() => {
+            if (ctx.operation.busy) return;
+            ctx.operation.recovery = null; ctx.onAdvance();
+          }}, 'Continue without copying')),
       pattern && h('button', {type:'button',id:'use-all',class:'btn btn-primary',disabled:ctx.entries.some(e => !values.get(e.key)),
         onclick:() => act(ctx.entries, e => values.get(e.key), '', ctx.entries.map(e => SC.choicesOf(e.f).find(c => c.value === values.get(e.key))?.text).join('\n\n'))}, `Use all ${item.count} suggestions`),
-      h('button', {type:'button',id:'skip',class:'btn-text',onclick:ctx.onAdvance}, 'Skip for now'));
+      h('button', {type:'button',id:'skip',class:'btn-text',onclick:() => { if (!ctx.operation.busy) ctx.onAdvance(); }}, 'Skip for now'));
   };
 })();

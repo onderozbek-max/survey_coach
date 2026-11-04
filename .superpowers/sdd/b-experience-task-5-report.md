@@ -37,3 +37,71 @@ All commands ran from `/Users/o0o02dn/Documents/adminAI/survey-coach` using `.ve
 - Pattern saves are intentionally individual, non-atomic PUTs. Partial saves are reported honestly and explicitly undoable, not represented as an atomic transaction.
 - Later tasks still own the phone margin-marker/ghost-answer work and Share chapter replacement. Existing lower-page change sheet/recheck/summary functions remain available; this task removes duplicate Improve navigation/editing controls, not those later chapters' functionality.
 - No independent visual/a11y audit claimed. Browser tests cover computed grid sizes, mobile overflow, visible phone positioning, native dialog behavior, keyboard focus and token contrast contracts.
+
+## B5 review fixes — base `8481e60`
+
+Owner: `code-puppy-2f9031`. All four findings addressed.
+
+- [x] P1: app-owned operation state survives coach replacement and chapter/tab navigation. Rendered controls reflect the lock; Use/Keep/batch/Undo entry points share it. Every batch member's revision is snapshotted, updated for this operation's writes, and checked before later writes and before clipboard work. Confirmed saves remain available for honest partial reporting and revision-guarded Undo when superseded.
+- [x] P2 routing: one page/fingerprint intersection predicate selects and advances through supplied server items; matching can select the correct server tab. Explicit empty fingerprints mean no signal matches. Page-only routes stay scoped. Pattern membership/order remains untouched.
+- [x] P2 clipboard denial: no automatic advance. Exact saved text stays in a labelled, read-only, manually selectable textarea with an explicit Continue without copying control; saved decision and Undo remain available.
+- [x] P2 keyboard focus: stable fingerprint-keyed pattern headings receive focus before save, survive pending rerenders, and are restored after success, failure, Keep reason-chip save and Undo.
+
+### Exact local commands and captured output
+
+Commands below ran from `/Users/o0o02dn/Documents/adminAI/survey-coach`. Output excerpts are exact pytest summaries (full failure traces retained in the named `/tmp` logs).
+
+Initial RED, before production changes:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py -q > /tmp/b5-fix-red.log 2>&1
+FAILED tests/test_improve_ui.py::test_clipboard_failure_is_honest_and_keeps_saved_decision
+FAILED tests/test_improve_ui.py::test_signal_route_intersects_page_and_fingerprints_and_stays_scoped
+FAILED tests/test_improve_ui.py::test_pending_lock_survives_replacement_controls
+FAILED tests/test_improve_ui.py::test_pattern_superseded_earlier_row_stops_before_later_write_or_copy
+FAILED tests/test_improve_ui.py::test_pattern_keyboard_row_focus_survives_pending_success_failure_and_undo
+5 failed, 5 passed in 5.07s
+```
+Clipboard recovery assertion was subsequently made exact against the saved-text textarea (word-diff display is not verbatim saved copy); route fixture question IDs were cleared to isolate page membership.
+
+First GREEN:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py -q --tb=short > /tmp/b5-fix-green.log 2>&1
+..........                                                               [100%]
+10 passed in 6.77s
+```
+
+Expanded decision run:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py tests/test_improve_safety_ui.py tests/test_improve_navigation_ui.py tests/test_issue_loop_ui.py tests/test_workspace_decisions.py tests/test_answer_addition_ui.py tests/test_overview_ui.py tests/test_with_fixes_preview.py tests/test_workspace_contracts.py tests/test_design_tokens.py -q --tb=short > /tmp/b5-fix-focused.log 2>&1
+FAILED tests/test_issue_loop_ui.py::test_stale_use_this_response_does_not_copy_over_newer_keep
+FAILED tests/test_workspace_decisions.py::test_delayed_use_cannot_overwrite_newer_keep_after_navigation
+2 failed, 53 passed, 1 warning in 102.98s (0:01:42)
+```
+Both tests attempted clicking now-disabled Keep during a pending PUT. Their setup now asserts the lock and injects a newer authoritative decision outside the panel. Original unchanged-clipboard, revision, accepted-risk, persisted Keep and disabled-copy assertions remain; the real API test still delivers revision 2 before delayed revision 1 using only its temporary fixture database.
+
+Additional RED for a not-yet-written pattern row changed during another row's pending PUT:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py -k superseded -q --tb=short > /tmp/b5-fix-future-red.log 2>&1
+FAILED tests/test_improve_ui.py::test_pattern_superseded_earlier_row_stops_before_later_write_or_copy[2-2]
+1 failed, 2 passed, 9 deselected in 32.67s
+```
+This drove snapshotting revisions for the entire batch, not only confirmed records. Subsequent focused GREEN:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py tests/test_improve_safety_ui.py tests/test_improve_navigation_ui.py tests/test_issue_loop_ui.py tests/test_workspace_decisions.py tests/test_answer_addition_ui.py tests/test_overview_ui.py tests/test_with_fixes_preview.py tests/test_workspace_contracts.py tests/test_design_tokens.py -q --tb=short > /tmp/b5-fix-focused-green.log 2>&1
+56 passed, 1 warning in 32.40s
+```
+
+Final run adds correct-server-tab/pattern-membership coverage:
+```text
+.venv/bin/python -m pytest tests/test_improve_ui.py tests/test_improve_safety_ui.py tests/test_improve_navigation_ui.py tests/test_issue_loop_ui.py tests/test_workspace_decisions.py tests/test_answer_addition_ui.py tests/test_overview_ui.py tests/test_with_fixes_preview.py tests/test_workspace_contracts.py tests/test_design_tokens.py -q --tb=short > /tmp/b5-fix-final.log 2>&1
+.........................................................                [100%]
+57 passed, 1 warning in 31.11s
+```
+The warning remains the existing `StarletteDeprecationWarning` about httpx/TestClient. No full-suite rerun claimed for this patch.
+
+Static verification:
+```text
+git diff --check
+node --check site/app.js && node --check site/coach.js && node --check site/improve-actions.js && node --check site/queue.js
+```
+Both commands exit 0 with no output. Every changed code file remains below 600 lines; largest is app.js (362). No CSS changes: token-only styling preserved. Explicit action, save-before-copy, required Keep reasons, accepted-risk wording, individual pattern writes and guarded Undo remain covered. No delegation, push, external calls, live database access or protected-asset edits. Pre-existing untracked `review/` and `uglyhome.png` untouched.

@@ -67,9 +67,20 @@ def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studi
     page.locator('#coach .use-change').first.click()
     page.wait_for_timeout(100)
     assert pending
-    # A new contextual card lets the researcher change their mind during the save.
+    # UI serialization survives navigation. Retain the API revision-race guard
+    # by delivering a newer authoritative decision outside the locked panel.
     focus_finding(page, finding)
-    keep_mine(page, 'Required wording')
+    assert page.get_by_role('button', name='Keep as is', exact=True).is_disabled()
+    page.evaluate("""async fp => {
+      SC.decisionRevisions.set(fp, 2);
+      const d = SC.workspaceDetail;
+      const response = await fetch(`/api/surveys/${d.id}/versions/${d.version}/decisions/${fp}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'keep', reason:'Required wording', revision:2, client_id:SC.decisionClient})});
+      if (!response.ok) throw Error('Newer decision failed');
+      d.decisions[fp] = await response.json();
+      dispatchEvent(new CustomEvent('surveycoach-decisions', {detail:d}));
+    }""", finding['fingerprint'])
     response = pending[0].fetch()
     pending[0].fulfill(response=response)
     page.wait_for_timeout(100)

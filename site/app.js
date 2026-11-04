@@ -28,6 +28,7 @@
   const TONE = { needs_work: "red", almost_ready: "amber", ready: "green" };
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model, queue;
+  const improveOperation = {busy:false, recovery:null};
   let comparing = false, playing = false, settingsOpen = false;
   const playback = SC.createPlayback({
     seconds:() => survey().overview.energy.screens[pageItem().index]?.seconds || 1,
@@ -110,7 +111,7 @@
           picked_text:picked?.text || null, reason:reason || '', manual_done:false});
       },
       onRestore: (key, prior) => saveDecision(key, prior || {action:'open'}),
-      onCopy: copy,
+      onCopy: copy, operation:improveOperation, onRender:renderAll,
     };
   }
 
@@ -271,6 +272,11 @@
       });
     }
     mount($("coach"), queue.render(context()));
+    if (improveOperation.busy) {
+      document.querySelectorAll('#coach button, #coach textarea').forEach(control => { control.disabled = true; });
+      const status = document.querySelector('#coach .issue-save-status');
+      if (status) status.textContent = 'Saving…';
+    }
     if (samePage) document.querySelector("#stage .phone-screen").scrollTop = keepTop;
     else document.querySelector('#stage .phone-screen').scrollTop = 0;
     restoreFocus(key);

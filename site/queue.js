@@ -14,7 +14,12 @@
       return d?.action === 'pick' && !d.stale_pick || d?.action === 'original'
         || d?.action === 'keep' && Boolean(d.reason?.trim());
     });
-    const allowed = item => !filter.fingerprints?.length || item.fingerprints.some(fp => filter.fingerprints.includes(fp));
+    const allowed = item => {
+      const screen = detail.screens.find(s => s.page_id === filter.page_id);
+      return entries(item).some(({f}) =>
+        (!Object.hasOwn(filter, 'fingerprints') || filter.fingerprints.includes(f.fingerprint)) &&
+        (!filter.page_id || f.page_id === filter.page_id || screen?.questions?.some(q => q.id === f.question_id)));
+    };
     const items = () => detail.plan[tab].filter(allowed);
     function show(item, focus = false) {
       active = item?.id || null;
@@ -47,10 +52,9 @@
       options(options) {
         filter = options;
         if (tabs.some(([name]) => name === options.tab)) tab = options.tab;
-        const all = tabs.flatMap(([name]) => detail.plan[name].map(item => ({name,item})));
-        const hit = all.find(({item}) => options.page_id
-          ? entries(item).some(({f}) => f.page_id === options.page_id || detail.screens.find(s => s.page_id === options.page_id)?.questions?.some(q => q.id === f.question_id))
-          : options.fingerprints?.some(fp => item.fingerprints.includes(fp)));
+        const constrainedTabs = options.tab ? tabs.filter(([name]) => name === tab) : tabs;
+        const all = constrainedTabs.flatMap(([name]) => detail.plan[name].filter(allowed).map(item => ({name,item})));
+        const hit = all.find(({item}) => !decided(item)) || all[0];
         if (hit) { tab = hit.name; show(hit.item); }
         else show(items().find(item => !decided(item)));
       },

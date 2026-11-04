@@ -158,12 +158,17 @@ def test_stale_use_this_response_does_not_copy_over_newer_keep(browser, base_url
     page.locator('#coach .use-change').first.click()
     page.wait_for_timeout(100)
     assert pending
-    # Navigating away/back can replace the busy card while a request is pending.
+    # Replacement controls remain locked; emulate a newer authoritative edit instead.
     focus(page, finding)
-    page.get_by_role('button', name='Keep as is', exact=True).click()
-    page.get_by_role('button', name='Stakeholder requirement', exact=True).click()
-    page.wait_for_function("document.querySelector('#toast') !== null")
-    focus(page, finding)
+    assert page.get_by_role('button', name='Keep as is', exact=True).is_disabled()
+    page.evaluate("""async fp => {
+      SC.decisionRevisions.set(fp, 2);
+      const response = await fetch(`/api/surveys/synthetic/versions/2/decisions/${fp}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'keep', reason:'Stakeholder requirement', revision:2, client_id:SC.decisionClient})});
+      SC.workspaceDetail.decisions[fp] = await response.json();
+      dispatchEvent(new CustomEvent('surveycoach-decisions', {detail:SC.workspaceDetail}));
+    }""", finding['fingerprint'])
     page.wait_for_function("document.querySelector('.accepted-risk') !== null")
     pending[0].fulfill(json=pending[0].request.post_data_json)
     page.wait_for_timeout(100)
