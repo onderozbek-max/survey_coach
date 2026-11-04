@@ -1,6 +1,6 @@
 # Task 4 — managed-network reader diagnostics/setup
 
-Owner: code-puppy-2d1587. Scope: Task 4 only. Local changes; no push/deployment.
+Owner: code-puppy-727c46. Scope: Task 4 only. Local changes; no push/deployment.
 
 ## Checklist
 - [x] Reproduce with DNS-only/platform configuration checks.
@@ -93,3 +93,35 @@ failures can still produce partial/unsupported coverage under existing reader ru
 new initial-connection categories are not a universal network diagnostic. Existing
 read/session/transport deadlines and request bounds are unchanged. No full-app suite
 or independent delegated review was run (Task 4 scope; delegation prohibited).
+
+## Reviewer P2 follow-up — normalized initial document identity
+
+Read `polish-network-review.md` and addressed its sole P2 finding. Raw URL equality
+missed Chromium's host-only URL normalization (an empty path becomes `/`). The
+failure marker now compares parsed URL components with only the empty path
+normalized to `/`. Other components stay exact. This identity is used solely for
+diagnostics after the existing URL/origin/write/budget checks; no origin comparison,
+route allowance, TLS behavior, proxy setup, or SSRF policy was broadened.
+
+TDD verification:
+- Added socket-free mocked-route regressions for host-only starts, timeout and
+  connection failures, non-initial assets, different ports, and disallowed queries.
+- Added temp-DB job regressions using an actual GuardedTransport with mocked HTTP
+  exchange: host-only approved HTTPS URL becomes a slash-suffixed browser request;
+  both failure categories surface actionable errors and create no saved review.
+- RED: `.venv/bin/python -m pytest tests/test_reader_transport.py tests/test_reader_failure_messages.py -q`
+  → **4 failed, 39 passed**; failures were missing normalized initial markers and
+  generic no-pages errors, as the reviewer described.
+- GREEN: `.venv/bin/python -m pytest tests/test_reader_transport.py tests/test_reader_failure_messages.py tests/test_reader_proxy.py -q`
+  → **53 passed**, 0.74s.
+- Broader: `.venv/bin/python -m pytest tests/test_reader_*.py tests/test_mvp_reader_api.py tests/test_server_jobs.py tests/test_server_security.py -q -m 'not live'`
+  → **231 passed**, 102.50s.
+- Both green runs retain the same existing Starlette/httpx deprecation warning.
+- `git diff --check` passed. Updated counts: transport.py 224;
+  test_reader_transport.py 134; test_reader_failure_messages.py 120.
+
+No external request, DNS probe, real DB read/write, delegation, environment/global
+setting change, push, or deployment was performed for this follow-up. The initial
+startup instructions and connectivity-unverified limitation above remain unchanged.
+Only transport.py, its two reader test files, and this report are in the follow-up
+commit; staged progress.md and concurrent quality/UI work are excluded.

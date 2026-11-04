@@ -153,7 +153,12 @@ class GuardedTransport:
                 except (OSError, http.client.HTTPException) as error:
                     logger.warning("Reader request failed (attempt %d): %s", attempt + 1, type(error).__name__)
                     if write or attempt:
-                        if request.url == self.start_url and request.method == "GET":
+                        # Diagnostic identity only: Chromium adds '/' to host-only URLs.
+                        # Keep every other URL component exact; policy/origin checks above
+                        # still decide which requests may reach the transport.
+                        initial_document = (parts._replace(path=parts.path or "/")
+                                            == self.parts._replace(path=self.parts.path or "/"))
+                        if initial_document and request.method == "GET":
                             kind = "timeout" if isinstance(error, TimeoutError) else "connection"
                             warning = f"Reader initial connection failed: {kind}."
                             with self.lock:

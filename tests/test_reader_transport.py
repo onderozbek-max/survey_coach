@@ -106,3 +106,29 @@ def test_initial_document_network_failure_is_retained_in_coverage(monkeypatch, f
     route.abort.assert_called_once()
     assert f'Reader initial connection failed: {kind}.' in guard.coverage.warnings
     assert 'secret' not in str(guard.coverage.warnings)
+
+
+@pytest.mark.parametrize('failure,kind', [
+    (TimeoutError('secret'), 'timeout'), (OSError('secret'), 'connection'),
+])
+@pytest.mark.parametrize('request_url,initial,attempts', [
+    ('http://127.0.0.1:9000/', True, 2),
+    ('http://127.0.0.1:9000/asset', False, 2),
+    ('http://127.0.0.1:9001/', False, 0),
+    ('http://127.0.0.1:9000/?token=secret', False, 0),
+])
+def test_host_only_initial_identity_preserves_policy(monkeypatch, failure, kind,
+                                                     request_url, initial, attempts):
+    from unittest.mock import Mock
+    guard = GuardedTransport('http://127.0.0.1:9000', local=True,
+                             approval=False, coverage=Coverage())
+    exchange = Mock(side_effect=failure)
+    monkeypatch.setattr(guard, '_exchange', exchange)
+    route = Mock()
+    route.request.url = request_url
+    route.request.method = 'GET'
+    route.request.headers = {}
+    guard(route)
+    route.abort.assert_called_once()
+    assert exchange.call_count == attempts
+    assert (f'Reader initial connection failed: {kind}.' in guard.coverage.warnings) is initial
