@@ -43,16 +43,16 @@
   <details id="share-details" class="review-details"><summary>Details</summary>
     <p>Chosen changes still need to be applied in RedJade. Nothing here is launch approval; unvisited paths and unchecked items remain unverified.</p>
   </details>
-  <section id="version-changes" class="review-details" aria-label="Review rounds"></section>
+  <section id="version-changes" class="review-details" aria-label="Review versions"></section>
     <section id="recheck-panel" aria-labelledby="recheck-h">
       <h2 id="recheck-h">Check your updated survey</h2>
 
       <form id="recheck-form">
         <label for="survey-link">Updated RedJade preview link</label><input id="survey-link" type="url" placeholder="https://…" autocomplete="off">
-        <p>We'll compare it with this version and show what changed.</p>
+        <p>The next check compares with the latest saved version, not necessarily the version displayed here.</p>
         <details class="advanced-recheck"><summary>Advanced · local snapshot import</summary><label for="snapshot">Updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json"></details>
         <details><summary>Safe rechecking</summary><p>Apply changes in RedJade first. Use an approved test link, not a member invitation. Checking sends survey wording to Walmart’s approved AI service. Never include member responses or personal information. Copying does not verify a fix.</p></details><p id="reader-mode">Opening a link may create a test participant. Exclude test responses from results.</p>
-        <button class="btn-secondary" type="submit">Start next round</button>
+        <button class="btn-secondary" type="submit">Start next version</button>
       </form><p id="import-status" role="status" aria-live="polite"></p>
     </section>
   </section>

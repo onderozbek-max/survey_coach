@@ -130,6 +130,27 @@ def test_api_title_known_url_and_immutable_rounds(tmp_path):
         assert sheet["round"] == 2 and "changes" in sheet
 
 
+def test_recheck_after_reading_history_compares_latest_saved_version(tmp_path):
+    app = create_app(tmp_path / "history.db")
+    with TestClient(app, base_url="http://localhost") as client:
+        first = client.post("/api/surveys", json={"snapshot": snapshot()}).json()
+        url = f"/api/surveys/{first['id']}"
+        for version in (2, 3):
+            saved = client.post(url + "/recheck", json={
+                "snapshot": snapshot(title=f"Saved version {version}")}).json()
+            assert saved['version'] == version
+        historical = client.get(url + "/versions/1").json()
+        result = client.post(url + "/recheck", json={
+            "snapshot": snapshot(title="Updated from historical view")}).json()
+        assert result['version'] == 4
+        current = client.get(url).json()
+        assert current['round_changes']['compared_to_round'] == 3
+        after = client.get(url + "/versions/1").json()
+        # The timeline gains version 4; the historical review itself is immutable.
+        assert {k: v for k, v in after.items() if k != 'versions'} == {
+            k: v for k, v in historical.items() if k != 'versions'}
+
+
 def test_report_plain_words_escaped_and_csp(tmp_path):
     app = create_app(tmp_path / "test.db")
     with TestClient(app, base_url="http://localhost") as client:

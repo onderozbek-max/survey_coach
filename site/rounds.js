@@ -12,18 +12,18 @@
   SC.renderRounds = (detail, surveyId) => {
     const changes = detail.round_changes;
     return [h('h2', null, detail.version > 1 ? `Since version ${detail.version - 1}` : 'First version'),
-      h('nav', {class:'round-timeline', 'aria-label':'Review rounds'}, (detail.versions || [{version:detail.version}]).map(v =>
-        h('a', {href:`review.html?id=${encodeURIComponent(surveyId)}&version=${v.version}#share`, 'aria-current':v.version === detail.version ? 'page' : false}, `Round ${v.version}`))),
+      h('nav', {class:'round-timeline', 'aria-label':'Review versions'}, (detail.versions || [{version:detail.version}]).map(v =>
+        h('a', {href:`review.html?id=${encodeURIComponent(surveyId)}&version=${v.version}#share`, 'aria-current':v.version === detail.version ? 'page' : false}, `Version ${v.version}`))),
       changes ? h('div', {class:'round-comparison'},
         h('p', null, `${list(changes.fixed).length} no longer flagged · ${list(changes.still).length} still flagged · ${list(changes.new).length} new · ${list(changes.uncertain).length} uncertain`),
         h('p', {class:'note'}, 'No longer flagged is not blanket verification: checks, paths or wording may have changed. Review the evidence below.'),
-        [['fixed','No longer flagged'], ['still','Still flagged'], ['new','New this round'], ['uncertain','Not comparable / uncertain']].map(([key,label]) =>
+        [['fixed','No longer flagged'], ['still','Still flagged'], ['new','New this version'], ['uncertain','Not comparable / uncertain']].map(([key,label]) =>
           list(changes[key]).length && h('details', null, h('summary', null, `${label} (${changes[key].length})`),
             h('ul', null, changes[key].map(item => h('li', null, describe(item, detail),
               (item.resolution || item.reason) && h('p', null, item.resolution || item.reason),
               (item.old_wording || item.before_text) && h('blockquote', null, `Before: ${item.old_wording || item.before_text}`),
               (item.new_wording || item.after_text) && h('blockquote', null, `Now: ${item.new_wording || item.after_text}`)))))))
-        : h('p', {class:'note'}, detail.version > 1 ? 'Detailed round comparison is not available for this review. Nothing is claimed fixed.' : 'First round: choose changes, apply them in RedJade, then check again.')];
+        : h('p', {class:'note'}, detail.version > 1 ? 'Detailed version comparison is not available for this review. Nothing is claimed fixed.' : 'First version: choose changes, apply them in RedJade, then check again.')];
   };
   SC.changeSheetText = detail => {
     const entries = detail.review.findings.filter(f => {
@@ -43,7 +43,7 @@
   SC.renderChangeSheet = detail => {
     const text = SC.changeSheetText(detail);
     return h('details', {class:'change-sheet review-details'}, h('summary', null, 'Change sheet · chosen rewrites & kept reasons'),
-      h('p', {class:'note'}, 'Apply these in RedJade. Chosen does not mean fixed; the next round provides fresh evidence.'),
+      h('p', {class:'note'}, 'Apply these in RedJade. Chosen does not mean fixed; the next version provides fresh evidence.'),
       text ? h('pre', {tabindex:'0'}, text) : h('p', null, 'No explicit choices yet. Recommended previews are not included.'));
   };
 })();

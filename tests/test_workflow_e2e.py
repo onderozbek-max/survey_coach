@@ -72,7 +72,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     updated = SurveySnapshot.model_validate_json((ROOT / "fixtures/boxer-briefs.json").read_text())
     updated.title += " revised"
     page.get_by_label("Updated snapshot file (.json)").set_input_files({"name": "revised.json", "mimeType": "application/json", "buffer": updated.model_dump_json().encode()})
-    page.get_by_role("button", name="Start next round").click()
+    page.get_by_role("button", name="Start next version").click()
     page.wait_for_url(lambda url: str(url) != before, timeout=30000)
     page.locator('#chapter-nav [data-chapter=share]').click()
     page.locator('.round-timeline').wait_for()
