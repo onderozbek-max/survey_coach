@@ -2,7 +2,10 @@
 (() => {
   'use strict';
   const SC = window.SC, {h, mount} = SC;
-  let opener, openedChapter, serial = 0;
+  let opener, openedChapter, serial = 0, dismissTooltip;
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') dismissTooltip?.();
+  });
   const close = h('button', {type:'button', class:'btn-secondary', autofocus:true, onclick:() => dialog.close()}, 'Close');
   const heading = h('h2', {id:'quality-dialog-heading'});
   const content = h('div');
@@ -17,6 +20,7 @@
     if (event.key === 'Tab') { event.preventDefault(); close.focus(); }
   });
   window.addEventListener('surveycoach-chapter', event => {
+    dismissTooltip?.();
     if (dialog.open && event.detail.name !== openedChapter) { opener = null; dialog.close(); }
   });
   function open(event, title, children) {
@@ -52,11 +56,23 @@
       p('Assessed evidence, not launch readiness. Choices do not change this score.'),
       SC.qualityMethodButton('How quality is calculated'));
   };
-  SC.energyInfoButton = detail => h('button', {type:'button', class:'btn-text energy-info',
-    'aria-label':'About the energy map', 'aria-haspopup':'dialog',
+  SC.energyInfoButton = detail => {
+    const id = `energy-tip-${++serial}`;
+    let hovered = false, focused = false, dismissed = false;
+    const tooltip = h('span', {id, role:'tooltip', class:'energy-tooltip', hidden:true},
+      'Bar height estimates time per captured screen; colour shows cumulative effort. Uncalibrated, not measured fatigue. Activate for assumptions and route limits.');
+    const hide = () => { dismissed = true; tooltip.hidden = true; };
+    const refresh = () => {
+      if (!hovered && !focused && !dialog.open) dismissed = false;
+      tooltip.hidden = dialog.open || dismissed || !(hovered || focused);
+      if (!tooltip.hidden) dismissTooltip = hide;
+    };
+    const button = h('button', {type:'button', class:'btn-text energy-info',
+    'aria-label':'About the energy map', 'aria-haspopup':'dialog', 'aria-describedby':id,
     onclick:event => {
+      hide();
       const c = detail.effort_method;
-      const formula = c ? `Reading: words × ${c.seconds_per_word}s. Each screen adds ${c.page_overhead}s; each question image adds ${c.image_seconds}s and each grid row adds ${c.grid_row_seconds}s.` : 'Detailed timing assumptions are unavailable for this saved review.';
+      const formula = c ? `Reading: words × ${c.seconds_per_word}s. Each screen adds ${c.page_overhead}s; each question image and each answer option with media adds ${c.image_seconds}s and each grid row adds ${c.grid_row_seconds}s.` : 'Detailed timing assumptions are unavailable for this saved review.';
       const zones = c ? `Colour uses cumulative effort: fresh below ${c.fatigue_builds_after_seconds}s and ${c.fatigue_builds_after_questions} questions; getting tiring at ${c.fatigue_builds_after_seconds}s or ${c.fatigue_builds_after_questions} questions; tiring at ${c.high_fatigue_after_seconds}s or ${c.high_fatigue_after_questions} questions.` : '';
       open(event, 'Energy map estimates', [
         p('Bar height estimates time on each captured screen, not measured respondent fatigue. Uncalibrated heuristics, not validated respondent benchmarks.'),
@@ -65,6 +81,12 @@
         zones && p(zones), p('Captured screens may include alternative or conditional pages. Branching can make this sequence different from an actual member route. Timing is an estimate, not observed behavior.')
       ].filter(Boolean));
     }}, 'ⓘ');
+    return h('span', {class:'energy-info-wrap',
+      onpointerenter:event => { if (event.pointerType === 'touch') return; hovered = true; refresh(); },
+      onpointerleave:() => { hovered = false; refresh(); },
+      onfocusin:() => { focused = true; refresh(); },
+      onfocusout:() => { focused = false; refresh(); }}, button, tooltip);
+  };
   const footer = document.querySelector('.chapter-foot') || document.querySelector('main');
   footer?.append(h('div', {class:'quality-footer'}, SC.qualityMethodButton()));
 })();

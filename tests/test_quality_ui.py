@@ -95,3 +95,60 @@ def test_methodology_reopen_route_closing_and_sample_header(browser, base_url):
     assert 'coverage' in page.locator('#topbar .quality-compact').inner_text()
     assert not errors
     context.close()
+
+
+@pytest.mark.parametrize('width', [390, 1280])
+def test_energy_tooltip_hover_focus_escape_and_full_formula(browser, base_url, width):
+    context, page, detail, writes, errors = open_review(browser, base_url, chapter='overview', width=width)
+    trigger = page.get_by_role('button', name='About the energy map')
+    tooltip = page.get_by_role('tooltip')
+    trigger.hover()
+    assert tooltip.is_visible()
+    assert trigger.get_attribute('aria-describedby') == tooltip.get_attribute('id')
+    assert 'Bar height' in tooltip.inner_text() and 'cumulative' in tooltip.inner_text()
+    assert page.locator('dialog[open]').count() == 0
+    tooltip.hover()
+    assert tooltip.is_visible()  # pointer can move onto the explanation
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.keyboard.press('Escape')
+    assert not tooltip.is_visible()
+    page.mouse.move(0, 0)
+    trigger.focus()
+    assert tooltip.is_visible()
+    assert page.locator('dialog[open]').count() == 0
+    page.keyboard.press('Escape')
+    assert not tooltip.is_visible()
+    assert trigger.evaluate('el => el === document.activeElement')
+    page.keyboard.press('Enter')
+    dialog = page.get_by_role('dialog', name='Energy map estimates')
+    assert dialog.is_visible()
+    assert 'each question image and each answer option with media adds 3s' in dialog.inner_text()
+    assert not tooltip.is_visible()
+    page.keyboard.press('Escape')
+    assert trigger.evaluate('el => el === document.activeElement')
+    assert not tooltip.is_visible()
+    page.keyboard.press('Tab')
+    trigger.focus()
+    assert tooltip.is_visible()
+    page.keyboard.press('Tab')
+    assert not tooltip.is_visible()
+    assert not writes and not errors
+    context.close()
+
+
+def test_energy_touch_opens_full_dialog_without_hover_dependency(browser, base_url):
+    context = browser.new_context(viewport={'width':390, 'height':844}, has_touch=True, is_mobile=True)
+    page = context.new_page()
+    page.goto(base_url + 'index.html#overview')
+    page.wait_for_function('SC.reviewReady === true')
+    trigger = page.get_by_role('button', name='About the energy map')
+    assert not page.get_by_role('tooltip').is_visible()
+    trigger.tap()
+    dialog = page.get_by_role('dialog', name='Energy map estimates')
+    assert dialog.is_visible()
+    assert 'answer option with media' in dialog.inner_text()
+    assert not page.get_by_role('tooltip').is_visible()
+    dialog.get_by_role('button', name='Close').tap()
+    assert trigger.evaluate('el => el === document.activeElement')
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    context.close()

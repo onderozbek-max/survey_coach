@@ -48,4 +48,21 @@ Downloads use report.py (there is no server/summary.py in this repo). Both summa
 `git diff --check`: clean. `node --check` on quality.js, overview.js, share.js, workflow.js, app.js: clean. All changed source files below600 lines (largest app.js391, repository.py320). `.venv/bin/python -m surveycoach.demo_export` used only pinned offline cache, no --ai-refresh. Claims guard remains active with unchanged forbidden patterns/source scope; added explicit approved-score allowance regression proving adjacent `will finish` is still rejected. No broad exemptions or xfails.
 
 ## Integration boundaries / limits
-No queue, reader/network, parent plan, staged progress, real DB, original images, or screenshots edited by this task. No delegation, live AI, external survey, push, deploy, or freeze workaround. No new screenshots produced. Existing non-LD architecture and token palette retained. Full suite and independent integration review intentionally left to parent. UI explanations are native dialogs (click/tap/keyboard), not hover-only tooltips. Existing About-review technical appendix retains legacy raw evidence text; methodology explicitly distinguishes old raw points from normalized quality.
+No queue, reader/network, parent plan, staged progress, real DB, original images, or screenshots edited by this task. No delegation, live AI, external survey, push, deploy, or freeze workaround. No new screenshots produced. Existing non-LD architecture and token palette retained. Full suite and independent integration review intentionally left to parent. Full UI explanations are native dialogs (click/tap/keyboard); the Energy info control also has a brief hover/focus tooltip, added in the P2/P3 review follow-up below. Existing About-review technical appendix retains legacy raw evidence text; methodology explicitly distinguishes old raw points from normalized quality.
+
+## P2/P3 review follow-up
+Read `polish-quality-review.md` and resolved both findings, without modifying scoring/API schema:
+- P2: brief `role=tooltip` Energy explanation appears on pointer hover or keyboard focus; trigger has `aria-describedby` referencing its unique tooltip. Focus never opens a modal. Pointer can move onto the tooltip across a continuous hit area; it remains visible until pointer/focus leaves or Escape dismisses. Escape retains trigger focus and suppresses rediscovery until the interaction resets. Tap/Enter still open the full named dialog; opening it hides the tooltip, and closing returns focus without immediately reopening the tooltip. Chapter changes dismiss transient explanation state.
+- P3: full formula now says **each question image and each answer option with media adds 3s**, matching `_question_seconds`: `len(question.media) + sum(1 for option in options if option.media)`. The 3s value still comes from serialized `TimingConstants.image_seconds`, not a new UI constant.
+
+TDD evidence:
+1. `.venv/bin/python -m pytest tests/test_quality_ui.py -k 'tooltip or touch' -q`: **2 failed, 5 deselected** before implementation (missing hover tooltip and omitted answer-option wording).
+2. Same command after implementation: **2 passed, 5 deselected**.
+3. Extended hover regression to width390 as well as1280, explicitly checking pointer traversal, focus discovery, Escape suppression, no modal auto-open, Enter opening, focus return, blur dismissal and overflow. This caught mobile tooltip overflow: focused run **1 failed, 47 passed**. Centering tooltip under its info control fixed it using existing tokens only.
+4. Final focused command:
+
+```sh
+.venv/bin/python -m pytest tests/test_quality_ui.py tests/test_quality.py tests/test_overview_ui.py tests/test_copy_guard.py tests/test_design_tokens.py -q
+```
+
+**48 passed, 1 warning in 9.06s** (same existing Starlette/httpx warning). Touch test uses native Chromium mobile390 context with `has_touch=True` and actual `.tap()`, opening/closing full dialog and verifying return focus/no overflow. Synthetic fixtures only. `node --check site/quality.js` and `git diff --check` clean. Source sizes: quality.js92, quality.css24, quality UI tests154 lines. No full suite, delegation, external survey, live AI, push or deployment. Only quality.js/css, quality UI tests and this report included in follow-up commit; staged progress excluded.
