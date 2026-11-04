@@ -95,7 +95,7 @@ TDD and related checks:
 - RED `.venv/bin/python -m pytest tests/test_demo_structured_suggestions.py -q --tb=short` → **2 failed in1.70s**, missing fixture Question label and rendered Question heading.
 - GREEN `.venv/bin/python -m pytest tests/test_demo_structured_suggestions.py tests/test_demo_export.py tests/test_structured_generation.py tests/test_structured_suggestions_ui.py tests/test_judge_prompts.py tests/test_judge_grounding.py -q` → **82 passed in6.93s**.
 - Broader affected demo/UI `.venv/bin/python -m pytest tests/test_improve_ui.py tests/test_issue_loop_ui.py tests/test_site_e2e.py tests/test_phone_preview.py tests/test_answer_addition_ui.py tests/test_share_ui.py tests/test_copy_guard.py tests/test_stale_pick.py -q` → **87 passed in24.16s**.
-- Named-path `git diff --check` clean. New test49 lines; fixture195 lines, generated bundle1 line; all below600.
+- Named-path `git diff --check` clean. New test47 lines; fixture173 lines, generated bundle1 line; all below600.
 
 Commit scope: named fixture, regenerated site/data.js, new demo contract test, this report only. Existing progress/other artifacts untouched. No real DB/external/live/push/fullsuite. Parent should restart the isolated preview **after this producer commit** and perform final integration gate. Existing saved historical real reviews are NOT relabelled or migrated; obtaining new generated labels requires a new review. This demo change is not evidence a live LLM followed the new prompt or a real survey was read.
 
