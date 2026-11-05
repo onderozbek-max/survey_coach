@@ -6,6 +6,7 @@ import re
 
 import pytest
 
+from tests.fixflow_helpers import flow, open_flow  # noqa: F401
 from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
 
@@ -70,3 +71,45 @@ def test_home_uses_plain_words(browser, base_url):
     page.locator('a.survey-card').wait_for()
     assert offenders(page) == []
     page.close()
+
+
+# The Fix flow's own words: list, toolbar, card and tray. The phone shows the member's survey (prices, brand names),
+# which is content under review, not product copy.
+FLOW_ROOTS = '#improve-bar, #fix-queue, #coach, #my-changes, #toast-region'
+FLOW_TEXT = VISIBLE_TEXT.replace(
+    "if (text && el && !el.closest(skip) && el.checkVisibility())", "if (text && el && el.closest('%s') && !el.closest(skip) && el.checkVisibility())" % FLOW_ROOTS)
+
+
+def flow_offenders(page):
+    return [f'{m.group(0)!r} in {line!r}' for line in page.evaluate(FLOW_TEXT) for m in BANNED_RE.finditer(line)]
+
+
+def banned_in(text):
+    return [f'{m.group(0)!r} in {line!r}' for line in text.splitlines() for m in BANNED_RE.finditer(line)]
+
+
+@pytest.mark.parametrize('width', [1440, 390])
+def test_fix_flow_cards_tray_drawers_and_end_states_use_plain_words(browser, flow, width):
+    """Every item's card in its default state (Details stay collapsed), the open tray, both drawers and the end states."""
+    context, page, errors = open_flow(browser, flow, width=width)
+    if width < 1000:
+        page.locator('#fix-list-open').click()
+        assert banned_in(page.locator('#fix-drawer').inner_text()) == []
+        page.get_by_role('button', name='Close fix list').click()
+    total = page.locator('#fix-queue .fix-row').count() if width >= 1000 else len(page.evaluate('SC.workspaceDetail.queue.items'))
+    for index in range(total):
+        if width >= 1000:
+            page.locator('#fix-queue .fix-row').nth(index).click()
+        else:
+            page.locator('#fix-list-open').click()
+            page.locator('#fix-drawer .fix-row').nth(index).click()
+        assert flow_offenders(page) == [], index
+    page.locator('#tray-toggle').click()
+    assert flow_offenders(page) == []
+    page.locator('#all-screens').click()
+    assert banned_in(page.locator('#screen-drawer').inner_text()) == []
+    page.keyboard.press('Escape')
+    page.evaluate("pageId => dispatchEvent(new CustomEvent('surveycoach-screen', {detail:pageId}))", 'p3')
+    assert flow_offenders(page) == []
+    assert not errors
+    context.close()
