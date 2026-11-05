@@ -34,14 +34,16 @@ def test_exported_synthetic_q1_renders_structured_and_preserves_exact_copy(brows
     context, page, detail, writes, errors = open_review(browser, base_url)
     finding = q1(detail['review']['findings'])
     focus(page, finding)
-    box = page.locator('#coach .suggested')
+    box = page.locator('#coach .fix-paste')
     assert box.get_by_role('heading', name='Question', exact=True).count() == 1
     assert box.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == [
         'Navy 3-pack', 'Black 3-pack', 'Grey 6-pack', 'Another pack',
         "I did not buy Member's Mark Boxer Briefs", "I don't remember"]
-    page.locator('#use-change').click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
-    assert writes[-1]['picked_text'] == finding['suggested_text']
+    page.get_by_role('button', name='Copy the new wording', exact=True).click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.startsWith('Copied')")
     assert page.evaluate('navigator.clipboard.readText()') == finding['suggested_text']
+    page.locator('#use-change').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Added to My changes')")
+    assert writes[-1]['picked_text'] == finding['suggested_text']
     assert not errors
     context.close()

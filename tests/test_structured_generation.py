@@ -6,9 +6,8 @@ from surveycoach.judge.prompts import system_prompt
 from surveycoach.judge.schemas import AiFinding, BatchOutput, Verdict
 from surveycoach.rubric import load_rubric
 from surveycoach.snapshot import SurveySnapshot
-from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
-from tests.test_structured_suggestions_ui import OLD, STEM, recommendation
+from tests.test_structured_suggestions_ui import OLD, STEM, copy_new_wording, open_rec, recommendation, show_changes
 
 RUBRIC = load_rubric()
 
@@ -25,7 +24,7 @@ def grounded_finding(detail, text):
     kept = result.results['5.1'].findings[0].model_dump(mode='json')
     kept['fingerprint'] = target['fingerprint']
     target.clear()
-    target.update(kept)
+    target.update(kept, action_kind='paste', steps=[])         # grounding output carries no action kind of its own: this card pastes
     return target
 
 
@@ -38,13 +37,14 @@ def test_prompt_bundle_survives_grounding_renders_and_copies_exactly(browser, ba
         assert kept['structural'] is True
         assert kept.get('edit_kind') != 'add_answer'
         assert kept['suggested_text'] == text and kept['options'][0]['text'] == text
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    context, page, detail, writes, errors = open_rec(browser, base_url, prepare)
     assert page.locator('.suggestion-question').inner_text() == 'Which flavours would you buy?'
     assert page.get_by_role('list', name='Answer choices').locator('li').all_inner_texts() == OLD[:2]
-    page.locator('#use-change').click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
-    assert writes[-1]['picked_text'] == text
+    copy_new_wording(page)
     assert page.evaluate('navigator.clipboard.readText()') == text
+    page.locator('#use-change').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Added to My changes')")
+    assert writes[-1]['picked_text'] == text
     assert not errors
     context.close()
 
@@ -55,9 +55,10 @@ def test_plain_generation_stays_nonstructural_and_keeps_word_diff(browser, base_
         kept = grounded_finding(detail, text)
         assert kept['structural'] is False
         assert kept['suggested_text'] == text
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    assert page.locator('#coach .suggested .diff del').inner_text() == 'try'
-    assert page.locator('#coach .suggested .diff ins').inner_text() == 'buy'
+    context, page, detail, writes, errors = open_rec(browser, base_url, prepare)
+    changes = show_changes(page)
+    assert changes.locator('.diff del').inner_text() == 'try'
+    assert changes.locator('.diff ins').inner_text() == 'buy'
     assert not writes and not errors
     context.close()
 
@@ -68,8 +69,8 @@ def test_missing_answer_generation_still_becomes_add_answer(browser, base_url):
         kept = grounded_finding(detail, text)
         assert kept['edit_kind'] == 'add_answer'
         assert kept['suggested_text'] == 'Neither of these'
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    assert page.locator('#coach .suggested blockquote').inner_text() == 'Neither of these'
+    context, page, detail, writes, errors = open_rec(browser, base_url, prepare)
+    assert page.locator('#coach .fix-paste blockquote').inner_text() == 'Neither of these'
     assert page.locator('#coach .suggestion-bundle').count() == 0
     assert not writes and not errors
     context.close()
