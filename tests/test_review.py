@@ -100,5 +100,5 @@ def test_cli_prints_a_readable_review():
     assert "Readiness: Needs work" in out
     assert "MUST FIX (0)" in out
     assert "B1, B2, B5, B6, B7) are still unchecked" in out
-    assert "Reader could not verify image loading" in out
+    assert "Check that this image shows up on a phone" in out
     assert "WHAT'S WORKING" in out

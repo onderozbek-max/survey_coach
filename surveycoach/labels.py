@@ -1,6 +1,8 @@
 """The one naming scheme for screens and questions. Views never count on their own."""
 from __future__ import annotations
 
+import re
+
 from surveycoach.snapshot import SurveySnapshot
 
 _ROLE_NAMES = {"intro": "Welcome", "thank_you": "Thank you", "screen_out": "Screen-out", "end": "Last screen"}
@@ -30,6 +32,24 @@ def screen_labels(snapshot: SurveySnapshot) -> list[dict]:
         labels.append({"page_id": page.id, "screen": index + 1, "name": name,
                        "topic": _topic(first or snapshot.page_copy(page)), "questions": questions})
     return labels
+
+
+def join_names(names) -> str:
+    """'Q4', 'Q4 and Q6', 'Q4, Q6 and Q8'."""
+    names = list(dict.fromkeys(names))
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+QUESTION_LABEL = re.compile(r"\bQ\d+\b")
+
+
+def group_label(findings: list[dict], labels: list[dict]) -> str:
+    """Where a grouped card applies, e.g. 'Q4, Q6 and Q8 · Screens 5, 7 and 9'. One finding keeps its own label."""
+    spots = [finding_label(f, labels) for f in findings]
+    if len(set(spots)) == 1 or "Whole survey" in spots:
+        return spots[0]
+    names, numbers = zip(*(spot.split(" · Screen ") for spot in spots))
+    return f"{join_names(names)} · Screens {join_names(numbers)}"
 
 
 def finding_label(finding: dict, labels: list[dict]) -> str:

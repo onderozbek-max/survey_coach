@@ -8,6 +8,7 @@ from surveycoach.checks.registry import (Problem, ReviewContext, absent_or_unkno
                                          share_result)
 from surveycoach.checks.text import plural, swap_word
 from surveycoach.findings import CheckResult, Finding
+from surveycoach.labels import screen_labels
 from surveycoach.snapshot import Question
 
 MAX_QUESTION_WORDS = 25
@@ -38,12 +39,15 @@ def _question_fit_problems(q: Question) -> list[Problem]:
     words = len(q.text.split())
     if words > MAX_QUESTION_WORDS:
         found.append(Problem(f"Question runs {words} words; aim for {MAX_QUESTION_WORDS}", f"{words} words: {clip(q.text, 90)}",
-                             f"Shorten the question to about {MAX_QUESTION_WORDS} words or fewer.", current=q.text))
+                             f"Shorten the question to about {MAX_QUESTION_WORDS} words or fewer.", current=q.text,
+                             steps=(f"Cut the question to about {MAX_QUESTION_WORDS} words.",
+                                    "Keep what it measures, the time frame and any examples.")))
     if q.options_below_fold or q.fits_one_screen is False:
         below = (f"{plural(q.options_below_fold, 'answer')} below the fold on a phone"
                  if q.options_below_fold else "Question doesn't fit one phone screen")
         found.append(Problem(below, below + ".",
-                             "Trim or group the answers so the question and its first answers show without scrolling."))
+                             "Trim or group the answers so the question and its first answers show without scrolling.",
+                             steps=("Shorten or group the answers so the first ones show without scrolling.",)))
     return found
 
 
@@ -57,7 +61,8 @@ def fits_one_screen(ctx: ReviewContext) -> CheckResult:
                     for q in page.questions if q.kind != "info" for pr in _question_fit_problems(q)]
         if len([q for q in page.questions if not q.conditional]) > 1:
             crowd = f"{plural(len(page.questions), 'question')} on one screen"
-            problems.append(problem_finding("6.1", Problem(crowd, crowd + ".", "Show one question per screen."),
+            problems.append(problem_finding("6.1", Problem(crowd, crowd + ".", "Show one question per screen.",
+                                                           steps=("Move each question onto its own screen.",)),
                                             "Crowded screens need a lot of scrolling on a phone.", page_id=page.id))
         failing += bool(problems)
         findings += problems
@@ -109,6 +114,7 @@ def _choice_layout_advice(q: Question) -> str:
 @check("6.2")
 def tappable_answers(ctx: ReviewContext) -> CheckResult:
     questions = _questions(ctx)
+    labels = {q["id"]: q["label"] for screen in screen_labels(ctx.snapshot) for q in screen["questions"]}
     findings, failing, total = [], 0, 0
     for q in questions:
         if q.kind not in CHOICE_KINDS or not q.options:
@@ -119,13 +125,19 @@ def tappable_answers(ctx: ReviewContext) -> CheckResult:
         if long_labels:
             problems.append(Problem("Answer text is too long to tap comfortably", clip(long_labels[0], 90),
                                     f"Keep each answer to about {MAX_LABEL_CHARS} characters (2 lines).",
-                                    current=long_labels[0], highlight=long_labels[0]))
+                                    current=long_labels[0], highlight=long_labels[0],
+                                    steps=(f"Shorten this answer to about {MAX_LABEL_CHARS} characters.",),
+                                    impact="Long answers wrap onto many lines and are hard to tap."))
         if len(q.options) > MAX_CHOICES and not standard_scale(q):
             problems.append(Problem(f"{len(q.options)} answer choices; review the phone layout",
-                                    f"{len(q.options)} answer choices.", _choice_layout_advice(q)))
+                                    f"{len(q.options)} answer choices.", _choice_layout_advice(q),
+                                    you_check=f"Scroll {labels[q.id]} on your phone: are all {len(q.options)} answers easy to reach?",
+                                    impact="Long lists can be hard to scroll and tap on a phone."))
         if q.kind == "dropdown" and len(q.options) <= MAX_DROPDOWN_BUTTONS:
             problems.append(Problem(f"Dropdown with only {len(q.options)} choices", f"A dropdown with only {len(q.options)} choices.",
-                                    "Use buttons instead; they take one tap, not two."))
+                                    "Use buttons instead; they take one tap, not two.",
+                                    steps=("Show these choices as buttons instead of a dropdown.",),
+                                    impact="Buttons take one tap. A dropdown takes two."))
         failing += bool(problems)
         findings += [_on_question("6.2", q, pr, "Long or crowded answers are hard to read and tap on a phone.") for pr in problems]
     if not total:   # choice questions whose answers were not captured are unknown, not absent
@@ -144,15 +156,18 @@ def small_grids(ctx: ReviewContext) -> CheckResult:
             total += 1
             if len(q.rows) > MAX_GRID_ROWS:
                 problems.append(Problem(f"Grid has {len(q.rows)} rows; split it", f"A grid with {len(q.rows)} rows.",
-                                        f"Split it into separate questions of {MAX_GRID_ROWS} rows or fewer."))
+                                        f"Split it into separate questions of {MAX_GRID_ROWS} rows or fewer.",
+                                        steps=(f"Split it into separate questions of {MAX_GRID_ROWS} rows or fewer.",)))
             if columns > MAX_GRID_COLUMNS:
                 problems.append(Problem(f"Grid has {columns} columns; use {MAX_GRID_COLUMNS}", f"A grid with {columns} columns.",
-                                        f"Use {MAX_GRID_COLUMNS} columns or fewer."))
+                                        f"Use {MAX_GRID_COLUMNS} columns or fewer.",
+                                        steps=(f"Use {MAX_GRID_COLUMNS} columns or fewer.",)))
         elif q.scale and q.kind in {"rating", "slider"}:
             total += 1
             if q.scale.points > MAX_SCALE_POINTS and not standard_scale(q):
                 problems.append(Problem(f"{q.scale.points}-point scale is hard to tap", f"A {q.scale.points}-point scale.",
-                                        f"Use {MAX_SCALE_POINTS} points or fewer; a 0 to 10 scale is hard to tap."))
+                                        f"Use {MAX_SCALE_POINTS} points or fewer; a 0 to 10 scale is hard to tap.",
+                                        steps=(f"Use {MAX_SCALE_POINTS} points or fewer.",)))
         failing += bool(problems)
         findings += [_on_question("6.3", q, pr, "Wide grids and long scales force sideways scrolling and mis-taps.") for pr in problems]
     if not total:   # a rating or slider without a captured scale is unknown, not absent
@@ -177,7 +192,8 @@ def thumb_friendly(ctx: ReviewContext) -> CheckResult:
             replacement = TAP_FOR.get(word.lower())
             problems.append(Problem(f'"{word}" is a desktop word', f'"{word}" is a desktop word.',
                                     'Say "tap" and avoid "left" or "right".', current=text, highlight=word,
-                                    suggested=swap_word(text, word, replacement) if replacement else None))
+                                    suggested=swap_word(text, word, replacement) if replacement else None,
+                                    steps=() if replacement else ('Reword it for a phone: say "tap" and avoid "left" or "right".',)))
         failing += bool(problems)
         findings += [_on_question("6.4", q, pr, "Members on a phone can't click, hover, or drag.") for pr in problems]
     return share_result("6.4", failing, len(_questions(ctx)), *findings)
@@ -190,12 +206,14 @@ def stays_put(ctx: ReviewContext) -> CheckResult:
         if page.links_out:
             failing += 1
             link = Problem("Link leads away from the survey", f"Links away from the survey: {', '.join(page.links_out[:2])}",
-                           "Remove the link, or open it in a way that keeps the member's progress.")
+                           "Remove the link, or open it in a way that keeps the member's progress.",
+                           steps=("Remove the link.", "Or set it to open in a new tab so members keep their place."))
             findings.append(problem_finding("6.5", link, "Leaving the survey can lose all progress.", page_id=page.id))
     for q in _questions(ctx):
         if TRUNCATED.search(q.text):
             failing += 1
-            cut = Problem("Question text is cut off", q.text[-60:], "Show the full question text.", current=q.text)
+            cut = Problem("Question text is cut off", q.text[-60:], "Show the full question text.", current=q.text,
+                          steps=("Restore the full question text in RedJade.",))
             findings.append(_on_question("6.5", q, cut, "Cut-off text leaves members guessing what is being asked."))
     # Reader-only image failures are unverified capture evidence, owned by B7.
     # They neither deduct layout credit nor dilute observed layout problems.

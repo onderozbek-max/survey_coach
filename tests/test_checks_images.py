@@ -43,7 +43,8 @@ def test_7_2_is_scored_on_worst_shape_but_requires_mobile_review_not_auto_crop()
     result = run(images.phone_friendly_shape, snapshot)
     assert result.fraction == 0.0
     finding = result.findings[0]
-    assert "potential" in finding.headline.lower()
+    assert finding.headline == "Check this wide image on a phone"
+    assert finding.action_kind == "you_check" and "phone" in finding.you_check and not finding.suggested_text
     assert "mobile device" in finding.explanation
     assert "does not prove" in finding.explanation
     assert "Crop it" not in finding.explanation

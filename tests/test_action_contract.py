@@ -170,3 +170,80 @@ def test_field_location_names_the_question_the_answer_and_the_welcome():
 def test_field_location_is_left_out_when_it_cannot_be_pinned_down_and_explicit_ones_win():
     assert "field_location" not in _located()      # a whole-survey finding has no field
     assert _located(question_id="q1", field_location="RedJade > Somewhere")["field_location"] == "RedJade > Somewhere"
+
+
+# --- Card body budget and the tight member impact (workstream 1C) ----------------------------------
+
+LONG_IMPACT = ("Members who disliked the fit must translate their experience into a degree of love, "
+               "which can push feedback toward positive answers.")
+NO_COMMA_IMPACT = ("Members who bought a different pack, received the product without buying it or cannot "
+                   "remember must choose an inaccurate purchase to continue.")
+
+
+def test_visible_body_is_impact_plus_the_one_action_and_never_the_paste_text():
+    from surveycoach.recommendations import MAX_BODY_WORDS, visible_body_words
+    assert MAX_BODY_WORDS == 45
+    steps = with_action(raw(member_impact="Four word impact here.", explanation="Do one thing now."))
+    assert visible_body_words(steps) == 4 + 4
+    paste = with_action(raw(member_impact="Four word impact here.", suggested_text="word " * 60))
+    assert visible_body_words(paste) == 4
+    check = with_action(raw(member_impact="Four word impact here.", action_kind="you_check",
+                            you_check="Does it show on your phone?"))
+    assert visible_body_words(check) == 4 + 6
+
+
+def test_a_card_body_over_45_words_is_a_contract_problem():
+    explicit = raw(action_kind="steps", steps=["word " * 25, "word " * 5], member_impact="word " * 19)
+    assert "body_long" in validate_finding(explicit)
+
+
+def test_a_long_ai_impact_is_cut_at_a_clause_and_the_full_text_moves_to_details():
+    out = with_action(raw(member_impact=LONG_IMPACT, explanation="Ask how satisfied members are."))
+    assert out["member_impact"] == ("Members who disliked the fit must translate their experience "
+                                    "into a degree of love.")
+    assert out["member_impact_full"] == LONG_IMPACT
+    assert validate_finding(out) == []
+
+
+def test_an_impact_with_no_safe_cut_falls_back_to_one_plain_line_for_the_criterion():
+    out = with_action(raw(criterion_id="B2", member_impact=NO_COMMA_IMPACT))
+    assert len(out["member_impact"].split()) <= 20
+    assert out["member_impact_full"] == NO_COMMA_IMPACT
+    assert banned_words(out["member_impact"]) == []
+    assert with_action(out) == out          # projection stays idempotent
+
+
+def test_short_impact_is_left_alone_and_gets_no_details_copy():
+    out = with_action(raw(member_impact="Members may stall here."))
+    assert out["member_impact"] == "Members may stall here." and "member_impact_full" not in out
+
+
+def test_the_fallback_step_fits_the_card_budget_and_the_rest_stays_in_details():
+    explanation = ("Replace the placeholder labels with real statements about the product. "
+                   "Each row should say one specific thing members can judge from their own use. "
+                   "The intended statements were not supplied, so no complete rewrite is offered here. "
+                   "Keep the grid and the agreement scale as they are.")
+    out = with_action(raw(explanation=explanation, member_impact="Members cannot judge a placeholder row."))
+    assert out["steps"] == ["Replace the placeholder labels with real statements about the product. "
+                            "Each row should say one specific thing members can judge from their own use."]
+    assert out["explanation"] == explanation          # nothing is lost from the details
+    assert validate_finding(out) == []
+
+
+def test_one_overlong_fallback_sentence_is_cut_at_a_clause_not_mid_word():
+    sentence = ("Rewrite the question so it asks about the experience members actually had with the product, "
+                "without assuming they enjoyed it or that they remember every detail of using it at home.")
+    out = with_action(raw(explanation=sentence))
+    assert out["steps"] == ["Rewrite the question so it asks about the experience members actually had with the product."]
+    assert len(out["steps"][0].split()) <= 30
+
+
+def test_the_guard_keeps_the_new_image_card_but_still_rewrites_a_legacy_saved_one():
+    from surveycoach.recommendations import guard_recommendation
+    legacy = raw(criterion_id="7.2", source="auto", headline="Check wide image on mobile: potential layout risk",
+                 member_impact="Old long copy.")
+    assert guard_recommendation(legacy)["headline"] == "Check image on mobile: potential layout risk"
+    current = dict(legacy, headline="Check this wide image on a phone", action_kind="you_check",
+                   you_check="Open this screen on your phone: is the whole image easy to see?",
+                   member_impact="A picture that looks fine on a desktop can be cropped or tiny on a phone.")
+    assert guard_recommendation(current) == current

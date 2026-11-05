@@ -8,6 +8,7 @@ from surveycoach.checks.registry import (Problem, ReviewContext, blocker_ok, che
                                          problem_finding, result, share_result)
 from surveycoach.findings import CheckResult, Finding
 from surveycoach.imageio import BLUR_MIN, analyze_image
+from surveycoach.labels import screen_labels
 from surveycoach.snapshot import Media
 
 FULL_WIDTH_CSS_PX = 300          # an image this wide fills a phone
@@ -74,10 +75,11 @@ def phone_friendly_shape(ctx: ReviewContext) -> CheckResult:
         return passed("7.2") if any(_ratio(r.media) for r in all_media(ctx)) else not_applicable("7.2")
     shape = "wide" if worst_ratio > 1 else "tall"
     return result("7.2", worst, _img_finding("7.2", worst_ref, Problem(
-        f"Check {shape} image on mobile: potential layout risk", f"A {shape} image ({worst_ratio:.2f} wide for every 1 tall).",
+        f"Check this {shape} image on a phone", f"A {shape} image ({worst_ratio:.2f} wide for every 1 tall).",
         "Open the actual survey on a mobile device. Check that the full image is readable, not cropped, stretched or too small. "
-        "Orientation alone does not prove a broken layout. Adjust placement or size only if needed; preserve research content."),
-        "Desktop drafting can hide small image details or awkward image composition on a phone."))
+        "Orientation alone does not prove a broken layout. Adjust placement or size only if needed; preserve research content.",
+        you_check="Open this screen on your phone: is the whole image easy to see, not cropped or stretched?"),
+        "A picture that looks fine on a desktop can be cropped or tiny on a phone."))
 
 
 def _sharpness_problems(ref: MediaRef) -> list[Problem]:
@@ -85,17 +87,22 @@ def _sharpness_problems(ref: MediaRef) -> list[Problem]:
     if m.natural_w and m.rendered_w:
         if m.rendered_w >= FULL_WIDTH_CSS_PX and m.natural_w < MIN_FULL_WIDTH_PIXELS:
             problems.append(Problem("Image is too small to show full width", f"{m.natural_w} px wide, shown full width.",
-                                    f"Use the original file, at least {MIN_FULL_WIDTH_PIXELS} px wide. Never upscale a small one."))
+                                    f"Use the original file, at least {MIN_FULL_WIDTH_PIXELS} px wide. Never upscale a small one.",
+                                    steps=(f"Upload the original file, at least {MIN_FULL_WIDTH_PIXELS} px wide.",
+                                           "Don't just enlarge a small one."),))
         elif m.natural_w < m.rendered_w * MIN_DENSITY:
             problems.append(Problem("Image will look soft on sharp phone screens", f"{m.natural_w} px wide, shown at {m.rendered_w} px.",
-                                    "Use a larger original so it stays crisp on high-density phone screens."))
+                                    "Use a larger original so it stays crisp on high-density phone screens.",
+                                    steps=("Upload a larger original so it stays sharp on phone screens.",)))
     if m.natural_w and m.natural_h and m.rendered_w and m.rendered_h and m.object_fit not in {"cover", "contain", "scale-down"}:
         drift = abs(m.natural_w / m.natural_h - m.rendered_w / m.rendered_h) / (m.natural_w / m.natural_h)
         if drift > 0.05:
             problems.append(Problem("Image is stretched or squashed", "The image is stretched or squashed.",
-                                    "Show it at its natural shape, or crop it deliberately."))
+                                    "Show it at its natural shape, or crop it deliberately.",
+                                    steps=("Show it at its natural shape, or crop it on purpose.",)))
     if m.asset_path and Path(m.asset_path).exists() and analyze_image(m.asset_path).blur_score < BLUR_MIN:
-        problems.append(Problem("Image looks blurry", "The image looks blurry.", "Replace it with a sharper original photo."))
+        problems.append(Problem("Image looks blurry", "The image looks blurry.", "Replace it with a sharper original photo.",
+                                steps=("Replace it with a sharper original photo.",)))
     return problems
 
 
@@ -120,6 +127,7 @@ def fair_image_choices(ctx: ReviewContext) -> CheckResult:
     questions = [q for q in ctx.snapshot.all_questions() if sum(1 for o in q.options if o.media) >= 2]
     if not questions:
         return not_applicable("7.5")
+    labels = {q["id"]: q["label"] for screen in screen_labels(ctx.snapshot) for q in screen["questions"]}
     findings, failing, layout_unknown = [], 0, False
     for q in questions:
         pictured = [o for o in q.options if o.media]
@@ -130,20 +138,25 @@ def fair_image_choices(ctx: ReviewContext) -> CheckResult:
         problems = []
         if ratios and max(ratios) / min(ratios) > 1.05:
             problems.append(Problem("Image options have different shapes", "The images have different shapes.",
-                                    "Crop every option to the same shape."))
+                                    "Crop every option to the same shape.",
+                                    steps=("Crop every option image to the same shape.",)))
         if len(displayed) == len(pictured) and max(displayed) / min(displayed) > 1.25:
             problems.append(Problem("Image options differ a lot in size", "The images are shown at very different sizes.",
-                                    "Use matching sizes so no option looks fancier."))
+                                    "Use matching sizes so no option looks fancier.",
+                                    steps=("Show every option image at the same size.",)))
         if any(not o.label.strip() for o in pictured):
-            problems.append(Problem("Image option has no label", "Some options have no label.", "Give every image a short label."))
+            problems.append(Problem("Image option has no label", "Some options have no label.", "Give every image a short label.",
+                                    steps=("Give each image option a short label.",)))
         if len(pictured) > MAX_IMAGE_CHOICES:
             problems.append(Problem(f"{len(pictured)} image options; review the phone layout", f"{len(pictured)} image options.",
                                     f"The configured {MAX_IMAGE_CHOICES}-image threshold is a layout-review cue, not a research maximum. "
                                     "Preview the actual question on a phone; check that every image is readable and every answer reachable. "
                                     "Keep distinct answers and preserve intended order, randomization, exclusivity and routing. "
-                                    "Ask the study owner before changing the layout; do not delete answers merely to meet the threshold."))
+                                    "Ask the study owner before changing the layout; do not delete answers merely to meet the threshold.",
+                                    you_check=f"Scroll {labels[q.id]} on your phone: are all {len(pictured)} images easy to see and tap?",
+                                    impact="Many images can be hard to see and tap on a phone."))
         failing += bool(problems)
-        findings += [problem_finding("7.5", pr, "Unequal or crowded image presentation can influence comparisons; check the actual phone layout before changing research content.",
+        findings += [problem_finding("7.5", pr, "Uneven images can sway which option members pick.",
                                      question_id=q.id) for pr in problems]
     return share_result("7.5", failing, len(questions), *findings, assessed=not layout_unknown)
 
@@ -158,20 +171,23 @@ def light_and_accessible(ctx: ReviewContext) -> CheckResult:
         problems = []
         if (ref.media.bytes or 0) > MAX_IMAGE_BYTES:
             problems.append(Problem(f"Image file is heavy ({ref.media.bytes // 1000} KB)", f"{ref.media.bytes // 1000} KB image.",
-                                    "Compress it to under about 500 KB."))
+                                    "Compress it to under about 500 KB.",
+                                    steps=("Compress it to under about 500 KB.",), impact="Big images load slowly on a phone plan."))
         if ref.media.role != "decoration" and not (ref.media.alt or "").strip():
             problems.append(Problem("Image has no alt text", "An image has no alt text.",
-                                    "Add a short description for screen readers."))
+                                    "Add a short description for screen readers.",
+                                    steps=("Add a short description of the image for screen readers.",),
+                                    impact="Members using screen readers miss what the image shows."))
         failing += bool(problems)
-        findings += [_img_finding("7.6", ref, pr, "Heavy images are slow on cellular, and members using screen readers lose context.")
-                     for pr in problems]
+        findings += [_img_finding("7.6", ref, pr, "Big images load slowly on a phone plan.") for pr in problems]
     total_bytes = sum(r.media.bytes or 0 for r in refs)
     heavy = total_bytes > MAX_SURVEY_BYTES
     if heavy:
         findings.append(finding("7.6", "worth_improving", f"Images total {total_bytes / 1_000_000:.1f} MB; keep under 5",
                                 f"Images total {total_bytes / 1_000_000:.1f} MB.",
                                 "Keep the whole survey under about 5 MB of images.",
-                                "Many members are on cellular, where big surveys load slowly."))
+                                "Many members are on cellular, where big surveys load slowly.",
+                                steps=["Shrink the biggest images so they total under 5 MB."]))
     # Alt text is always checkable; weight is not, so unknown bytes leave the criterion unassessed.
     unmeasured = any(r.media.bytes is None for r in refs)
     return share_result("7.6", failing + heavy, len(refs) + 1, *findings, assessed=not unmeasured)
@@ -186,15 +202,17 @@ def cannot_see_image(ctx: ReviewContext) -> CheckResult:
         if broken or tiny:
             findings.append(finding(
                 "B7", "worth_improving" if broken else "must_fix",
-                f"Reader could not verify image loading: {_label(ref)}" if broken else f"Image options are too small to judge ({ref.media.rendered_w} px)",
+                "Check that this image shows up on a phone" if broken else f"Image options are too small to judge ({ref.media.rendered_w} px)",
                 f'The reader observed an unloaded image: "{_label(ref)}". The cause was not measured.' if broken else f"An image is only {ref.media.rendered_w} px wide.",
                 "Open this screen in the actual survey on a phone. If the image also fails there, check its link and re-upload it. "
                 "If it loads slowly, try a smaller file while keeping text and details readable. "
                 "If it works there, report a reader capture issue; this observation does not establish a network or file-size problem." if broken
                 else "Show the images larger, at least 2 per row, so members can judge them.",
-                "If members cannot see an image, they may lack information needed to answer; a reader-only failure does not prove that." if broken
-                else "Members need readable image choices to make an informed selection.",
-                page_id=ref.page_id, question_id=ref.question_id, element_id=ref.media.element_id or None))
+                "If members can't see an image, they may miss what they need to answer." if broken
+                else "Members need to see each image to pick one.",
+                page_id=ref.page_id, question_id=ref.question_id, element_id=ref.media.element_id or None,
+                **({"you_check": "Open this screen on your phone: does the image show up?"} if broken else
+                   {"steps": ["Make the image options bigger.", "Show at most 2 per row so each one is easy to judge."]})))
     if findings:
         return CheckResult(criterion_id="B7", findings=findings,
                            assessed=not any(not ref.media.loaded for ref in all_media(ctx)))

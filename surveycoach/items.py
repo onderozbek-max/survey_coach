@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 
-from surveycoach.labels import finding_label
+from surveycoach.labels import QUESTION_LABEL, finding_label, group_label, join_names
 from surveycoach.status import IMPROVE, YOU_CHECK, finding_state, is_decided, worst_state
 from surveycoach.you_check import build_you_checks
 
@@ -57,6 +57,18 @@ def solo_plan(findings: list[dict]) -> dict:
     return {"quick_wins": [{"id": f["fingerprint"], "fingerprints": [f["fingerprint"]]} for f in findings]}
 
 
+def _group_instruction(members: list[dict], screens: list[dict]) -> dict:
+    """One action line for a grouped you-check card, naming every question it covers ("Scroll Q4, Q6 and Q8 ...").
+
+    Only a you-check line carries question labels; paste and steps are identical across the group by construction.
+    """
+    lead = members[0]
+    names = [q["label"] for s in screens for q in s.get("questions", []) for m in members if q["id"] == m.get("question_id")]
+    if len(members) < 2 or lead.get("action_kind") != "you_check" or not QUESTION_LABEL.search(lead.get("you_check") or ""):
+        return {}
+    return {"instruction": QUESTION_LABEL.sub(join_names(names), lead["you_check"], count=1)}
+
+
 def build_items(findings: list[dict], plan: dict, decisions: dict, extras: list[dict], screens: list[dict],
                 signal_of: dict) -> list[dict]:
     """Plan groups first (in plan order), then curated extras. Absorbed findings stay evidence only."""
@@ -76,11 +88,12 @@ def build_items(findings: list[dict], plan: dict, decisions: dict, extras: list[
             items.append({"id": group["id"], "kind": "finding",
                           "state": worst_state(finding_state(m) for m in members),
                           "open": not decided, "decided": decided, "headline": members[0]["headline"],
-                          "location": finding_label(members[0], screens),
+                          "location": group_label(members, screens),
                           "signal": signal_of.get(members[0]["criterion_id"]),
                           "criterion_id": members[0]["criterion_id"],
                           "fingerprints": [m["fingerprint"] for m in members], "count": len(members),
-                          "pages": pages, "screens": [number[p] for p in pages]})
+                          "pages": pages, "screens": [number[p] for p in pages],
+                          **_group_instruction(members, screens)})
     for extra in extras:
         decided = is_decided(decisions.get(extra["fingerprint"]))
         items.append({"id": extra["fingerprint"], "kind": extra["kind"], "state": extra["state"],

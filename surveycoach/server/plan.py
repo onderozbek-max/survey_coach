@@ -1,10 +1,23 @@
 """Turn findings into a short plan without rewriting findings or decisions."""
 from __future__ import annotations
 
+from surveycoach.labels import QUESTION_LABEL
+from surveycoach.recommendations import with_action
 from surveycoach.status import is_decided
 
 QUICK_WIN_LIMIT = 6
 NICE_TO_HAVE = {"9.1", "9.2"}
+
+
+def action_signature(finding: dict) -> tuple:
+    """What the researcher is asked to do, with the question label masked: 'Scroll Q4 ...' and 'Scroll Q6 ...'
+    are one action, while two different rewrites, or steps naming different words, are two."""
+    served = with_action(finding)
+    kind = served["action_kind"]
+    if kind == "paste":     # the survey's own wording: compared exactly, never masked
+        return kind, (served.get("suggested_text") or "", *(o["text"] for o in served.get("options") or []))
+    lines = served.get("steps") or [] if kind == "steps" else [served.get("you_check") or ""]
+    return kind, tuple(" ".join(QUESTION_LABEL.sub("Q#", line).lower().split()) for line in lines)
 
 
 def build_plan(findings: list[dict], decisions: dict,
@@ -24,7 +37,8 @@ def build_plan(findings: list[dict], decisions: dict,
         if finding["severity"] == "must_fix":
             key = (finding["fingerprint"],)
         else:
-            key = (finding["criterion_id"], " ".join(finding["headline"].lower().split()))
+            key = (finding["criterion_id"], " ".join(finding["headline"].lower().split()),
+                   action_signature(finding))
         groups.setdefault(key, []).append(finding)
 
     items = []

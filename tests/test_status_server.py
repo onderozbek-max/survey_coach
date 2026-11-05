@@ -201,9 +201,11 @@ def test_a_pending_survey_has_no_verdict_and_home_still_loads(repo):
 def test_a_legacy_saved_review_without_action_fields_still_loads_and_gets_them(repo):
     snapshot = survey(intro(), page(1, question()), thank_you())
     payload = encoded(snapshot)
-    for finding in payload["review"]["findings"]:
+    stripped = [*payload["review"]["findings"],
+                *[f for r in payload["review"]["results"].values() for f in r["findings"]]]
+    for finding in stripped:                     # exactly what an old save looks like: no action fields yet
         for key in ("action_kind", "steps", "you_check", "field_location"):
-            assert key not in finding            # exactly what an old save looks like
+            finding.pop(key, None)
     created = repo.submit(snapshot, ai=False)
     repo.finish(created["job_id"], payload)
     detail = repo.detail(created["id"])

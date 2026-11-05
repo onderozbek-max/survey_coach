@@ -42,7 +42,9 @@ def guard_recommendation(finding: dict, snapshot: dict | None = None) -> dict:
     Keeping this JSON-shaped lets the same guard handle historical payloads without
     validating them against today's model or changing stored fingerprints/scores.
     """
-    if finding.get("criterion_id") == "7.2" and finding.get("source", "auto") == "auto":
+    # Legacy saves only: a finding that already carries its own action has current copy.
+    if (finding.get("criterion_id") == "7.2" and finding.get("source", "auto") == "auto"
+            and not finding.get("action_kind")):
         finding = dict(finding,
             headline="Check image on mobile: potential layout risk",
             explanation="Open the actual survey on a mobile device. Check readability, cropping, distortion and image size. "
@@ -86,6 +88,19 @@ _CRITERION_ID = re.compile(r"\bB[1-7]\b|\b(?:criterion|criteria)\s+\d{1,2}\.\d\b
 MAX_STEPS = 3
 MAX_STEP_WORDS = 30
 MAX_IMPACT_WORDS = 20
+MAX_BODY_WORDS = 45   # what a fix card shows: why it matters plus the one action. Paste text is not "body".
+MIN_CUT_WORDS = 8
+
+# A clause that only adds a consequence can be dropped from a one-line impact without changing its meaning.
+_CONSEQUENCE_CUT = re.compile(r",\s+(?:which|so|because|and|but|while|or)\b|;\s+|:\s+")
+_ANY_CLAUSE_CUT = re.compile(r",\s+|;\s+|:\s+")   # an action's leading clause stands on its own
+# One true, plain line per criterion for impacts that have no safe place to cut (the full text moves to details).
+GENERIC_IMPACT = {
+    "B1": "Leading wording can push members toward one answer.",
+    "B2": "Members may have to pick an answer that is not true for them.",
+    "8.5": "A long run of the same task makes members tired and rushed.",
+}
+DEFAULT_IMPACT = "This can make the survey harder for members to answer well."
 
 # Findings whose only honest action is a human judgement on a real phone. One table, so the
 # state mapping (status.py) and the action fallback can never disagree.
@@ -132,20 +147,56 @@ def action_kind_of(finding: dict) -> str:
     return "paste" if _has_paste(finding) else "steps"
 
 
-def _plain_step(finding: dict) -> str:
-    """Legacy explanation as one step: keep the sentences a researcher can act on.
+def _words(text: str) -> int:
+    return len(text.split())
 
-    Sentences about other checks ("also covers criterion 5.1") or in our own jargon are dropped;
-    if nothing plain is left the headline stands in. Explicit steps never pass through here.
+
+def _clause_cut(sentence: str, limit: int, cuts: re.Pattern = _ANY_CLAUSE_CUT) -> str | None:
+    """The longest leading clause of at most `limit` words (and at least MIN_CUT_WORDS), as a sentence."""
+    body = sentence.strip().rstrip(".!?")
+    fits = [body[:m.start()] for m in cuts.finditer(body) if MIN_CUT_WORDS <= _words(body[:m.start()]) <= limit]
+    return fits[-1] + "." if fits else None
+
+
+def tight_impact(text: str, criterion_id: str = "") -> str:
+    """One member-language line of at most MAX_IMPACT_WORDS. Longer text is cut at a clause that only
+    adds a consequence; with no safe cut, one plain line for the criterion stands in (never a mid-sentence chop)."""
+    if _words(text) <= MAX_IMPACT_WORDS:
+        return text
+    first = re.split(r"(?<=[.!?])\s+", text.strip())[0]
+    if _words(first) <= MAX_IMPACT_WORDS:
+        return first
+    return _clause_cut(first, MAX_IMPACT_WORDS, _CONSEQUENCE_CUT) or GENERIC_IMPACT.get(criterion_id, DEFAULT_IMPACT)
+
+
+def _plain_step(finding: dict, budget: int = MAX_STEP_WORDS) -> str:
+    """Legacy explanation as one step: the leading sentences a researcher can act on, within `budget` words.
+
+    Sentences about other checks ("also covers criterion 5.1") or in our own jargon are dropped; the rest of
+    the explanation stays in details. If the first sentence is too long it is cut at a clause; if nothing
+    plain fits the headline stands in. Explicit steps never pass through here.
     """
-    sentences = re.split(r"(?<=[.!?])\s+", (finding.get("explanation") or "").strip())
-    kept = [s for s in sentences if s and not banned_words(s)]
-    return " ".join(kept) or finding.get("headline", "")
+    sentences = [s for s in re.split(r"(?<=[.!?])\s+", (finding.get("explanation") or "").strip())
+                 if s and not banned_words(s)]
+    kept, used = [], 0
+    for sentence in sentences:
+        if used + _words(sentence) > budget:
+            break
+        kept.append(sentence)
+        used += _words(sentence)
+    if kept:
+        return " ".join(kept)
+    cut = _clause_cut(sentences[0], budget) if sentences else None
+    return cut or finding.get("headline", "")
 
 
 def with_action(finding: dict) -> dict:
     """Copy with the action fields filled in. Explicit actions are kept; projection is idempotent."""
     out = dict(finding)
+    impact = out.get("member_impact") or ""
+    if _words(impact) > MAX_IMPACT_WORDS:   # never rewrite the stored text: the full line moves to details
+        out.update(member_impact=tight_impact(impact, out.get("criterion_id", "")),
+                   member_impact_full=out.get("member_impact_full") or impact)
     if out.get("action_kind"):
         return out
     kind = action_kind_of(out)
@@ -153,12 +204,16 @@ def with_action(finding: dict) -> dict:
     if kind == "you_check":
         out["you_check"] = _judgement_question(out)
     elif kind == "steps":
-        out["steps"] = [_plain_step(out)]
+        out["steps"] = [_plain_step(out, min(MAX_STEP_WORDS, max(MAX_BODY_WORDS - _words(out.get("member_impact") or ""), 8)))]
     return out
 
 
-def _words(text: str) -> int:
-    return len(text.split())
+def visible_body_words(finding: dict) -> int:
+    """Words on the card body: why it matters plus the one action. Pasted survey wording is not counted."""
+    kind = finding.get("action_kind") or action_kind_of(finding)
+    action = (" ".join(finding.get("steps") or []) if kind == "steps"
+              else finding.get("you_check") or "" if kind == "you_check" else "")
+    return _words(finding.get("member_impact") or "") + _words(action)
 
 
 def validate_finding(finding: dict) -> list[str]:
@@ -179,10 +234,12 @@ def validate_finding(finding: dict) -> list[str]:
             problems.append("empty_you_check")
         if sum(present.values()) > 1:
             problems.append("multiple_actions")
-    if not finding.get("action_fallback") and any(_words(s) > MAX_STEP_WORDS for s in steps):
+    if any(_words(s) > MAX_STEP_WORDS for s in steps):
         problems.append("step_long")
     if _words(finding.get("member_impact") or "") > MAX_IMPACT_WORDS:
         problems.append("member_impact_long")
+    if visible_body_words(finding) > MAX_BODY_WORDS:
+        problems.append("body_long")
     visible = [finding.get("headline"), finding.get("member_impact"), *steps, you_check,
                finding.get("field_location")]
     for word in banned_words(" ".join(t for t in visible if t)):

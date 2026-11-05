@@ -11,7 +11,9 @@ from surveycoach.review import run_review
 
 MEAL = ("How often do you purchase ready-to-heat or ready-to-cook meal solutions, "
         "such as prepared meals or meal kits, to enjoy at home?")
-REWRITE = "How often do you buy prepared meals or meal kits to heat or cook at home?"
+# Keeps the verb ("enjoy"), the category and the examples (brief 6.1, Q1 row).
+REWRITE = ("How often do you buy ready-to-heat or ready-to-cook meals, like prepared meals or meal kits, "
+           "to enjoy at home?")
 
 
 def reading(text):
@@ -20,7 +22,7 @@ def reading(text):
 
 def test_grade_is_plain_english_and_explains_limits_not_a_scientific_pass():
     f = reading(MEAL)
-    assert f.headline == "Question wording may be hard to read"
+    assert f.headline == "Members may struggle to read this question"
     details = f.explanation.lower()
     assert "automated" in details and "us school" in details
     assert "actual comprehension" in details and "not" in details

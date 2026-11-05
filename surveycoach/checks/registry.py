@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from surveycoach.findings import CheckResult, Finding, Severity
 from surveycoach.rubric import Rubric
@@ -37,26 +37,48 @@ def check(criterion_id: str) -> Callable[[CheckFn], CheckFn]:
 
 
 def finding(criterion_id: str, severity: Severity, headline: str, evidence: str, explanation: str,
-            member_impact: str, **where_and_text: str | None) -> Finding:
-    """Keyword extras: page_id, question_id, element_id, current_text, suggested_text, highlight."""
+            member_impact: str, **extras: Any) -> Finding:
+    """One finding. Keyword extras: page_id, question_id, element_id, current_text, suggested_text, highlight,
+    options, field_location, and the action: `steps=[...]` (1-3), `you_check="question?"`, or pasteable
+    `suggested_text` / `options`. Exactly one action is required, so no check can forget it (brief 6.3).
+
+    `headline`, `member_impact` and the action are the card the researcher reads (member language, no jargon);
+    `explanation` is the details, where the technical nuance lives.
+    """
+    extras = {key: value for key, value in extras.items() if value not in (None, [], ())}
+    present = [kind for kind, there in (("paste", extras.get("suggested_text") or extras.get("options")),
+                                        ("steps", extras.get("steps")), ("you_check", extras.get("you_check")))
+               if there]
+    if len(present) != 1:
+        raise ValueError(f"{criterion_id}: a finding needs exactly one action (paste, steps or you_check), got {present}")
+    if "steps" in extras:
+        extras["steps"] = list(extras["steps"])
     return Finding(criterion_id=criterion_id, severity=severity, headline=headline, evidence=evidence,
-                   explanation=explanation, member_impact=member_impact, **where_and_text)
+                   explanation=explanation, member_impact=member_impact, action_kind=present[0], **extras)
 
 
 class Problem(NamedTuple):
-    """What a check found wrong with one thing, before it is tied to a rubric criterion and a place."""
+    """What a check found wrong with one thing, before it is tied to a rubric criterion and a place.
+
+    `fix` is the details (why and how, with nuance); `steps` or `you_check` is the action on the card.
+    With neither, a `suggested` text is the paste. `impact` overrides the check's shared impact line.
+    """
     headline: str
     evidence: str
     fix: str
     current: str | None = None
     suggested: str | None = None
     highlight: str | None = None
+    steps: tuple[str, ...] = ()
+    you_check: str | None = None
+    impact: str | None = None
 
 
 def problem_finding(criterion_id: str, problem: Problem, impact: str, severity: Severity = "worth_improving",
                     **where: str | None) -> Finding:
-    return finding(criterion_id, severity, problem.headline, problem.evidence, problem.fix, impact,
-                   current_text=problem.current, suggested_text=problem.suggested, highlight=problem.highlight, **where)
+    return finding(criterion_id, severity, problem.headline, problem.evidence, problem.fix, problem.impact or impact,
+                   current_text=problem.current, suggested_text=problem.suggested, highlight=problem.highlight,
+                   steps=problem.steps, you_check=problem.you_check, **where)
 
 
 def result(criterion_id: str, fraction: float | None, *findings: Finding) -> CheckResult:

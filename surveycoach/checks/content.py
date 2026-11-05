@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from surveycoach.checks.reading import reading_advice, simpler_question
+from surveycoach.checks.reading import as_written, hard_terms, reading_advice, reading_steps, simpler_question
 from surveycoach.checks.registry import ReviewContext, check, clip, finding, not_applicable, result, share_result
 from surveycoach.checks.text import (WORD, emoji_count, limit_emoji, reading_grade, sentence_case, swap_word,
                                      title_case_signature)
@@ -46,14 +46,20 @@ def plain_words(ctx: ReviewContext) -> CheckResult:
                                     "Use everyday words a member would use at the kitchen table.",
                                     "Jargon makes members guess or skip.", question_id=q.id, current_text=q.text,
                                     highlight=word,
-                                    suggested_text=swap_word(q.text, word, plain) if plain is not None else None))
+                                    **({"suggested_text": swap_word(q.text, word, plain)} if plain is not None else
+                                       {"steps": [f'Swap "{word}" for a word members use every day.',
+                                                  "Read it aloud to someone outside the project."]})))
         elif grade > MAX_GRADE:
             suggested = simpler_question(q.text)
-            findings.append(finding("3.2", "worth_improving", "Question wording may be hard to read",
+            terms = hard_terms(q.text)
+            findings.append(finding("3.2", "worth_improving", "Members may struggle to read this question",
                                     f"Automated US school grade estimate: {grade:.0f}. {clip(q.text, 90)}",
                                     reading_advice(grade, MAX_GRADE, suggested),
-                                    "Complex wording may take more effort to understand; verify with a member read-through.",
-                                    question_id=q.id, current_text=q.text, suggested_text=suggested))
+                                    "Long, technical wording slows people down and blurs answers.",
+                                    question_id=q.id, current_text=q.text,
+                                    **({"suggested_text": suggested} if suggested else
+                                       {"steps": reading_steps(q.text),
+                                        "highlight": as_written(q.text, terms[0][0]) if terms else None})))
         failing += bool(jargon) or grade > MAX_GRADE
     return share_result("3.2", failing, len(questions), *findings)
 
@@ -95,12 +101,13 @@ def emoji_rule(ctx: ReviewContext) -> CheckResult:
                     findings.append(finding(
                         "9.1", "worth_improving", "Answer is only an emoji", clip(label),
                         "Add a word next to the emoji so every member, and screen readers, get the same meaning.",
-                        "Emoji alone can read differently across phones and assistive technology.",
-                        question_id=q.id, current_text=label))
+                        "An emoji can look different on each phone.",
+                        question_id=q.id, current_text=label,
+                        steps=["Add a word next to the emoji in this answer."]))
                 continue
             findings.append(finding("9.1", "worth_improving", "Emoji in an answer choice", clip(label),
                                     "Remove emoji from answer choices.",
-                                    "Emoji in answers can read differently across phones.", question_id=q.id,
+                                    "Emoji can look different on each phone.", question_id=q.id,
                                     current_text=label, suggested_text=limit_emoji(label)))
     return result("9.1", None, *findings)
 
@@ -114,11 +121,11 @@ def _standards_findings(ctx: ReviewContext) -> list[Finding]:
     playful = ctx.snapshot.survey_type == "community_pulse"
 
     def add(headline: str, evidence: str, explanation: str, q: Question | None = None,
-            suggested: str | None = None, highlight: str | None = None) -> None:
+            suggested: str | None = None, highlight: str | None = None, steps: list[str] | None = None) -> None:
         found.append(finding("9.2", "worth_improving", headline, clip(evidence), explanation,
-                             "Consistent, friendly wording builds trust in every survey.",
+                             "Plain, friendly wording helps members trust the survey.",
                              question_id=q.id if q else None, current_text=evidence, suggested_text=suggested,
-                             highlight=highlight))
+                             highlight=highlight, steps=None if suggested else steps))
 
     title = ctx.snapshot.title
     if title_case_signature(title):
@@ -140,11 +147,14 @@ def _standards_findings(ctx: ReviewContext) -> list[Finding]:
         emphasis_only = playful and len(shouting) == 1 and not CAPS_RUN.search(q.text)
         if (shouting or CAPS_RUN.search(q.text)) and not emphasis_only:
             add("ALL CAPS reads as shouting", q.text, "Write it in normal capitalization; avoid ALL CAPS for emphasis.",
-                q, highlight=shouting[0] if shouting else None)
+                q, highlight=shouting[0] if shouting else None,
+                steps=["Use normal capital letters, not ALL CAPS."])
         if HEAVY_PUNCTUATION.search(q.text):
-            add("Too much punctuation", q.text, "Use one calm punctuation mark; avoid repeated !, ?, or ellipses.", q)
+            add("Too much punctuation", q.text, "Use one calm punctuation mark; avoid repeated !, ?, or ellipses.", q,
+                steps=["Use one calm punctuation mark instead of repeated ones."])
         if UNNAMED_NARRATOR.search(q.text):
-            add("Question speaks as an unnamed 'I'", q.text, "Speak to the member (you), not as an unnamed 'I'.", q)
+            add("Question speaks as an unnamed 'I'", q.text, "Speak to the member (you), not as an unnamed 'I'.", q,
+                steps=["Reword it to speak to the member with \"you\"."])
         if banned := BANNED_TERMS.search(q.text):
             word = banned.group(0)
             add(f'Say "members", not "{word}"', q.text, f'Say "members" instead of "{word}".', q,

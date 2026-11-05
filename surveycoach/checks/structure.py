@@ -66,12 +66,12 @@ def no_intro(ctx: ReviewContext) -> CheckResult:
     draft = (f"We'd love your input on {title}. Thanks for sharing your thoughts!"
              if known_topic else "We'd love your input. Thanks for sharing your thoughts!")
     return result("B4", None, finding(
-        "B4", "must_fix", "Survey opens with no welcome page", "No opening welcome was recognized.",
+        "B4", "must_fix", "The survey starts with no welcome screen", "No opening welcome was recognized.",
         "Add a short welcome before the first question. This example uses the survey title when available; "
         "verify that it describes the intended purpose. Add a time promise only after a timed pilot, "
         "and reward details only when confirmed.",
-        "A welcome helps members understand what they are being asked to do.",
-        suggested_text=draft))
+        "A welcome tells members what to expect before they answer.",
+        suggested_text=draft, field_location="RedJade > Welcome > Welcome text"))
 
 
 @check("B5")
@@ -83,10 +83,10 @@ def broken_time_promise(ctx: ReviewContext) -> CheckResult:
         return blocker_ok("B5")
     intro = ctx.snapshot.intro_text
     return result("B5", None, finding(
-        "B5", "must_fix", f"Intro promises {promised:g} min; members need about {estimated:.0f}",
+        "B5", "must_fix", f"Welcome promises {promised:g} min; members need about {estimated:.0f}",
         f"The intro promises {promised:g} minutes; we estimate about {estimated:g}.",
         f"Either shorten the survey to about {promised:g} minutes or update the intro to say about {estimated:.0f} minutes.",
-        "Members promised a short survey who get a long one stop trusting every future promise.",
+        "A short promise and a long survey costs trust.",
         page_id=_intro_page_id(ctx), current_text=intro,
         suggested_text=fixed_intro(intro, estimated, fix_time=True, add_reward=False),
         highlight=(MINUTES_PHRASE.search(intro) or [None])[0]))
@@ -115,8 +115,10 @@ def late_screen_out(ctx: ReviewContext) -> CheckResult:
                 "B3", "must_fix", f"Members are screened out after about {effort / 60:.0f} min of effort",
                 f"Members can be screened out after about {effort / 60:.0f} minutes of effort.",
                 "Move the qualifying questions to the start so unqualified members find out in under 2 minutes.",
-                "Spending minutes and then being told you don't qualify is the fastest way to lose a member.",
-                page_id=page.id))
+                "Members who spend minutes and then don't qualify rarely come back.",
+                page_id=page.id,
+                steps=["Move the questions that decide who qualifies to the start of the survey.",
+                       "Aim for under 2 minutes before anyone is screened out."]))
         if not THANKS.search(copy):
             findings.append(finding(
                 "B3", "must_fix", "Screen-out page has no thank-you",
@@ -131,6 +133,26 @@ def late_screen_out(ctx: ReviewContext) -> CheckResult:
     return blocker_ok("B3")
 
 
+def _intro_headline(promised: float | None, no_time: bool, wrong_time: bool) -> str:
+    if no_time:
+        return "Welcome doesn't say how long it takes"
+    if wrong_time:
+        return f"Welcome promises {promised:g} min; check the time"
+    return "Welcome doesn't mention a reward"
+
+
+def _intro_action(ctx: ReviewContext, intro: str, estimated: float, promised: float | None, *, time_issue: bool) -> dict:
+    """Time problems paste a timed line when the route is timed, else ask for one timed run. A missing
+    reward is a question, never a made-up sentence: only the study owner knows whether a reward applies."""
+    if not time_issue:
+        return {"you_check": "If members get a reward, is the exact reward in the welcome text?"}
+    if ctx.timing.calibrated:
+        return {"suggested_text": fixed_intro(intro, estimated, fix_time=True, add_reward=False)}
+    check = (f"If it is not about {promised:g} minutes, fix the time in the welcome text." if promised is not None
+             else "Add the real time to the welcome text.")
+    return {"steps": ["Time one run-through on your phone.", check]}
+
+
 @check("1.4")
 def time_and_reward(ctx: ReviewContext) -> CheckResult:
     intro, promised, estimated = ctx.snapshot.intro_text, ctx.promised_minutes, ctx.timing.minutes
@@ -142,28 +164,25 @@ def time_and_reward(ctx: ReviewContext) -> CheckResult:
     fraction = ((not no_time and not overrun) + (not no_reward)) / 2
     # B5 reports a badly broken promise; here only the smaller overruns, so nothing is said twice.
     wrong_time = overrun and (not ctx.timing.calibrated or not _promise_broken(promised, estimated))
-    parts, details = [], []
+    details = []
     if no_time:
-        parts.append("doesn't say how long it takes")
         details.append("The intro doesn't say how long the survey takes.")
     if wrong_time:
-        parts.append(f"needs its {promised:g} min promise checked")
         details.append(f"The intro promises {promised:g} minutes; estimated member completion is about {estimated:g}. "
                        "Verify this estimate before changing the promise.")
     if no_reward:
-        parts.append("lacks confirmed reward terms")
         details.append("No reward terms are stated; whether a reward applies is unknown.")
-    if not parts:
+    if not details:
         return result("1.4", fraction)
     return result("1.4", fraction, finding(
-        "1.4", "worth_improving", "Intro " + " and ".join(parts), " ".join(details),
+        "1.4", "worth_improving", _intro_headline(promised, no_time, wrong_time), " ".join(details),
         "Verify the estimated time with a timed run. If a reward applies, state its confirmed terms separately; "
         "no reward details were supplied. A time rewrite is offered only for a calibrated, verified route.",
-        "Clear time expectations and confirmed reward terms, when applicable, help members decide whether to start.",
+        "Knowing how long it takes helps members decide to start." if no_time or wrong_time
+        else "Members like to know up front whether a reward applies.",
         page_id=_intro_page_id(ctx), current_text=intro or None,
-        suggested_text=(fixed_intro(intro, estimated, fix_time=True, add_reward=False)
-                        if ctx.timing.calibrated and (no_time or wrong_time) else None),
-        highlight=(MINUTES_PHRASE.search(intro) or [None])[0] if wrong_time else None))
+        highlight=(MINUTES_PHRASE.search(intro) or [None])[0] if wrong_time else None,
+        **_intro_action(ctx, intro, estimated, promised, time_issue=no_time or wrong_time)))
 
 
 @check("2.1")
@@ -176,13 +195,15 @@ def length_fits_type(ctx: ReviewContext) -> CheckResult:
         return passed("2.1")
     fraction = 0.6 if minutes <= partial else 0.0
     return result("2.1", fraction, finding(
-        "2.1", "worth_improving", f"Estimated member completion: {minutes:g} min; configured guideline: {full:g}",
+        "2.1", "worth_improving", f"About {minutes:g} min; surveys like this aim for {full:g} or less",
         f"Estimated member completion is {minutes:g} minutes across {count} questions, not crawl or load time. "
         f"The configured survey-type guideline is up to {full:g} minutes; it is not a measured member limit.",
         ("This is an uncalibrated estimate. " if not ctx.timing.calibrated else "This is a calibrated estimate. ") +
         "Verify it with a timed pilot before shortening the survey. If confirmed, consider removing or merging "
         "questions that don't drive a decision.",
-        "Use observed member effort alongside the configured guideline to assess survey length."))
+        "Long surveys lose members before the last question.",
+        steps=["Time one run-through on your phone to check the estimate.",
+               "If it is right, cut or merge questions that don't drive a decision."]))
 
 
 @check("2.2")
@@ -197,7 +218,8 @@ def screeners_first(ctx: ReviewContext) -> CheckResult:
                 "2.2", "worth_improving", f"Screen-out comes after {plural(answered, 'question')}",
                 f"A screen-out comes after {answered} questions.",
                 "Put every qualifying question in the first 3 screens.",
-                "Late screening wastes the time of members who never qualified.", page_id=page.id))
+                "Late screening wastes the time of members who never qualified.", page_id=page.id,
+                steps=["Move the screening questions to the first 3 screens."]))
     return result("2.2", 0.0 if late else 1.0, *late)
 
 
@@ -223,7 +245,9 @@ def _make_optional_findings(required: list[Question]) -> list[Finding]:
     return [finding("2.4", "worth_improving", "Required typing question; make it optional", clip(q.text),
                     "Make this answer optional, or replace it with answer choices.",
                     "Typing on a phone is work, and required typing makes members quit.",
-                    question_id=q.id, current_text=q.text)
+                    question_id=q.id, current_text=q.text,
+                    steps=["Open this question in RedJade and make it optional.",
+                           "Or swap the typing box for answer choices."])
             for q in required[2:]]
 
 
@@ -242,7 +266,9 @@ def format_variety(ctx: ReviewContext) -> CheckResult:
         "Every question looks the same" if len(formats) == 1 else f"Only {len(formats)} question formats; mix in more",
         f"{len(questions)} questions use {len(formats)} format(s): {', '.join(sorted(formats))}.",
         f"Mix in at least {needed} formats, such as a rating, an image choice, or a short optional comment.",
-        "The same question shape again and again feels like a chore."))
+        "The same question shape again and again feels like a chore.",
+        steps=["Change one or two questions to a different type, like a rating or an image choice.",
+               "Or add one short optional comment box."]))
 
 
 @check("8.6")
@@ -261,7 +287,8 @@ def room_to_speak(ctx: ReviewContext) -> CheckResult:
             "8.6", "worth_improving", "Make the final comment optional", existing.text,
             "Make this existing comment question optional; keep one place for members to speak freely.",
             "Members should be able to finish without writing a comment.",
-            question_id=existing.id, current_text=existing.text))
+            question_id=existing.id, current_text=existing.text,
+            steps=["Open this comment question in RedJade.", "Turn off Required so members can skip it."]))
     return result("8.6", 0.0, finding(
         "8.6", "worth_improving", "No optional comment box near the end", "No optional comment box near the end.",
         "Add one optional question: Anything else you'd like the product team to know?",

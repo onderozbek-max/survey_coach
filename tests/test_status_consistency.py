@@ -12,12 +12,10 @@ from surveycoach.status import FIX_BEFORE_LAUNCH, IMPROVE, STATES, YOU_CHECK, wo
 
 OPEN_STATES = (FIX_BEFORE_LAUNCH, IMPROVE, YOU_CHECK)
 
-# Visible copy that the CHECKS still write themselves (headline / member_impact), so only the checks'
-# owners can fix it. The legacy fallback already scrubs explanations. The list may only shrink.
-KNOWN_COPY_DEBT = {
-    "B7": {"banned:reader"},                 # headline "Reader could not verify image loading"
-    "8.5": {"member_impact_long"}, "B1": {"member_impact_long"}, "B2": {"member_impact_long"},
-}
+# Visible copy that the checks still write against the copy system (criterion -> problem codes). Workstream 1C
+# cleared it: B7's headline is member language, and the AI judge's long member impacts are cut to one line
+# (the full text moves to details). The mechanism stays so a regression is named, never silently absorbed.
+KNOWN_COPY_DEBT: dict[str, set[str]] = {}
 
 
 def encoded(snapshot):
@@ -127,7 +125,22 @@ def test_visible_copy_has_no_banned_words_or_long_impact_beyond_the_known_debt(d
     assert stale == {}, f"fixed: remove from KNOWN_COPY_DEBT {stale}"
 
 
-def test_checks_still_on_the_legacy_fallback_are_all_of_them_for_now(details):
-    """No check sets action fields yet; the full list is reported in impl-1a-status.md."""
-    explicit = {f["criterion_id"] for _, f in all_findings(details) if not f.get("action_fallback")}
-    assert explicit == set()
+def test_only_ai_written_findings_still_use_the_shared_action_fallback(details):
+    """Every deterministic check sets its own action. The AI judge's findings carry free-text wording, so
+    they go through the one shared fallback (changing its prompt would invalidate every cached answer)."""
+    fallback = {(f["criterion_id"], f["source"]) for _, f in all_findings(details) if f.get("action_fallback")}
+    assert {source for _, source in fallback} <= {"ai"}, fallback
+    assert any(f["source"] == "auto" and not f.get("action_fallback") for _, f in all_findings(details))
+
+
+def test_every_pasted_fix_says_where_in_redjade_to_paste_it(details):
+    missing = [(name, f["criterion_id"], f["headline"]) for name, f in all_findings(details)
+               if f["action_kind"] == "paste" and not f.get("field_location")]
+    assert missing == []
+
+
+def test_the_card_body_stays_inside_the_word_budget_for_every_finding(details):
+    from surveycoach.recommendations import MAX_BODY_WORDS, visible_body_words
+    long = [(name, f["criterion_id"], visible_body_words(f)) for name, f in all_findings(details)
+            if visible_body_words(f) > MAX_BODY_WORDS]
+    assert long == []

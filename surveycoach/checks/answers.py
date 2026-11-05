@@ -23,6 +23,9 @@ INTEGRAL_UNITS = {"day", "week", "month", "year", "time", "visit", "order", "pur
                   "person", "people", "child", "children", "kid", "unit", "pack", "package", "trip", "session"}
 COUNT_QUESTION = re.compile(r"\bhow many\b|\bhow old\b|\bage\b|\bnumber of\b", re.I)
 OVERLAP_FIX_WHOLE = "Make the ranges share no numbers, for example 1 to 4 and 5 to 10."
+OVERLAP_STEPS_WHOLE = ("Change the answers so no number fits two ranges.", "For example: 1 to 4, then 5 to 10.")
+OVERLAP_STEPS_CONTINUOUS = ("Change the answers so no number fits two ranges.",
+                            "For example: under 10, then 10 to under 20.")
 OVERLAP_FIX_CONTINUOUS = (
     "Make the ranges share no values without leaving a gap. These units may fall between whole numbers, so do not "
     "just lower the top number. Use exclusive boundaries, for example 'under 10' for the lower range and '10 to "
@@ -105,13 +108,14 @@ def no_overlap(ctx: ReviewContext) -> CheckResult:
             for b in intervals[a_index + 1:]:
                 if a.comparable(b) and a.overlaps(b):
                     whole = a.integral(q.text)
+                    suggested = shorten_to_clear(a.label, b.label) if whole else None
                     findings.append(finding(
                         "4.2", "worth_improving", f"Answer ranges overlap: {a.label}, {b.label}",
                         f'"{a.label}" and "{b.label}" overlap.',
                         OVERLAP_FIX_WHOLE if whole else OVERLAP_FIX_CONTINUOUS,
                         "A member at the shared number can't tell which answer is theirs.", question_id=q.id,
-                        current_text=a.label, suggested_text=shorten_to_clear(a.label, b.label) if whole else None,
-                        highlight=a.label))
+                        current_text=a.label, suggested_text=suggested, highlight=a.label,
+                        steps=None if suggested else OVERLAP_STEPS_WHOLE if whole else OVERLAP_STEPS_CONTINUOUS))
     return result("4.2", 0.0 if findings else 1.0, *findings[:3])
 
 
@@ -153,6 +157,8 @@ class ScaleProblem:
     fix: str
     current: str | None = None
     suggested: str | None = None
+    steps: tuple[str, ...] = ()
+    impact: str = ""
 
 
 def standard_scale(q: Question) -> bool:
@@ -185,13 +191,17 @@ def _scale_problems(q: Question) -> list[ScaleProblem]:
         problems.append(ScaleProblem(
             f"Scale has {missing}",
             "Both ends of the scale should be labeled so every member reads it the same way.",
-            end_text, f"{s.low_label} ... {added}" if added else None))
+            end_text, f"{s.low_label} ... {added}" if added else None,
+            ("Label both ends of the scale in RedJade.", "Use opposite words, like Not at all and Extremely."),
+            "Members may guess what the ends of the scale mean."))
     if len(s.labels) >= 3 and not standard_scale(q):
         signs = [polarity(label) for label in s.labels]
         if abs(signs.count(1) - signs.count(-1)) > 1:
             problems.append(ScaleProblem("Scale is lopsided",
                                          "Keep the scale balanced: as many positive answers as negative ones.",
-                                         " / ".join(s.labels)))
+                                         " / ".join(s.labels),
+                                         steps=("Change the answers so positive and negative ones match in number.",),
+                                         impact="A tilted scale nudges members toward one answer."))
     return problems
 
 
@@ -207,15 +217,17 @@ def honest_scales(ctx: ReviewContext) -> CheckResult:
     for q in scaled:
         for problem in _scale_problems(q):
             findings.append(finding("4.4", "worth_improving", problem.headline, clip(q.text), problem.fix,
-                                    "Unlabeled or lopsided scales push members toward certain answers.",
-                                    question_id=q.id, current_text=problem.current, suggested_text=problem.suggested))
+                                    problem.impact,
+                                    question_id=q.id, current_text=problem.current, suggested_text=problem.suggested,
+                                    steps=None if problem.suggested else problem.steps))
     directions = {o for q in scaled if (o := _orientation(q))}
     if len(directions) > 1:
         findings.append(finding(
             "4.4", "worth_improving", "Scales run in opposite directions",
             "Some scales run from positive to negative, others the other way round.",
             "Use the same direction throughout, so the highest number always means best (the direction rule).",
-            "Members on autopilot tap the wrong end when the direction flips."))
+            "Members on autopilot tap the wrong end when the direction flips.",
+            steps=["Pick one direction for every scale.", "Make the highest number always mean best."]))
     if not scaled:   # a rating or slider without a captured scale is unknown, not absent
         unreadable = any(q.kind in {"rating", "slider"} for q in ctx.snapshot.all_questions())
         return absent_or_unknown("4.4", kind_present=unreadable)
@@ -249,4 +261,6 @@ def agree_wall(ctx: ReviewContext) -> CheckResult:
     return result("5.4", 0.0, finding(
         "5.4", "worth_improving", f"{longest} agree/disagree questions in a row", f"{longest} agree/disagree questions in a row.",
         'Ask direct questions instead, for example "How easy was the package to open?"',
-        "Long runs of agree/disagree make members default to agreeing.", question_id=longest_start))
+        "Long runs of agree/disagree make members default to agreeing.", question_id=longest_start,
+        steps=["Pick 2 or 3 of these statements and ask them as direct questions.",
+               "For example: How easy was it to use?"]))
