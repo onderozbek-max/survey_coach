@@ -48,22 +48,20 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     go_to(page, 'improve')
     page.locator('#all-screens').click()
     jump = page.locator('.screen-row').first
-    headline = jump.locator('strong').inner_text()
     jump.click()
     assert page.locator('#coach .card').count() == 1
+    title = page.locator('#coach h3').inner_text()
+    page.get_by_role('button', name='Keep as is…', exact=True).click()
+    page.get_by_role('button', name='Other', exact=True).click()
+    page.locator('#keep-note').fill('Required for comparability')
     page.get_by_role('button', name='Keep as is', exact=True).click()
-    fp = page.evaluate("SC.workspaceDetail.review.findings.find(f => f.headline === document.querySelector('#coach h3').textContent).fingerprint")
-    page.get_by_role('button', name='Other…', exact=True).click()
-    page.get_by_label('Reason for keeping', exact=False).fill('Required for comparability')
-    page.get_by_role('button', name='Save reason').click()
     page.locator('#toast').wait_for()
-    page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:fp}))", fp)
     page.reload()
-    page.locator('#all-screens').click()
-    page.locator('.screen-row').filter(has_text=headline).first.click()
-    page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:fp}))", fp)
-    assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required for comparability'
-    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+    page.locator('#fix-list-open').click()                  # at 390px the list lives in a drawer
+    page.locator('#fix-drawer .fix-row').filter(has_text=title).first.click()
+    handled = page.locator('.fix-handled').inner_text()
+    assert 'Kept as is' in handled and 'Required for comparability' in handled      # the reason survives a reload
+    assert 'accepted risk' in page.locator('#decision-verdict').inner_text()
     assert page.locator('#copy-all').is_disabled()
     assert page.locator('#stage .phone-screen').is_visible()
     open_how_we_check(page)
