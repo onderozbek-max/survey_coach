@@ -1,6 +1,7 @@
 """Interpret only observed DOM wording; never invent missing questions or labels."""
 import hashlib
 import json
+import re
 from collections import Counter
 from collections.abc import Sequence
 
@@ -19,6 +20,26 @@ def fingerprint(observation: dict) -> str:
         [group["prompt"], group["kind"], [item["label"] for item in group["items"]]]
         for group in observation["groups"]
     ])
+
+
+# RedJade shows its own "Optional" label after the prompt, on its own line or after sentence punctuation.
+_OPTIONAL_LABEL = re.compile(r"(?:\n[ \t]*|(?<=[?.!:])[ \t]+)\(?optional\)?[ \t]*$", re.I)
+
+
+def _requiredness(group: dict) -> tuple[str, bool | None]:
+    """Prompt wording without the vendor label, and what the page proves about requiredness.
+
+    The HTML required flag proves required. A visible Optional label proves optional.
+    No flag is NOT proof of optional, and conflicting evidence stays unknown.
+    """
+    prompt = group["prompt"]
+    label = _OPTIONAL_LABEL.search(prompt)
+    if label:
+        prompt = prompt[:label.start()].rstrip()
+    optional = bool(label) or group.get("optional_label") is True
+    if optional:
+        return prompt, None if group["required"] else False
+    return prompt, True if group["required"] else None
 
 
 def _row_key(item: dict):
@@ -80,8 +101,9 @@ def extract_page(observation: dict, position: int, *, existing_pages: Sequence[P
                        question_ids)
         options = [Option(id=stable_id("o", qid, number, label), label=label)
                    for number, label in enumerate(_answer_labels(kind, items))]
+        prompt, required = _requiredness(group)
         questions.append(Question(
-            id=qid, text=group["prompt"], kind=kind, required=group["required"], options=options,
+            id=qid, text=prompt, kind=kind, required=required, options=options,
             rows=_row_labels(items),
         ))
     kind = "screen_out" if observation["screenout"] else "question" if questions else "info"

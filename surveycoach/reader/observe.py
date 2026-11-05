@@ -78,7 +78,10 @@ OBSERVE = r"""() => {
         options:e.tagName==='SELECT'?[...e.options].map(o=>({label:o.text,value:o.value,disabled:o.disabled})):[]};
     });
     const sourceId=container?.getAttribute('data-question-id') || container?.getAttribute('data-question-cid') || null;
-    groups.push({prompt,kind,items,source_id:sourceId,required:items.some(i=>i.required)});
+    // RedJade labels optional questions with a visible leaf element reading exactly "Optional".
+    const optional_label = !!container && [...container.querySelectorAll('*')].some(
+      e => !e.children.length && /^\(?optional\)?$/i.test((e.textContent || '').trim()));
+    groups.push({prompt,kind,items,source_id:sourceId,required:items.some(i=>i.required),optional_label});
   }
   const uploads=uploadButtons.map((e,i)=>({id:tag(e,'upload-'+i),label:e.getAttribute('aria-label')||text(e)}));
   const auxiliary=[...document.querySelectorAll('button')].filter(e=>visible(e)&&mediaCommit(e))

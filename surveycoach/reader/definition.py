@@ -309,12 +309,13 @@ def adapt_definition(questionnaire: dict, *, source_url: str = "", locale: str =
             if not prompt or any(not option.label for option in options):
                 result.wording_complete = False
                 warn(f"Missing question or answer wording at {qid}.")
-            if "required" not in question:
+            if not isinstance(question.get("required"), bool):
                 warn(f"Requiredness is unknown at {qid}; definition did not specify it.")
             questions.append(Question(
                 id=qid, text=prompt, kind=kind,
                 help_text=wording(question.get("help_text", ""), f"{qid} help"),
-                required=question.get("required") is True, options=options,
+                required=question["required"] if isinstance(question.get("required"), bool) else None,
+                options=options,
                 conditional=any(bool(value) for value in [*page_conditions.values(), *conditions.values()]),
             ))
         result.snapshot.pages.append(Page(id=pid, position=position,
@@ -346,6 +347,10 @@ def apply_definition(result, definition: DefinitionRead) -> None:
         for question in observed.questions:
             destination = known[question.id]
             # Definition remains authoritative for wording, answers and conditions.
+            # Definition wording and answers stay authoritative; a visible Optional label
+            # (rendered evidence) may only fill a requiredness the definition left unknown.
+            if destination.required is None:
+                destination.required = question.required
             for key in ("media", "fits_one_screen", "options_below_fold"):
                 setattr(destination, key, getattr(question, key))
         merged.add(target.id)

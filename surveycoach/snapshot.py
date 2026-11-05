@@ -67,7 +67,7 @@ class Question(BaseModel):
     kind: QuestionKind
     label: str | None = None
     help_text: str = ""
-    required: bool = True
+    required: bool | None = None  # None: the source never said (absence of a flag is not proof)
     options: list[Option] = Field(default_factory=list)
     rows: list[str] = Field(default_factory=list)
     scale: Scale | None = None

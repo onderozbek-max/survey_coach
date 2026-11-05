@@ -19,8 +19,11 @@ def clean_line(text: str) -> str:
     return one_line.replace(SENTINEL_CLOSE, "SURVEY_DATA> > >").replace(SENTINEL_OPEN, "< < <SURVEY_DATA")
 
 
+REQUIREDNESS = {True: "required", False: "optional", None: "requiredness unknown"}
+
+
 def _question_lines(q: Question) -> list[str]:
-    lines = [f"  QUESTION {q.id} [{q.kind}, {'required' if q.required else 'optional'}]: {clean_line(q.text)}"]
+    lines = [f"  QUESTION {q.id} [{q.kind}, {REQUIREDNESS[q.required]}]: {clean_line(q.text)}"]
     if q.help_text:
         lines.append(f"    help: {clean_line(q.help_text)}")
     lines += [f"    option: {clean_line(o.label)}" for o in q.options]

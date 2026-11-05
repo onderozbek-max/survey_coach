@@ -48,7 +48,7 @@ def locations(snapshot):
                                                       repr(o.get("is_other_with_text")))
                                                      for o in question.get("options", []))),
                                         tuple(question.get("rows", [])),
-                                        question.get("required", True), question.get("conditional", False),
+                                        question.get("required"), question.get("conditional", False),
                                         question.get("help_text", ""),
                                         _scale_context(question.get("scale")))))
     return result
