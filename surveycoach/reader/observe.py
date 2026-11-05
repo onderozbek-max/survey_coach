@@ -94,8 +94,27 @@ OBSERVE = r"""() => {
   const pageText=text(document.body);
   const sourcePages=[...document.querySelectorAll('[data-page-id]')].filter(visible);
   const source_page_id=sourcePages.length===1 ? sourcePages[0].getAttribute('data-page-id') : null;
+  // Repeated concept trials can reuse every question and option. Include visible
+  // stimulus wording, but not answers, validation, or live countdown/status text:
+  // those changes must never masquerade as navigation or a newly revealed question.
+  const transient = 'script,style,noscript,input,textarea,select,button,a[href],label,output,' +
+    '[role=radio],[role=checkbox],[contenteditable], [role=alert],[role=status],[role=timer],' +
+    '[role=progressbar],[aria-live],.error,.invalid-feedback,#error';
+  const feedback = controls.flatMap(e => (e.getAttribute('aria-describedby') || '').split(/\s+/))
+    .filter(Boolean).map(id => document.getElementById(id)).filter(Boolean);
+  const wording=[];
+  const walker=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while(walker.nextNode()) {
+    const node=walker.currentNode, parent=node.parentElement;
+    if(!parent || !visible(parent) || parent.closest(transient) ||
+      feedback.some(e => e.contains(parent))) continue;
+    const value=node.textContent.replace(/\s+/g,' ').trim();
+    if(value) wording.push(value);
+  }
+  const context=wording.join(' ');
   const state_key=JSON.stringify([source_page_id, groups.length ? groups.map(g=>
-    [g.source_id,g.prompt,g.kind,g.items.map(i=>[i.label,i.options])]) : pageText]);
+    [g.source_id,g.prompt,g.kind,g.items.map(i=>[i.label,i.options])]) : pageText,
+    ...(groups.length ? [context] : [])]);
   return {dialog:[...document.querySelectorAll('[role=dialog],dialog[open]')].some(visible),title:document.title,text:pageText,groups,nav,uploads,auxiliary,errors,media,unsupported,source_page_id,state_key,
     screenout:groups.length===0 && !nav.some(b=>/^(next|continue|begin|start|submit|finish|complete|done)\\b/i.test(b.label)) &&
       /do not qualify|not eligible|screened out|not qualified/i.test(pageText)};
