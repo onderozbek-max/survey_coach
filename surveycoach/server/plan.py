@@ -1,6 +1,8 @@
 """Turn findings into a short plan without rewriting findings or decisions."""
 from __future__ import annotations
 
+import re
+
 from surveycoach.labels import QUESTION_LABEL
 from surveycoach.recommendations import with_action
 from surveycoach.status import is_decided
@@ -9,7 +11,14 @@ QUICK_WIN_LIMIT = 6
 NICE_TO_HAVE = {"9.1", "9.2"}
 
 
-def action_signature(finding: dict) -> tuple:
+def _mask_label(line: str, own_label: str | None) -> str:
+    """Replace question labels with Q#: the generated Q4 style, and the finding's own custom label ("Research B")."""
+    if own_label and not QUESTION_LABEL.fullmatch(own_label):
+        line = re.sub(rf"(?<!\w){re.escape(own_label)}(?!\w)", "Q#", line)
+    return QUESTION_LABEL.sub("Q#", line)
+
+
+def action_signature(finding: dict, own_label: str | None = None) -> tuple:
     """What the researcher is asked to do, with the question label masked: 'Scroll Q4 ...' and 'Scroll Q6 ...'
     are one action, while two different rewrites, or steps naming different words, are two."""
     served = with_action(finding)
@@ -17,7 +26,7 @@ def action_signature(finding: dict) -> tuple:
     if kind == "paste":     # the survey's own wording: compared exactly, never masked
         return kind, (served.get("suggested_text") or "", *(o["text"] for o in served.get("options") or []))
     lines = served.get("steps") or [] if kind == "steps" else [served.get("you_check") or ""]
-    return kind, tuple(" ".join(QUESTION_LABEL.sub("Q#", line).lower().split()) for line in lines)
+    return kind, tuple(" ".join(_mask_label(line, own_label).lower().split()) for line in lines)
 
 
 def build_plan(findings: list[dict], decisions: dict,
@@ -31,6 +40,8 @@ def build_plan(findings: list[dict], decisions: dict,
         return (order.get(finding.get("question_id"))
                 or order.get(finding.get("page_id")) or 0)
 
+    own_labels = {question["id"]: question.get("label")
+                  for screen in screens for question in screen["questions"]}
     groups: dict[tuple, list[dict]] = {}
     visible = (finding for finding in findings if not finding.get("absorbed_by"))
     for finding in sorted(visible, key=where):
@@ -38,7 +49,7 @@ def build_plan(findings: list[dict], decisions: dict,
             key = (finding["fingerprint"],)
         else:
             key = (finding["criterion_id"], " ".join(finding["headline"].lower().split()),
-                   action_signature(finding))
+                   action_signature(finding, own_labels.get(finding.get("question_id"))))
         groups.setdefault(key, []).append(finding)
 
     items = []

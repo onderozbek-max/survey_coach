@@ -85,6 +85,16 @@ def test_the_question_label_in_a_you_check_does_not_split_a_group():
     assert groups([finding("a", "q1"), finding("b", "q2"), finding("c", "q3")]) == [["a", "b", "c"]]
 
 
+def test_a_custom_question_label_in_a_you_check_does_not_split_a_group():
+    """RedJade questions can carry their own label ("Research B"); it is masked like Q4, not read as a different action."""
+    labelled = [{"page_id": f"p{n}", "screen": n, "questions": [{"id": f"q{n}", "label": label}]}
+                for n, label in enumerate(("Q1", "Research B", "Q3"), 1)]
+    custom = [finding("a", "q1"), finding("b", "q2", you_check="Scroll Research B on your phone: are all 10 answers easy to reach?"),
+              finding("c", "q3")]
+    plan = build_plan(custom, {}, {"6.2": 10}, labelled)
+    assert [item["fingerprints"] for item in plan["quick_wins"]] == [["a", "b", "c"]]
+
+
 def test_different_actions_never_share_a_card_even_with_the_same_headline():
     paste = lambda text: dict(action_kind="paste", suggested_text=text, you_check=None)
     same = [finding("a", "q1", **paste("One.")), finding("b", "q2", **paste("One."))]
