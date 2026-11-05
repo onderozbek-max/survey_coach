@@ -79,7 +79,7 @@ def test_copy_and_change_sheet_text_name_only_the_chosen_target(browser, base_ur
         question = next(q for p in detail['snapshot']['pages'] for q in p.get('questions', []) if q['id'] == finding['question_id'])
         question.update(kind='single_choice', text='Yes or no?', help_text='Choose Yes if applicable',
                         options=[{'id': 'yes', 'label': 'Yes'}, {'id': 'no', 'label': 'No'}])
-        finding.update(current_text='Yes', suggested_text='Definitely', options=[], edit_kind='replace')
+        finding.update(current_text='Yes', suggested_text='Definitely', options=[], edit_kind='replace', action_kind='paste', steps=[])
         detail['_target'] = finding['fingerprint']
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
     finding = next(f for f in detail['review']['findings'] if f['fingerprint'] == detail['_target'])
@@ -169,10 +169,9 @@ def test_preview_effect_does_not_count_raw_only_text(browser, base_url):
 # ---- Audit 3: a late save belongs to the item that started it ------------------------------------
 
 def single_item_finding(detail):
-    grouped = {fp for group in ('must_fix', 'quick_wins', 'more') for item in detail['plan'][group]
-               if len(item['fingerprints']) == 1 for fp in item['fingerprints']}
-    return next(f for f in detail['review']['findings'] if not f.get('absorbed_by')
-                and (f.get('suggested_text') or f.get('options')) and f['fingerprint'] in grouped)
+    """A finding whose own fix-list entry is a single pasteable item (never a group)."""
+    entry = next(e for e in detail['queue']['items'] if e['action_kind'] == 'paste' and len(e['fingerprints']) == 1)
+    return next(f for f in detail['review']['findings'] if f['fingerprint'] == entry['fingerprints'][0])
 
 
 def test_delayed_save_does_not_advance_unrelated_navigation(browser, base_url):
@@ -182,18 +181,19 @@ def test_delayed_save_does_not_advance_unrelated_navigation(browser, base_url):
     held = []
     page.route('**/decisions/**', lambda route: held.append(route))
     page.locator('#use-change').click()
-    page.wait_for_timeout(70)
-    page.locator('[data-fk=queue-more]').click()
+    page.wait_for_function('document.querySelector("#coach .issue-save-status")?.textContent === "Saving…"')
+    other = next(e for e in detail['queue']['items'] if finding['fingerprint'] not in e['fingerprints'])     # the user moves to another item
+    page.locator('#fix-queue .fix-row', has_text=other['title']).first.click()
     before = page.locator('#coach h3').inner_text()
-    assert before != finding['headline']
+    assert before != finding['headline'] and before == other['title']
     route = held[0]
     payload = route.request.post_data_json
     detail['decisions'][finding['fingerprint']] = payload
     route.fulfill(json=payload)
     page.wait_for_timeout(400)
-    assert page.locator('#coach h3').inner_text() == before
-    assert page.locator('#queue-tabs [aria-selected=true]').get_attribute('data-fk') == 'queue-more'
-    assert page.evaluate("document.activeElement === document.querySelector('#coach h3')") is False
+    assert page.locator('#coach h3').inner_text() == before                    # the late save did not move the user
+    assert page.locator('#fix-queue .fix-row[aria-current=true] .fix-row-title').inner_text() == before
+    assert page.evaluate("document.activeElement === document.querySelector('#coach h3')") is False       # nor steal focus
     assert not errors
     context.close()
 
@@ -204,7 +204,7 @@ def test_save_without_navigation_still_advances(browser, base_url):
     focus(page, finding)
     first = page.locator('#coach h3').inner_text()
     page.locator('#use-change').click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Added to My changes')")
     assert page.locator('#coach h3').inner_text() != first
     assert not errors
     context.close()
@@ -218,31 +218,35 @@ def alternatives(detail):
                                                      for group in ('must_fix', 'quick_wins', 'more') for item in detail['plan'][group]))
     finding['options'] = [{'label': 'Recommended', 'text': 'SYNTHETIC FIRST WORDING'},
                           {'label': 'Shorter', 'text': 'SYNTHETIC SECOND WORDING'}]
+    finding.update(action_kind='paste', steps=[])
     detail['_target'] = finding['fingerprint']
 
 
 def test_alternative_choice_updates_phone_comparison_and_survives_unrelated_render(browser, base_url):
+    """2B: the phone previews only what was added, so the chosen alternative shows on the card first, then (once added) on the phone."""
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=alternatives)
     finding = next(f for f in detail['review']['findings'] if f['fingerprint'] == detail['_target'])
     focus(page, finding)
-    page.locator('[data-fk=queue-mode-fixes]').click()
-    stage = page.locator('#stage')
-    assert 'SYNTHETIC FIRST WORDING' in stage.inner_text()
+    stage, card = page.locator('#stage'), page.locator('#coach')
+    assert 'SYNTHETIC FIRST WORDING' in card.inner_text() and 'SYNTHETIC SECOND WORDING' not in card.locator('.after-text').inner_text()
     shorter = page.get_by_role('button', name='Shorter', exact=True)
     shorter.click()
-    assert 'SYNTHETIC SECOND WORDING' in stage.inner_text() and 'SYNTHETIC FIRST WORDING' not in stage.inner_text()
+    assert 'SYNTHETIC SECOND WORDING' in card.locator('.after-text').inner_text()
     assert shorter.evaluate('e => e === document.activeElement')
+    assert 'SYNTHETIC' not in stage.inner_text()                # not added yet: the phone still shows the original
     assert not writes
     page.get_by_text('Preview tools').click()
     page.get_by_role('button', name='Large', exact=True).click()          # unrelated full render
     assert page.get_by_role('button', name='Shorter', exact=True).get_attribute('aria-pressed') == 'true'
-    assert 'SYNTHETIC SECOND WORDING' in stage.inner_text()
-    page.get_by_role('button', name='Compare wording', exact=True).click()
-    assert 'SYNTHETIC SECOND WORDING' in page.locator('section[aria-label="Recommended wording"]').inner_text()
+    assert 'SYNTHETIC SECOND WORDING' in card.locator('.after-text').inner_text()
     page.locator('#use-change').click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Added to My changes')")
     assert writes[-1]['picked_text'] == 'SYNTHETIC SECOND WORDING'
-    assert page.evaluate('navigator.clipboard.readText()') == 'SYNTHETIC SECOND WORDING'
+    focus(page, finding)
+    page.get_by_role('button', name='With my changes (1)', exact=True).click()
+    assert 'SYNTHETIC SECOND WORDING' in stage.inner_text() and 'SYNTHETIC FIRST WORDING' not in stage.inner_text()
+    page.get_by_role('button', name='Compare wording', exact=True).click()           # Preview tools stayed open from the Large step
+    assert 'SYNTHETIC SECOND WORDING' in page.locator('section[aria-label="Recommended wording"]').inner_text()
     assert not errors
     context.close()
 

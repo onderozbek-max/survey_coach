@@ -40,6 +40,7 @@
           h('button', {type:'button', 'aria-pressed':String(c === choice), onclick:() => {
             if (ctx.operation.busy) return;
             choice = c; ctx.onDraft(first.key, c.value); draw();
+            box.querySelector('.alternatives [aria-pressed="true"]')?.focus({preventScroll:true});      // the redraw replaced the button: keep the keyboard user in place
           }}, c.label || ['Recommended', 'Shorter', 'Friendlier'][index] || `Alternative ${index + 1}`))));
     };
     draw();
