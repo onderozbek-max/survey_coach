@@ -15,6 +15,10 @@ from surveycoach.snapshot import SurveySnapshot
 from surveycoach.timing import Timing
 
 
+# Criteria that need rendered images to be judged at all (surveycoach/checks/images.py).
+MEDIA_CRITERIA = ("7.2", "7.3", "7.5", "7.6", "B7")
+
+
 class Review(BaseModel):
     survey_title: str
     content_hash: str
@@ -59,6 +63,21 @@ def _with_ai(code: dict[str, CheckResult], ai: dict[str, CheckResult]) -> dict[s
     return merged
 
 
+def _withhold_unverified_media(results: dict[str, CheckResult], snapshot: SurveySnapshot) -> dict[str, CheckResult]:
+    """Unrendered screens have unknown images: image checks cannot pass or be N/A on them.
+
+    "No images verified" is not "verified no images". Findings on rendered screens stay.
+    """
+    if snapshot.all_pages_rendered or not snapshot.pages:
+        return results
+    withheld = dict(results)
+    for criterion_id in MEDIA_CRITERIA:
+        if criterion_id in results:
+            withheld[criterion_id] = results[criterion_id].model_copy(
+                update={"assessed": False, "applies": True, "fraction": None})
+    return withheld
+
+
 def run_review(snapshot: SurveySnapshot, rubric: Rubric | None = None, kept_blockers: frozenset[str] = frozenset(),
                provider: LlmProvider | None = None, cache: JudgeCache | None = None) -> Review:
     rubric = rubric or load_rubric()
@@ -69,6 +88,7 @@ def run_review(snapshot: SurveySnapshot, rubric: Rubric | None = None, kept_bloc
         known = [f for r in results.values() for f in r.findings]
         ai_results, ai = run_judge(snapshot, rubric, provider, cache, known=known)
         results = _with_ai(results, ai_results)
+    results = _withhold_unverified_media(results, snapshot)
     unchecked = [c.title for c in rubric.criteria if c.active
                  and ((r := results.get(c.id)) is None or not r.assessed or (r.applies and r.fraction is None))]
     return Review(

@@ -6,6 +6,7 @@ import re
 
 from surveycoach.snapshot import Option, Page, Question, SurveySnapshot
 
+_MEDIA_TAG = re.compile(r"<\s*(?:img|video|iframe|picture)\b", re.I)
 KINDS = {
     "radio": "single_choice", "checkbox": "multi_choice", "dropdown": "dropdown",
     "text": "text_short", "textarea": "text_long", "number": "numeric",
@@ -243,7 +244,10 @@ def adapt_definition(questionnaire: dict, *, source_url: str = "", locale: str =
         if message not in result.warnings:
             result.warnings.append(message)
 
+    declared_media = 0
+
     def wording(value, location):
+        nonlocal declared_media
         if isinstance(value, dict):
             if not isinstance(value.get(locale), str):
                 alternatives = sorted(k for k, v in value.items() if isinstance(v, str) and v.strip())
@@ -260,6 +264,7 @@ def adapt_definition(questionnaire: dict, *, source_url: str = "", locale: str =
             warn(f"No supported wording at {location}.")
         if len(value) > 100_000:
             raise ValueError("Oversized definition wording")
+        declared_media += len(_MEDIA_TAG.findall(value))
         # Strip markup before decoding so literal &lt;words&gt; are not removed.
         value = re.sub(r"<\s*(?:br\s*/?|/p|/div)\s*>", "\n", value, flags=re.I)
         return unescape(re.sub(r"<[^>]+>", "", value)).strip()
@@ -276,6 +281,7 @@ def adapt_definition(questionnaire: dict, *, source_url: str = "", locale: str =
         if pid in seen_pages:
             raise ValueError("Duplicate definition page ID")
         seen_pages.add(pid)
+        media_before = declared_media
         if source_pid is not None:
             result.known_page_ids.add(pid)
         page_conditions = {k: deepcopy(page[k]) for k in ("triggers", "conditions") if k in page}
@@ -318,9 +324,11 @@ def adapt_definition(questionnaire: dict, *, source_url: str = "", locale: str =
                 options=options,
                 conditional=any(bool(value) for value in [*page_conditions.values(), *conditions.values()]),
             ))
+        # Wording only: nothing here was rendered, so images stay unverified until a capture merges.
         result.snapshot.pages.append(Page(id=pid, position=position,
             kind="question" if questions else "info", questions=questions,
-            text=wording(page.get("text", ""), pid)))
+            text=wording(page.get("text", ""), pid), visual_evidence="definition_only",
+            declared_media=declared_media - media_before))
     if not pages:
         result.wording_complete = False
         warn("Definition contains no pages; no complete wording claim is possible.")
@@ -344,6 +352,7 @@ def apply_definition(result, definition: DefinitionRead) -> None:
         if len(set(ids)) != len(ids) or not all(qid in known for qid in ids):
             continue
         target.media = observed.media
+        target.visual_evidence = "rendered"
         for question in observed.questions:
             destination = known[question.id]
             # Definition remains authoritative for wording, answers and conditions.
@@ -362,6 +371,7 @@ def apply_definition(result, definition: DefinitionRead) -> None:
     coverage.questions_defined = len(snapshot.all_questions())
     coverage.definition_conditions = definition.conditions
     coverage.rendered_definition_pages = sorted(merged)
+    coverage.visual_media_verified = snapshot.all_pages_rendered
     coverage.warnings = [w for w in coverage.warnings if not w.startswith("No definition/API")]
     coverage.warnings.extend(definition.warnings)
     if not merged:

@@ -196,3 +196,9 @@ def test_text_answers_are_typed_like_a_person(zoo):
     result = read_survey(zoo[0] + "/keyup", allow_test_local=True)
     assert result.coverage.stop_reason == "final_control"
     assert result.coverage.pages_captured == 2
+
+
+def test_fully_rendered_read_marks_media_as_rendered_evidence(zoo):
+    result = read_survey(zoo[0] + "/choices", allow_test_local=True)
+    assert all(page.visual_evidence == "rendered" for page in result.snapshot.pages)
+    assert result.coverage.visual_media_verified is True

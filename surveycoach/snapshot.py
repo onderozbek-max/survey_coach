@@ -86,6 +86,10 @@ class Page(BaseModel):
     links_out: list[str] = Field(default_factory=list)
     media: list[Media] = Field(default_factory=list)
     text: str = ""
+    # Where this screen's evidence came from. "definition_only" is wording from the survey
+    # definition that was never rendered: its images are unverified, not absent.
+    visual_evidence: Literal["rendered", "definition_only"] = "rendered"
+    declared_media: int = 0  # media tags seen in definition wording; no size or loading is implied
 
 
 class SurveySnapshot(BaseModel):
@@ -140,6 +144,11 @@ class SurveySnapshot(BaseModel):
         )]
         return " ".join(dict.fromkeys(p for p in parts if p))
 
+    @property
+    def all_pages_rendered(self) -> bool:
+        """True only when every screen was actually rendered, so image evidence is real."""
+        return bool(self.pages) and all(p.visual_evidence == "rendered" for p in self.pages)
+
     def all_questions(self) -> list[Question]:
         return [q for page in self.pages for q in page.questions]
 
@@ -152,6 +161,11 @@ class SurveySnapshot(BaseModel):
         """Version identity includes all review inputs, not capture paths or source-link tokens."""
         canonical = self.model_dump(exclude={"source_url"})
         for page in canonical["pages"]:
+            # Defaults stay out of the hash so versions saved before provenance existed keep their identity.
+            if page["visual_evidence"] == "rendered":
+                del page["visual_evidence"]
+            if not page["declared_media"]:
+                del page["declared_media"]
             for media in page["media"]:
                 media.pop("asset_path", None)
             for question in page["questions"]:

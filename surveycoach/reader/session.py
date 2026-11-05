@@ -247,6 +247,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     if transport.definition is not None:
         transport.definition.snapshot.source_url = url
         apply_definition(result, transport.definition)
+    coverage.visual_media_verified = result.snapshot.all_pages_rendered
     coverage.warnings.append(f"Read stopped: {coverage.stop_reason}. " + (
         "Definition wording is available; only captures have rendered evidence."
         if coverage.definition_available else "Review only the captured pages."))
