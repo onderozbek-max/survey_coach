@@ -1,4 +1,5 @@
 """Home page ("launch pad") contracts: list summary data and rendered states. Synthetic only."""
+import re
 import json
 from pathlib import Path
 
@@ -53,12 +54,12 @@ def test_home_renders_cards_example_and_toned_errors(browser, studio):
     page.goto(studio + "/local.html")
     survey_card = page.locator("#survey-list a.survey-card").first
     survey_card.wait_for()
-    assert survey_card.locator(".chip").inner_text().strip()
-    assert "must-fixes" in survey_card.inner_text().lower()
+    assert survey_card.locator(".state-chip").inner_text().strip()
     assert survey_card.get_attribute('href').endswith('#overview')
-    assert survey_card.locator('.signal-dot').count() == 6
-    assert 'checked points' not in survey_card.inner_text()
-    assert survey_card.locator('.meta').inner_text().startswith('Version 1 · ')
+    assert survey_card.locator('.signal-dot, .signals').count() == 0       # the six unlabeled icons are gone
+    text = survey_card.inner_text()
+    assert 'Continue' in text and not any(word in text for word in ('/100', 'Provisional', 'coverage', 'checked points'))
+    assert re.fullmatch(r'(\d+ open|Nothing open) · checked (just now|.+ ago)|Added .+|Started .+', survey_card.locator('.meta').inner_text())
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors
     context.close()
@@ -99,35 +100,40 @@ def test_home_promise_notice_and_keyboard_dialog(browser, studio):
     page.close()
 
 
-def test_cards_use_supplied_signals_and_never_infer_readiness(browser, studio):
+def test_cards_show_the_supplied_verdict_and_never_infer_one(browser, studio):
     page = browser.new_page()
-    signals = [{'name': name, 'state': state, 'label': label} for name, state, label in [
-        ('Time', 'needs_work', 'Needs attention'), ('Clarity', 'strong', 'Looking good'),
-        ('Honest answers', 'mixed', 'Room to improve'), ('Energy & flow', 'unknown', 'Not checked yet'),
-        ('Tone & fun', 'strong', 'Looking good'), ('Phone comfort', 'unknown', 'Not checked yet')]]
-    base = dict(id='unsafe<>', title='', version=3, created_at='2026-01-01 00:00:00',
-                must_fix=0, readiness='ready', signals=signals, ready_to_share=False)
+    def verdict(kind, fix, improve, you_check):
+        return {'kind': kind, 'tiles': {'fix': fix, 'improve': improve, 'you_check': you_check}}
+    base = dict(id='unsafe<>', title='', version=3, created_at='2026-01-01 00:00:00', job=None, signals=[],
+                verdict=None, tiles=None, ready_to_share=False)
+    def survey(**fields):
+        item = dict(base, **fields)
+        if item['verdict']:
+            item['tiles'] = item['verdict']['tiles']
+        return item
     page.route('**/api/surveys', lambda route: route.fulfill(json={'surveys': [
-        base, dict(base, id='ready', title='<b>Literal title</b>', ready_to_share=True),
-        dict(base, id='missing', signals=None, readiness=None, must_fix=None),
-        dict(base, id='fix', must_fix=2, ready_to_share=True)]}))
+        survey(verdict=verdict('fix_before_launch', 2, 1, 0)),
+        survey(id='ready', title='<b>Literal title</b>', verdict=verdict('ready_for_signoff', 0, 0, 0), ready_to_share=True),
+        survey(id='almost', verdict=verdict('almost_ready', 0, 3, 1)),
+        survey(id='check', verdict=verdict('almost_ready', 0, 0, 4)),
+        survey(id='missing')]}))
     page.goto(studio + '/local.html')
     cards = page.locator('a.survey-card')
     cards.first.wait_for()
-    assert cards.locator('.chip').all_text_contents() == [
-        'No blockers found in what we checked', 'Ready to share', 'Not checked yet', '2 must-fixes']
+    assert cards.locator('.state-chip').all_text_contents() == [
+        'Fix before launch', 'Ready for sign-off', 'Almost ready', 'Almost ready', 'Not checked yet']
+    assert cards.locator('.state-chip').evaluate_all('(els) => els.map(el => el.dataset.state)') == [
+        'fix_before_launch', 'looks_good', 'worth_improving', 'you_check', 'none']
     assert cards.first.locator('h3').inner_text() == 'Untitled survey'
     assert cards.nth(1).locator('h3').inner_text() == '<b>Literal title</b>'
     assert cards.nth(1).locator('b').count() == 0
-    assert cards.first.locator('.signals').get_attribute('aria-label') == ', '.join(
-        f"{signal['name']}: {signal['label']}" for signal in signals)
-    assert cards.first.locator('.signal-dot').count() == 6
-    assert cards.first.locator('.signal-dot').evaluate_all('(els) => els.map(el => el.dataset.state)') == [s['state'] for s in signals]
-    assert cards.nth(2).locator('.signal-dot[data-state=unknown]').count() == 6
+    assert cards.first.locator('.meta').inner_text().startswith('3 open · checked ')
+    assert cards.nth(1).locator('.meta').inner_text().startswith('Nothing open · checked ')
+    assert cards.nth(4).locator('.meta').inner_text().startswith('Added ')
     assert cards.first.locator('button, input, a, [tabindex]').count() == 0
     assert cards.first.get_attribute('href') == 'review.html?id=unsafe%3C%3E#overview'
-    assert cards.first.locator('.meta').inner_text().startswith('Version 3 · ')
-    assert 'checked points' not in cards.first.inner_text()
+    assert cards.first.get_by_text('Continue').is_visible()
+    assert not any(word in cards.first.inner_text() for word in ('/100', 'Provisional', 'coverage'))
     page.close()
 
 
