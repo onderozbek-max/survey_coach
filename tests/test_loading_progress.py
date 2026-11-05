@@ -345,3 +345,41 @@ def test_sample_and_snapshot_without_reader_stage_never_claim_test_site(browser,
         expect(page.locator('#reading-progress')).to_contain_text('Checking wording and flow')
         assert 'Opening test survey' not in page.locator('#reading-preview').inner_text()
         page.close()
+
+
+def test_clock_rollback_preserves_known_job_on_reload(browser, studio):
+    page = browser.new_page()
+    gets, posts = [], []
+    def status(route):
+        gets.append(route.request.url)
+        route.fulfill(json={'status':'running', 'stage':'reading', 'pages_captured':0})
+    page.route('**/api/jobs/future-job', status)
+    page.route('**/api/reader/jobs', lambda route: posts.append(route))
+    page.goto(studio + '/local.html')
+    page.evaluate('sessionStorage.setItem("surveycoach-pending-job", JSON.stringify({jobId:"future-job", started:Date.now()+60000}))')
+    page.reload()
+    expect(page.locator('#reading-progress')).to_have_text('Opening the test survey…')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    expect(page.locator('#reading-elapsed')).to_have_text('Elapsed 0:00')
+    assert len(gets) >= 1
+    assert posts == []
+    assert page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job")).jobId') == 'future-job'
+    page.close()
+
+
+def test_clock_rollback_preserves_unknown_submission_on_reload(browser, studio):
+    page = browser.new_page()
+    gets, posts = [], []
+    page.route('**/api/jobs/*', lambda route: gets.append(route))
+    page.route('**/api/reader/jobs', lambda route: posts.append(route))
+    page.goto(studio + '/local.html')
+    page.evaluate('sessionStorage.setItem("surveycoach-pending-job", JSON.stringify({submissionPending:true, started:Date.now()+60000}))')
+    page.reload()
+    expect(page.locator('#import-status')).to_contain_text('Request status unknown')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    expect(page.locator('#survey-link')).to_be_disabled()
+    expect(page.locator('#reading-elapsed')).to_have_text('Elapsed 0:00')
+    assert page.locator('#resume-checking').count() == 0
+    assert gets == posts == []
+    assert page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job")).submissionPending') is True
+    page.close()

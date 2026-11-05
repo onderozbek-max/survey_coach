@@ -27,6 +27,11 @@ Regression run first exposed two old contracts assuming three stages (including 
 
 No live vendor requests, live model calls, external browser jobs, full suite, deployment, or push. The existing local FakeProvider fixture supplies one sample review for the recheck regression test. Default `python` lacked pytest; attempted uv environment resolution failed DNS; all actual checks then used the existing `.venv` (no new dependencies).
 
+## Clock-rollback follow-up
+Read `.superpowers/sdd/loading-clock-rollback-note.md`. Removed the chronological `started <= Date.now()` validity condition: an otherwise valid opaque job reference or submission-pending marker survives an OS clock rollback. Timestamp finiteness still guards malformed display data; `entry.js` already independently clamps negative elapsed seconds to zero, so no display-code change was needed.
+
+Red/green: added separate future-start (+60 seconds) reload tests for known and unknown submissions. Both failed before the fix (record deleted, unlocked Home). After the two-line code change, all **15 loading tests passed**, 10.68s. Known job restores GET verification and lock; unknown marker restores lock without GET/POST or fake Resume. Both retain storage and show elapsed 0:00. `node --check site/workflow.js` and `git diff --check` pass. No full suite, live/vendor calls, delegation, or push.
+
 ## Integration follow-up
 Preserves the three fixes and regression evidence from commit **e4c50e9**.
 

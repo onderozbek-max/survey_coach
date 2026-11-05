@@ -29,8 +29,8 @@
   function pending() {
     try {
       const saved = JSON.parse(sessionStorage.getItem(pendingKey));
-      if (Number.isFinite(saved?.started) && saved.started <= Date.now()) {
-        // Unknown submissions cannot safely expire into permission to submit again.
+      if (Number.isFinite(saved?.started)) {
+        // Age or clock rollback cannot prove a job stopped; elapsed display clamps separately.
         if (saved.submissionPending === true) return {submissionPending:true, started:saved.started};
         if (typeof saved.jobId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(saved.jobId)) return {jobId:saved.jobId, started:saved.started};
       }
