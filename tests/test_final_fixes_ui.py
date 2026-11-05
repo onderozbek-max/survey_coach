@@ -1,21 +1,15 @@
 """Cross-feature regressions. Synthetic intercepted API and disposable localhost only."""
 import pytest
-from tests.test_issue_loop_ui import focus, keep_item, open_review
+from tests.test_issue_loop_ui import focus, keep_item, open_review, single_paste
 from tests.test_site_e2e import base_url, browser
 from tests.site_helpers import open_how_we_check, go_to
 from tests.test_workflow_e2e import studio
 
 
-def keepable(detail):
-    """A finding whose own fix-list entry is a single pasteable card (Keep as is is offered)."""
-    entry = next(e for e in detail['queue']['items'] if e['action_kind'] == 'paste' and len(e['fingerprints']) == 1)
-    return next(f for f in detail['review']['findings'] if f['fingerprint'] == entry['fingerprints'][0]), entry
-
-
 @pytest.mark.parametrize('removed', [False, True, 'in-range'])
 def test_undo_resolves_refetched_fingerprint_not_array_index(browser, base_url, removed):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    target, entry = keepable(detail)
+    target, entry = single_paste(detail)
     focus(page, target)
     keep_item(page)
     page.evaluate("""([removed, fp]) => {
@@ -48,7 +42,7 @@ def test_undo_resolves_refetched_fingerprint_not_array_index(browser, base_url, 
 def test_kept_item_is_not_a_change_and_survives_reordering_only_on_its_fingerprint(browser, base_url):
     """A saved keep must not become a default rewrite, in the tray or on the phone, after the list is reordered."""
     context, page, detail, writes, errors = open_review(browser, base_url)
-    target, entry = keepable(detail)
+    target, entry = single_paste(detail)
     focus(page, target)
     keep_item(page)
     page.evaluate("""() => {
@@ -66,7 +60,7 @@ def test_kept_item_is_not_a_change_and_survives_reordering_only_on_its_fingerpri
 
 def test_keyboard_undo_returns_to_restored_single_card(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    target, entry = keepable(detail)
+    target, entry = single_paste(detail)
     focus(page, target)
     title = page.locator('#coach h3').inner_text()
     page.locator('#keep-as-is').focus()

@@ -97,6 +97,12 @@ def focus(page, finding):
     page.locator('#coach .card').wait_for()
 
 
+def single_paste(detail):
+    """(finding, entry) for the first fix-list entry that is one pasteable card, never a group."""
+    entry = next(e for e in detail['queue']['items'] if e['action_kind'] == 'paste' and len(e['fingerprints']) == 1)
+    return next(f for f in detail['review']['findings'] if f['fingerprint'] == entry['fingerprints'][0]), entry
+
+
 def keep_item(page, reason='Owner decided'):
     """Keep the open card as is: open the panel, pick a reason, save (nothing is saved before the last click)."""
     page.locator('#keep-as-is').click()

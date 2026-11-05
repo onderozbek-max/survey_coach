@@ -2,7 +2,7 @@
 import subprocess
 from pathlib import Path
 
-from tests.test_issue_loop_ui import focus, open_review
+from tests.test_issue_loop_ui import focus, open_review, single_paste
 from tests.test_site_e2e import base_url, browser
 from tests.site_helpers import go_to
 
@@ -168,15 +168,9 @@ def test_preview_effect_does_not_count_raw_only_text(browser, base_url):
 
 # ---- Audit 3: a late save belongs to the item that started it ------------------------------------
 
-def single_item_finding(detail):
-    """A finding whose own fix-list entry is a single pasteable item (never a group)."""
-    entry = next(e for e in detail['queue']['items'] if e['action_kind'] == 'paste' and len(e['fingerprints']) == 1)
-    return next(f for f in detail['review']['findings'] if f['fingerprint'] == entry['fingerprints'][0])
-
-
 def test_delayed_save_does_not_advance_unrelated_navigation(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    finding = single_item_finding(detail)
+    finding = single_paste(detail)[0]
     focus(page, finding)
     held = []
     page.route('**/decisions/**', lambda route: held.append(route))
@@ -200,7 +194,7 @@ def test_delayed_save_does_not_advance_unrelated_navigation(browser, base_url):
 
 def test_save_without_navigation_still_advances(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    finding = single_item_finding(detail)
+    finding = single_paste(detail)[0]
     focus(page, finding)
     first = page.locator('#coach h3').inner_text()
     page.locator('#use-change').click()
