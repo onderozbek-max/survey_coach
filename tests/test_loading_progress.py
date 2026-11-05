@@ -50,13 +50,18 @@ def test_post_timeout_is_ambiguous_locked_and_never_retried(browser, studio):
     page.clock.install()
     start(page, studio)
     page.clock.run_for(21000)
-    expect(page.locator('#import-status')).to_contain_text('Status is unknown')
+    expect(page.locator('#import-status')).to_contain_text('Request status unknown')
     expect(page.locator('#sample-start')).to_be_disabled()
     expect(page.locator('#survey-link')).to_be_disabled()
     assert page.locator('#resume-checking').count() == 0
     assert len(posts) == 1
-    assert page.evaluate('sessionStorage.length') == 0
+    saved = page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job"))')
+    assert set(saved) == {'submissionPending', 'started'}
     assert page.locator('#reading-preview').get_attribute('aria-busy') == 'false'
+    page.reload()
+    expect(page.locator('#import-status')).to_contain_text('Request status unknown')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    assert len(posts) == 1
     page.close()
 
 
@@ -169,3 +174,89 @@ def test_recheck_progress_is_visible_and_failed_job_keeps_old_workspace(browser,
     page.locator('#chapter-nav [data-chapter=improve]').click()
     expect(page.locator('#stage .phone-screen')).to_be_visible()
     page.close()
+
+
+def test_pending_submission_reload_stays_locked_without_fake_job(browser, studio):
+    page = browser.new_page()
+    posts, gets = [], []
+    page.route('**/api/reader/jobs', lambda route: posts.append(route))
+    page.route('**/api/jobs/*', lambda route: gets.append(route))
+    page.clock.install()
+    start(page, studio)
+    page.wait_for_function('sessionStorage.getItem("surveycoach-pending-job") !== null')
+    saved = page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job"))')
+    assert set(saved) == {'submissionPending', 'started'}
+    assert saved['submissionPending'] is True
+    page.reload()
+    expect(page.locator('#import-status')).to_contain_text('Request status unknown')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    expect(page.locator('#survey-link')).to_be_disabled()
+    assert page.locator('#resume-checking').count() == 0
+    assert len(posts) == 1
+    assert gets == []
+    # The same marker survives repeated reloads, including beyond the accepted-job TTL.
+    page.evaluate('''() => {
+      const key = 'surveycoach-pending-job', saved = JSON.parse(sessionStorage.getItem(key));
+      saved.started -= 3 * 60 * 60 * 1000;
+      sessionStorage.setItem(key, JSON.stringify(saved));
+    }''')
+    page.reload()
+    expect(page.locator('#import-status')).to_contain_text('Do not submit again while it may be running')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    page.close()
+
+
+def test_explicit_rejection_clears_submission_marker(browser, studio):
+    page = browser.new_page()
+    page.route('**/api/reader/jobs', lambda route: route.fulfill(status=422, json={'detail':'Synthetic rejected input'}))
+    start(page, studio)
+    expect(page.locator('#import-status')).to_have_text('Synthetic rejected input')
+    expect(page.locator('#sample-start')).to_be_enabled()
+    assert page.evaluate('sessionStorage.getItem("surveycoach-pending-job")') is None
+    page.reload()
+    expect(page.get_by_role('button', name='Check survey', exact=True)).to_be_enabled()
+    page.close()
+
+
+def test_storage_unavailable_warns_without_preventing_current_job(browser, studio):
+    page = browser.new_page()
+    page.add_init_script("Storage.prototype.setItem = function() { throw new DOMException('Blocked', 'SecurityError'); };")
+    page.route('**/api/reader/jobs', lambda route: None)
+    page.clock.install()
+    start(page, studio)
+    expect(page.locator('#reading-storage-warning')).to_contain_text('cannot recover this request after a reload')
+    page.clock.run_for(21000)
+    expect(page.locator('#import-status')).to_contain_text('Request status unknown')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    expect(page.locator('#reading-storage-warning')).to_be_visible()
+    page.close()
+
+
+def test_acceptance_atomically_replaces_marker_and_storage_failure_can_finish(browser, studio):
+    for storage_blocked in (False, True):
+        page = browser.new_page()
+        if storage_blocked:
+            page.add_init_script("Storage.prototype.setItem = function() { throw new Error('Blocked'); };")
+        else:
+            page.add_init_script('''
+              window.pendingWrites = [];
+              const original = Storage.prototype.setItem;
+              Storage.prototype.setItem = function(key, value) {
+                if (key === 'surveycoach-pending-job') window.pendingWrites.push(JSON.parse(value));
+                return original.call(this, key, value);
+              };
+            ''')
+        page.route('**/api/reader/jobs', lambda route: route.fulfill(json={'job_id':'accepted'}))
+        page.route('**/api/jobs/accepted', lambda route: route.fulfill(json={
+            'status':'failed', 'stage':'reading', 'pages_captured':0, 'error':'Synthetic terminal failure'}))
+        start(page, studio)
+        expect(page.locator('#import-status')).to_have_text('Synthetic terminal failure')
+        expect(page.locator('#sample-start')).to_be_enabled()
+        if not storage_blocked:
+            writes = page.evaluate('window.pendingWrites')
+            assert len(writes) == 2
+            assert writes[0] == {'submissionPending':True, 'started':writes[1]['started']}
+            assert set(writes[1]) == {'jobId', 'started'}
+            assert writes[1]['jobId'] == 'accepted'
+        assert page.evaluate('sessionStorage.getItem("surveycoach-pending-job")') is None
+        page.close()

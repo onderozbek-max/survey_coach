@@ -6,15 +6,35 @@
   let detail, activeRead = false;
   const pendingKey = 'surveycoach-pending-job';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function storePending(value) {
+    // One key / one atomic replacement: never remove the uncertain marker before storing a known job.
+    try { sessionStorage.setItem(pendingKey, JSON.stringify(value)); return true; }
+    catch (_) { return false; }
+  }
+  function storageWarning() {
+    if ($('reading-storage-warning')) return;
+    $('reading-actions')?.append(h('p', {id:'reading-storage-warning', role:'status'},
+      'Session storage is unavailable. This page cannot recover this request after a reload. Keep it open; do not reload and submit again.'));
+  }
   function remember(jobId, started) {
-    try { sessionStorage.setItem(pendingKey, JSON.stringify({jobId, started})); } catch (_) { /* storage is optional */ }
+    if (!storePending({jobId, started})) storageWarning();
+  }
+  const uncertainMessage = 'Request status unknown. A test response may already exist. Check My surveys or contact the local pilot owner to verify the request. Do not submit again while it may be running. No job reference was received, so this page cannot resume status checks.';
+  function showUncertain(outputId) {
+    message(outputId, uncertainMessage, 'error');
+    window.SC.readConnection?.(uncertainMessage, true);
+    window.SC.finishReadProgress?.();
   }
   function forget() { try { sessionStorage.removeItem(pendingKey); } catch (_) {} }
   function pending() {
     try {
       const saved = JSON.parse(sessionStorage.getItem(pendingKey));
-      if (typeof saved?.jobId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(saved.jobId)
-          && Number.isFinite(saved.started) && saved.started <= Date.now() && Date.now() - saved.started < 7200000) return saved;
+      if (Number.isFinite(saved?.started) && saved.started <= Date.now()) {
+        // Unknown submissions cannot safely expire into permission to submit again.
+        if (saved.submissionPending === true) return {submissionPending:true, started:saved.started};
+        if (typeof saved.jobId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(saved.jobId)
+            && Date.now() - saved.started < 7200000) return {jobId:saved.jobId, started:saved.started};
+      }
     } catch (_) {}
     forget(); return null;
   }
@@ -109,6 +129,7 @@
     let submitted = false, accepted = false, ambiguous = false;
     try {
       const request = await makeRequest();
+      if (!storePending({submissionPending:true, started})) storageWarning();
       submitted = true;
       const result = await api(request.path, 'POST', request.body);
       if (typeof result.job_id !== 'string' || !result.job_id) throw new Error('No job reference returned.');
@@ -118,9 +139,8 @@
       openReview(job, result);
     } catch (error) {
       ambiguous = submitted && !accepted && !error.rejected;
-      const text = ambiguous
-        ? 'No submission confirmation received. Status is unknown: a test response may already have been created. Do not submit again or reload to retry. This page cannot safely resume without a job reference. Ask the local pilot owner to check the job before starting another review.'
-        : error.message;
+      if (submitted && !accepted && error.rejected) forget();
+      const text = ambiguous ? uncertainMessage : error.message;
       message('import-status', text, 'error');
       window.SC.readConnection?.(text, true);
       window.SC.finishReadProgress?.();
@@ -287,9 +307,10 @@
     lockRead(true);
     const outputId = surveyId ? 'review-status' : 'import-status';
     window.SC.beginReadProgress?.(saved.started, outputId, true);
-    // Restoration only polls the opaque job reference. No survey URL or capture is stored.
+    // No correlation guess from survey listings: unknown submissions have no safe job reference.
     if (!surveyId) home().catch(() => {});
-    waitForJob(saved.jobId, outputId).then(job => openReview(job)).catch(error => {
+    if (saved.submissionPending) showUncertain(outputId);
+    else waitForJob(saved.jobId, outputId).then(job => openReview(job)).catch(error => {
       message(outputId, error.message, 'error');
       window.SC.finishReadProgress?.(); lockRead(false);
       if (surveyId) review().catch(() => {});
