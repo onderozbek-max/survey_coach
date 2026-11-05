@@ -1,60 +1,99 @@
-/* Plain-language reader disclosure and actual captured progress, never simulated progress. */
+/* Real job evidence only. Animation says “waiting”, never “the worker is alive”. */
 (() => {
   'use strict';
-  const SC=window.SC, {h}=SC;
-  fetch('/api/reader/mode').then(response=>response.ok?response.json():null).then(mode=>{
-    if(typeof mode?.notice === 'string' && mode.notice.trim() && document.getElementById('reader-mode')) document.getElementById('reader-mode').textContent=mode.notice;
-  }).catch(()=>{});
-  // Rechecks retain their existing captured preview; Task 8 changes Home only.
-  function recheckPreview(job, jobId, output) {
-    if (!job.pages_captured) return;
-    let preview=document.getElementById('reading-preview');
-    if (!preview) {
-      preview=h('figure',{id:'reading-preview',class:'reading-preview'},h('figcaption'),
-        h('img',{alt:'Latest captured survey screen. Not an interactive survey.'}));
-      output.after(preview);
-    }
-    const image=preview.querySelector('img');
-    const source=`/api/reader/jobs/${encodeURIComponent(jobId)}/preview/${job.pages_captured-1}`;
-    if(image.getAttribute('src')!==source) image.src=source;
-    preview.querySelector('figcaption').textContent=job.stage==='checking'
-      ? `${job.pages_captured} screens captured · checking wording and flow…`
-      : `Reading screen ${job.pages_captured} · only the visited path is checked`;
+  const SC = window.SC, {h, $} = SC;
+  let timer, started, lastResponse, panel, currentJob, lastCount = 0, lastCapture;
+  const seconds = stamp => Math.max(0, Math.floor((Date.now() - stamp) / 1000));
+  fetch('/api/reader/mode').then(response => response.ok ? response.json() : null).then(mode => {
+    if (typeof mode?.notice === 'string' && mode.notice.trim() && $('reader-mode')) $('reader-mode').textContent = mode.notice;
+  }).catch(() => {});
+
+  function tick() {
+    if (!panel) return;
+    $('reading-elapsed').textContent = `Elapsed ${SC.clock(seconds(started))}`;
+    $('reading-response').textContent = lastResponse
+      ? `Last status response ${seconds(lastResponse)}s ago. This is connection information, not proof the reader is still working.`
+      : 'Waiting for the first status response. No reader activity confirmed yet.';
   }
-  SC.renderReadProgress=(job,jobId)=>{
-    const output=document.getElementById('import-status');
-    if(!output) return;
-    if(!document.body.classList.contains('home')) return recheckPreview(job,jobId,output);
-    let preview=document.getElementById('reading-preview');
-    if(!preview) {
-      preview=h('figure',{id:'reading-preview',class:'reading-preview'},
-        h('div',{class:'reading-phone', 'aria-label':'Survey capture preview'}, SC.icon('eye')),
-        h('figcaption',{id:'reading-progress',role:'status','aria-live':'polite'}),
-        h('ol',{id:'reading-steps'}));
-      output.after(preview);
-    }
-    const completed=job.status==='completed', checking=job.stage==='checking';
-    const count=Number(job.pages_captured) || 0;
-    if(count) {
-      let image=preview.querySelector('img');
-      if(!image) {
-        image=h('img',{alt:'Latest captured survey screen. Not an interactive survey.'});
-        SC.mount(preview.querySelector('.reading-phone'),image);
-      }
-      const source=`/api/reader/jobs/${encodeURIComponent(jobId)}/preview/${count-1}`;
-      if(image.getAttribute('src')!==source) image.src=source;
-    } else {
-      // Zero captures belongs to this job, never the previous survey's image.
-      SC.mount(preview.querySelector('.reading-phone'), SC.icon('eye'));
-    }
-    preview.querySelector('figcaption').textContent=job.status==='failed' ? job.error || 'Review did not finish.'
-      : completed ? 'Review saved.'
-      : checking ? `${count} screens captured. Checking wording and flow…`
-      : job.stage==='reading' ? count ? `Reading screen ${count}…` : 'Opening the test survey…'
-      : job.status==='queued' ? 'Review queued…' : 'Checking survey wording and flow…';
-    SC.mount(preview.querySelector('ol'), ['Read captured screens','Check wording and flow','Save review'].map((label,index)=>{
-      const done=completed || (index===0 && checking);
-      return h('li',{'data-complete':String(done)},SC.icon(done?'check':'clock'),label);
+  SC.beginReadProgress = (start = Date.now(), outputId = 'import-status', restoring = false) => {
+    clearInterval(timer);
+    $('reading-preview')?.remove();
+    currentJob = null; lastCount = 0; lastCapture = null; lastResponse = null; started = start;
+    const phone = h('div', {class:'reading-phone', 'aria-label':'Preview placeholder, not a captured survey'},
+      SC.icon('eye'), h('span', null, 'Your captured screen will appear here'));
+    panel = h('section', {id:'reading-preview', class:'read-progress', 'aria-labelledby':'reading-heading', 'aria-busy':'true'},
+      h('div', {class:'read-progress-heading'}, h('span', {class:'reading-pulse', 'aria-hidden':'true'}),
+        h('div', null, h('p', {class:'reading-eyebrow'}, 'SURVEYCOACH · TEST LINK REVIEW'),
+          h('h2', {id:'reading-heading'}, 'Preparing your review'))),
+      h('div', {class:'read-progress-body'}, phone, h('div', {class:'reading-detail'},
+        h('p', {id:'reading-progress'}, 'Sending your request…'),
+        h('p', {id:'reading-context'}, 'No screens captured yet. The total is not known.'),
+        h('ol', {id:'reading-steps', 'aria-label':'Review progress'}))),
+      h('div', {class:'reading-connection'}, h('span', {id:'reading-elapsed'}), h('p', {id:'reading-response'})),
+      h('div', {id:'reading-actions'}));
+    ($(outputId) || $('import-status')).after(panel);
+    // The live region stays outside aria-busy, so it can announce transitions immediately.
+    const output = $(outputId);
+    const initial = restoring ? 'Resuming status checks for your existing job…' : 'Sending your request…';
+    $('reading-progress').textContent = initial;
+    if (output) { output.textContent = `Preparing your review. ${initial}`; output.dataset.tone = 'progress'; }
+    tick(); timer = setInterval(tick, 1000);
+    steps(-1, false);
+  };
+  function steps(active, failed) {
+    SC.mount($('reading-steps'), ['Opening test survey', 'Read screens', 'Check wording & flow', 'Review ready'].map((label, index) => {
+      const done = active === 3 || (active >= 0 && index < active);
+      return h('li', {'data-complete':String(done), 'aria-current':!failed && index === active ? 'step' : null},
+        SC.icon(done ? 'check' : 'clock'), label);
     }));
+  }
+  SC.readConnection = (text, paused = false) => {
+    if (!panel) return;
+    $('reading-progress').textContent = text;
+    panel.dataset.paused = String(paused);
+    panel.setAttribute('aria-busy', String(!paused));
+  };
+  SC.finishReadProgress = () => {
+    clearInterval(timer);
+    if (panel) { panel.setAttribute('aria-busy', 'false'); panel.dataset.paused = 'true'; }
+  };
+  SC.renderReadProgress = (job, jobId, outputId = 'import-status') => {
+    if (!panel || !panel.isConnected) SC.beginReadProgress(Date.now(), outputId);
+    const count = Math.max(0, Number(job.pages_captured) || 0);
+    if (currentJob !== jobId) {
+      currentJob = jobId; lastCount = 0; lastCapture = null;
+      SC.mount(panel.querySelector('.reading-phone'), SC.icon('eye'), h('span', null, 'Waiting for a captured screen'));
+    }
+    lastResponse = Date.now();
+    if (count !== lastCount) lastCapture = Date.now();
+    lastCount = count;
+    if (count) {
+      let image = panel.querySelector('img');
+      if (!image) {
+        image = h('img', {alt:'Latest captured survey screen. Not an interactive survey.'});
+        SC.mount(panel.querySelector('.reading-phone'), image);
+      }
+      const source = `/api/reader/jobs/${encodeURIComponent(jobId)}/preview/${count - 1}`;
+      if (image.getAttribute('src') !== source) image.src = source;
+      panel.querySelector('.reading-phone').setAttribute('aria-label', 'Actual captured survey preview');
+    } else {
+      SC.mount(panel.querySelector('.reading-phone'), SC.icon('eye'), h('span', null, 'No captured screen yet'));
+      panel.querySelector('.reading-phone').setAttribute('aria-label', 'Preview placeholder, not a captured survey');
+    }
+    const failed = job.status === 'failed', completed = job.status === 'completed';
+    const active = completed ? 3 : job.status === 'queued' ? -1 : job.stage === 'checking' ? 2 : count ? 1 : 0;
+    const text = failed ? job.error || 'Review did not finish.' : completed ? 'Review ready. Opening your review…'
+      : job.status === 'queued' ? 'Review queued…'
+      : job.stage === 'checking' ? `${count} screens captured. Checking wording and flow…`
+      : count ? `Reading screen ${count}…` : 'Opening the test survey…';
+    $('reading-progress').textContent = text;
+    $('reading-context').textContent = count
+      ? `${count} screens captured · only the visited path is checked.${!failed && !completed && job.stage === 'reading' ? ' Waiting for the next screen update.' : ''}${lastCapture ? ` Last capture update ${seconds(lastCapture)}s ago.` : ''}`
+      : 'No screens captured yet. The total is not known.';
+    steps(active, failed);
+    panel.dataset.paused = 'false'; panel.setAttribute('aria-busy', String(!failed && !completed));
+    tick();
+    if (failed || completed) SC.finishReadProgress();
+    return text;
   };
 })();

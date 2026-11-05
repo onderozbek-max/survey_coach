@@ -140,16 +140,16 @@ def test_reading_state_tracks_actual_job_and_capture(browser, studio):
     render(dict(status='running', stage='reading', pages_captured=4))
     assert page.locator('#reading-progress').inner_text() == 'Reading screen 4…'
     assert page.locator('#reading-preview img').get_attribute('src').endswith('/preview/3')
-    assert page.locator('#reading-steps [data-complete=true]').count() == 0
-    render(dict(status='running', stage='checking', pages_captured=4))
     assert page.locator('#reading-steps [data-complete=true]').count() == 1
-    assert page.locator('#reading-steps [data-complete=true] svg').count() == 1
+    render(dict(status='running', stage='checking', pages_captured=4))
+    assert page.locator('#reading-steps [data-complete=true]').count() == 2
+    assert page.locator('#reading-steps [data-complete=true] svg').count() == 2
     render(dict(status='failed', stage='checking', pages_captured=4, error='Synthetic read failure'))
     assert page.locator('#reading-progress').inner_text() == 'Synthetic read failure'
-    assert page.locator('#reading-steps [data-complete=true]').count() == 1
+    assert page.locator('#reading-steps [data-complete=true]').count() == 2
     render(dict(status='completed', stage='checking', pages_captured=4))
-    assert page.locator('#reading-steps [data-complete=true]').count() == 3
-    assert page.locator('#reading-steps [data-complete=true] svg').count() == 3
+    assert page.locator('#reading-steps [data-complete=true]').count() == 4
+    assert page.locator('#reading-steps [data-complete=true] svg').count() == 4
     assert page.locator('[role=progressbar]').count() == 0
     page.close()
 
@@ -167,7 +167,7 @@ def test_new_zero_capture_job_clears_previous_survey_preview(browser, studio):
            error='Previous captured read failed')
     assert page.locator('#reading-preview img').get_attribute('src') == (
         '/api/reader/jobs/previous-survey/preview/3')
-    assert page.locator('#reading-steps [data-complete=true]').count() == 1
+    assert page.locator('#reading-steps [data-complete=true]').count() == 2
 
     for status, stage, error, expected in [
         ('queued', None, None, 'Review queued…'),
@@ -180,7 +180,7 @@ def test_new_zero_capture_job_clears_previous_survey_preview(browser, studio):
         assert page.locator('#reading-preview .reading-phone > svg').count() == 1
         assert page.locator('#reading-progress').inner_text() == expected
         assert page.locator('#reading-steps [data-complete=true]').count() == 0
-        assert page.locator('#reading-steps [data-complete=false]').count() == 3
+        assert page.locator('#reading-steps [data-complete=false]').count() == 4
         assert 'previous-survey' not in page.locator('#reading-preview').inner_html()
         assert 'Reading screen 1' not in page.locator('#reading-preview').inner_text()
 

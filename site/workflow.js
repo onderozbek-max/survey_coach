@@ -3,15 +3,54 @@
   "use strict";
   const { h, mount, $, plural } = window.SC;
   const params = new URLSearchParams(location.search), surveyId = params.get("id");
-  let detail;
+  let detail, activeRead = false;
+  const pendingKey = 'surveycoach-pending-job';
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function remember(jobId, started) {
+    try { sessionStorage.setItem(pendingKey, JSON.stringify({jobId, started})); } catch (_) { /* storage is optional */ }
+  }
+  function forget() { try { sessionStorage.removeItem(pendingKey); } catch (_) {} }
+  function pending() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(pendingKey));
+      if (typeof saved?.jobId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(saved.jobId)
+          && Number.isFinite(saved.started) && saved.started <= Date.now() && Date.now() - saved.started < 7200000) return saved;
+    } catch (_) {}
+    forget(); return null;
+  }
+  function lockRead(locked) {
+    activeRead = locked;
+    for (const control of document.querySelectorAll('#import-form input, #import-form button[type=submit], #recheck-form input, #recheck-form button[type=submit], #sample-start, #check-again')) {
+      if (locked) {
+        control.dataset.readDisabled = String(control.disabled);
+        if (control.matches('button[type=submit]')) {
+          control.dataset.readLabel = control.textContent;
+          control.textContent = 'Checking…';
+        }
+        control.disabled = true;
+      } else if ('readDisabled' in control.dataset) {
+        control.disabled = control.dataset.readDisabled === 'true';
+        if (control.dataset.readLabel) { control.textContent = control.dataset.readLabel; delete control.dataset.readLabel; }
+        delete control.dataset.readDisabled;
+      }
+    }
+  }
   const endpoint = (version = detail.version) => `/api/surveys/${encodeURIComponent(surveyId)}/versions/${version}`;
   async function api(path, method = "GET", body) {
-    const response = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(typeof payload.detail === "string" ? payload.detail : `Request failed (${response.status}). Check the survey input and try again.`);
-    }
-    return response.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch(path, { method, signal:controller.signal,
+        headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const error = new Error(typeof payload.detail === "string" ? payload.detail : `Request failed (${response.status}).`);
+        // Only explicit client rejection proves that starting a fresh submission is safe.
+        error.rejected = response.status >= 400 && response.status < 500 && response.status !== 408;
+        throw error;
+      }
+      return await response.json();
+    } finally { clearTimeout(timeout); }
   }
   // tone: "info" | "progress" | "error"; styled where a page opts in (home.css).
   const message = (id, text, tone = "info") => { const el = $(id); if (el) { el.textContent = text; el.dataset.tone = tone; } };
@@ -19,58 +58,97 @@
     try { await navigator.clipboard.writeText(text); output.textContent = "Copied. Paste into RedJade yourself; this does not mark the issue fixed."; }
     catch (_) { output.textContent = "Clipboard unavailable. Select the text and copy it manually."; }
   }
+  function announce(outputId, text, tone = 'progress') {
+    if ($(outputId)?.textContent !== text) message(outputId, text, tone);
+  }
+  async function pauseChecking(jobId, outputId) {
+    const text = 'Status checks paused. The job may still be working. Resume checking this same job; do not start another review.';
+    window.SC.readConnection?.(text, true);
+    announce(outputId, text, 'error');
+    await new Promise(resolve => {
+      const resume = h('button', {type:'button', id:'resume-checking', class:'btn', onclick:() => {
+        resume.remove(); resolve();
+      }}, 'Resume checking');
+      ($('reading-actions') || $(outputId)).append(resume);
+    });
+  }
   async function waitForJob(jobId, outputId) {
-    for (let attempt = 0; attempt < 600; attempt++) {
-      const job = await api(`/api/jobs/${encodeURIComponent(jobId)}`);
-      window.SC.renderReadProgress?.(job, jobId);
-      const stage = job.stage === 'reading' ? job.pages_captured ? `Reading screen ${job.pages_captured}…` : 'Opening the test survey…'
-        : job.stage === 'checking' ? `${job.pages_captured || 0} screens captured. Checking wording and flow…`
-        : job.status === 'running' ? 'Checking survey wording and flow. AI checks can take a few minutes…' : 'Review queued…';
-      message(outputId, stage, "progress");
-      if (job.status === "failed") throw new Error(job.error || "Review did not finish. Your previous review is unchanged.");
-      if (job.status === "completed") return;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    let errors = 0;
+    for (let attempt = 0; ; attempt++) {
+      if (attempt >= 600) { await pauseChecking(jobId, outputId); attempt = 0; }
+      let job;
+      try { job = await api(`/api/jobs/${encodeURIComponent(jobId)}`); }
+      catch (_) {
+        errors++;
+        const text = 'Connection interrupted. Waiting for a status response; retrying this job only. No new survey response will be created.';
+        window.SC.readConnection?.(text);
+        announce(outputId, text, 'error');
+        if (errors >= 3) { await pauseChecking(jobId, outputId); errors = 0; attempt = 0; }
+        else await sleep(2000);
+        continue;
+      }
+      errors = 0;
+      const text = window.SC.renderReadProgress?.(job, jobId, outputId);
+      announce(outputId, text || 'Waiting for the next job update.');
+      if (job.status === 'failed') {
+        forget();
+        throw new Error(job.error || 'Review did not finish. Your previous review is unchanged.');
+      }
+      if (job.status === 'completed') { forget(); return job; }
+      await sleep(1000);
     }
-    let resume = $('resume-checking');
-    if (!resume) {
-      resume = h('button', {type:'button',id:'resume-checking',class:'btn',onclick:async()=>{
-        resume.disabled=true;
-        try { await waitForJob(jobId,outputId); const finished=await api(`/api/jobs/${encodeURIComponent(jobId)}`);
-          location.href=`review.html?id=${encodeURIComponent(finished.survey_id)}&version=${finished.version}`;
-        } catch(error) { message(outputId,error.message,'error'); resume.disabled=false; }
-      }},'Resume checking');
-      $(outputId).after(resume);
+  }
+  function openReview(job, result = {}) {
+    location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}${result.deduplicated || job.deduplicated ? '&unchanged=1' : ''}${surveyId ? '' : '#overview'}`;
+  }
+  async function startRead(makeRequest) {
+    if (activeRead) return;
+    lockRead(true);
+    const started = Date.now();
+    window.SC.beginReadProgress?.(started);
+    let submitted = false, accepted = false, ambiguous = false;
+    try {
+      const request = await makeRequest();
+      submitted = true;
+      const result = await api(request.path, 'POST', request.body);
+      if (typeof result.job_id !== 'string' || !result.job_id) throw new Error('No job reference returned.');
+      accepted = true;
+      remember(result.job_id, started);
+      const job = await waitForJob(result.job_id, 'import-status');
+      openReview(job, result);
+    } catch (error) {
+      ambiguous = submitted && !accepted && !error.rejected;
+      const text = ambiguous
+        ? 'No submission confirmation received. Status is unknown: a test response may already have been created. Do not submit again or reload to retry. This page cannot safely resume without a job reference. Ask the local pilot owner to check the job before starting another review.'
+        : error.message;
+      message('import-status', text, 'error');
+      window.SC.readConnection?.(text, true);
+      window.SC.finishReadProgress?.();
+    } finally {
+      // An unconfirmed POST is never automatically repeated or labelled a safe failure.
+      if (!ambiguous) lockRead(false);
     }
-    throw new Error(`Still working. Keep this page open and use Resume checking; do not start another review. Reference ${jobId.slice(0,8)}.`);
   }
   async function submit(event) {
     event.preventDefault();
-    const button = event.target.querySelector("button[type=submit]");
-    button.disabled = true;
-    try {
-      let result;
-      const file = $("snapshot")?.files[0], ai = true;
+    if (activeRead) return;
+    const file = $('snapshot')?.files[0], value = $('survey-link').value.trim();
+    await startRead(async () => {
+      const ai = true;
       if (file) {
-        if (file.size > 950000) throw new Error("Snapshot must be smaller than 950 KB.");
+        if (file.size > 950000) throw new Error('Snapshot must be smaller than 950 KB.');
         const snapshot = JSON.parse(await file.text());
-        result = await api(surveyId ? `/api/surveys/${encodeURIComponent(surveyId)}/recheck` : "/api/surveys", "POST", { snapshot, ai });
-      } else {
-        if (!$("survey-link").value.trim()) throw new Error("Paste an approved preview link or choose a snapshot file.");
-        const value = $("survey-link").value.trim();
-        let url;
-        try { url = new URL(value); } catch (_) { /* handled by the shared message below */ }
-        if (!url || url.protocol !== "https:" ||
-            !(url.hostname === "redjade.net" || url.hostname.endsWith(".redjade.net")) ||
-            url.username || url.password || url.search || url.hash || url.port || /[\s\\]/.test(value)) {
-          throw new Error("Use a valid HTTPS RedJade test link without credentials, query parameters, or a fragment.");
-        }
-        result = await api("/api/reader/jobs", "POST", { url: value, approval: true, ai, survey_id: surveyId || null });
+        return {path:surveyId ? `/api/surveys/${encodeURIComponent(surveyId)}/recheck` : '/api/surveys', body:{snapshot, ai}};
       }
-      await waitForJob(result.job_id, "import-status");
-      const job = await api(`/api/jobs/${encodeURIComponent(result.job_id)}`);
-      location.href = `review.html?id=${encodeURIComponent(result.id || result.survey_id || job.survey_id)}&version=${result.version || job.version}${result.deduplicated || job.deduplicated ? '&unchanged=1' : ''}${surveyId ? '' : '#overview'}`;
-    } catch (error) { message("import-status", error.message, "error"); }
-    finally { button.disabled = false; }
+      if (!value) throw new Error('Paste an approved preview link or choose a snapshot file.');
+      let url;
+      try { url = new URL(value); } catch (_) { /* shared inline error below */ }
+      if (!url || url.protocol !== 'https:' || !(url.hostname === 'redjade.net' || url.hostname.endsWith('.redjade.net')) ||
+          url.username || url.password || url.search || url.hash || url.port || /[\s\\]/.test(value)) {
+        throw new Error('Use a valid HTTPS RedJade test link without credentials, query parameters, or a fragment.');
+      }
+      return {path:'/api/reader/jobs', body:{url:value, approval:true, ai, survey_id:surveyId || null}};
+    });
   }
   const since = (stamp) => {
     // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
@@ -170,7 +248,13 @@
     detail.decisions ||= {};
     message('review-title', detail.title);
     if (detail.job && ['queued', 'running'].includes(detail.job.status)) {
-      await waitForJob(detail.job.id, 'review-status'); return review();
+      lockRead(true);
+      const started = Date.now();
+      remember(detail.job.id, started);
+      window.SC.beginReadProgress?.(started, 'review-status', true);
+      try { await waitForJob(detail.job.id, 'review-status'); }
+      finally { lockRead(false); window.SC.finishReadProgress?.(); }
+      return review();
     }
     if (!detail.review) {
       message('review-status', detail.job?.error || 'No completed review. Return to My surveys or open Share to start a new check.', 'error');
@@ -193,17 +277,24 @@
     detail.decisions = event.detail.decisions;
     refreshDecisions();
   });
-  $("sample-start")?.addEventListener("click", async () => {
-    $("sample-start").disabled = true;
-    try {
-      const result = await api("/api/samples/boxer-briefs", "POST", {});
-      await waitForJob(result.job_id, "import-status");
-      location.href = `review.html?id=${encodeURIComponent(result.id)}#overview`;
-    } catch (error) { message("import-status", error.message, "error"); $("sample-start").disabled = false; }
-  });
+  $("sample-start")?.addEventListener("click", () => startRead(async () => ({path:'/api/samples/boxer-briefs', body:{}})));
   // One accessible inline error path for both malformed and disallowed URLs.
   for (const id of ["import-form", "recheck-form"]) if ($(id)) $(id).noValidate = true;
   $("import-form")?.addEventListener("submit", submit);
   $("recheck-form")?.addEventListener("submit", submit);
-  (surveyId ? review() : home()).catch((error) => message(surveyId ? "review-status" : "import-status", error.message, "error"));
+  const saved = pending();
+  if (saved) {
+    lockRead(true);
+    const outputId = surveyId ? 'review-status' : 'import-status';
+    window.SC.beginReadProgress?.(saved.started, outputId, true);
+    // Restoration only polls the opaque job reference. No survey URL or capture is stored.
+    if (!surveyId) home().catch(() => {});
+    waitForJob(saved.jobId, outputId).then(job => openReview(job)).catch(error => {
+      message(outputId, error.message, 'error');
+      window.SC.finishReadProgress?.(); lockRead(false);
+      if (surveyId) review().catch(() => {});
+    });
+  } else {
+    (surveyId ? review() : home()).catch(error => message(surveyId ? 'review-status' : 'import-status', error.message, 'error'));
+  }
 })();
