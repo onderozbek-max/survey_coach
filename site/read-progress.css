@@ -1,17 +1,16 @@
 /* Shared by Home and rechecks; scoped so the saved review stays untouched. */
 .read-progress {
-  --read-ink:#173b37; --read-muted:#465f5a; --read-accent:#176b58;
-  margin:20px 0 0; padding:22px; border:1px solid #b5d4ca; border-radius:20px;
-  color:var(--read-ink); background:linear-gradient(145deg,#f2faf6,#fff 75%);
-  box-shadow:0 12px 32px #173b370b; text-align:left; min-width:0;
+  margin:20px 0 0; padding:22px; border:1px solid var(--read-line); border-radius:20px;
+  color:var(--read-ink); background:var(--read-bg);
+  box-shadow:var(--read-shadow); text-align:left; min-width:0;
 }
 .read-progress *, .read-progress *::before { box-sizing:border-box; }
 .read-progress .read-progress-heading { display:flex; gap:12px; align-items:center; }
 .read-progress .reading-eyebrow { margin:0 0 5px; color:var(--read-muted); font-size:10px; font-weight:750; letter-spacing:.11em; }
 .read-progress h2 { margin:0; font-size:23px; line-height:1.2; letter-spacing:-.035em; }
-.read-progress .reading-pulse { width:26px; height:26px; flex:none; border:2px solid #bad4ca; border-top-color:var(--read-accent); border-radius:50%; animation:read-wait 1.6s linear infinite; }
+.read-progress .reading-pulse { width:26px; height:26px; flex:none; border:2px solid var(--read-line); border-top-color:var(--read-accent); border-radius:50%; animation:read-wait 1.6s linear infinite; }
 .read-progress .read-progress-body { display:grid; grid-template-columns:100px minmax(0,1fr); gap:20px; align-items:start; margin-top:24px; }
-.read-progress .reading-phone { width:100px; min-height:174px; margin:0; padding:10px 7px; border:3px solid #385952; border-radius:18px; background:#fff; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; overflow:hidden; }
+.read-progress .reading-phone { width:100px; min-height:174px; margin:0; padding:10px 7px; border:3px solid var(--read-frame); border-radius:18px; background:var(--read-surface); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; overflow:hidden; }
 .read-progress .reading-phone > svg { width:26px; height:26px; color:var(--read-accent); }
 .read-progress .reading-phone span { font-size:10px; line-height:1.5; text-align:center; color:var(--read-muted); }
 .read-progress .reading-phone img { width:100%; max-height:260px; object-fit:contain; display:block; }
@@ -22,14 +21,14 @@
 .read-progress #reading-steps svg { width:15px; height:15px; flex:none; }
 .read-progress #reading-steps [aria-current=step] { font-weight:750; color:var(--read-ink); }
 .read-progress #reading-steps [data-complete=true] { color:var(--read-accent); }
-.read-progress .reading-connection { border-top:1px solid #cbded6; margin-top:20px; padding-top:12px; color:var(--read-muted); font-size:11px; line-height:1.5; }
+.read-progress .reading-connection { border-top:1px solid var(--read-divider); margin-top:20px; padding-top:12px; color:var(--read-muted); font-size:11px; line-height:1.5; }
 .read-progress #reading-elapsed { font-variant-numeric:tabular-nums; font-weight:700; }
 .read-progress #reading-response { margin:4px 0 0; }
 .read-progress #reading-actions:empty { display:none; }
 .read-progress #reading-actions { margin-top:14px; }
 .read-progress button { max-width:100%; white-space:normal; }
-.read-progress button:focus-visible { outline:3px solid #176b58; outline-offset:4px; }
-.read-progress[data-paused=true] .reading-pulse { animation:none; border-color:#6a827b; }
+.read-progress button:focus-visible { outline:3px solid var(--read-accent); outline-offset:4px; }
+.read-progress[data-paused=true] .reading-pulse { animation:none; border-color:var(--read-muted); }
 @keyframes read-wait { to { transform:rotate(360deg); } }
 @media (prefers-reduced-motion:reduce) { .read-progress .reading-pulse { animation:none; } }
 @media (max-width:360px) {

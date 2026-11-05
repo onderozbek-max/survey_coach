@@ -40,7 +40,7 @@ def test_immediate_panel_before_post_and_first_get_mobile_keyboard(browser, stud
     held[0].fulfill(json={'job_id': 'synthetic'})
     expect(page.locator('#reading-response')).to_contain_text('Waiting for the first status response')
     assert page.locator('#reading-preview img').count() == 0
-    assert page.locator('#reading-response').evaluate('el => getComputedStyle(el).color') == 'rgb(70, 95, 90)'
+    assert page.locator('#reading-response').evaluate('el => getComputedStyle(el).color') == 'rgb(91, 107, 128)'  # shared muted token
     page.close()
 
 
@@ -50,11 +50,13 @@ def test_post_timeout_is_ambiguous_locked_and_never_retried(browser, studio):
     page.route('**/api/reader/jobs', lambda route: posts.append(route))
     page.clock.install()
     start(page, studio)
+    page.wait_for_function('sessionStorage.getItem("surveycoach-pending-job") !== null')
     page.clock.run_for(21000)
     expect(page.locator('#import-status')).to_contain_text('Request status unknown')
     expect(page.locator('#sample-start')).to_be_disabled()
     expect(page.locator('#survey-link')).to_be_disabled()
     assert page.locator('#resume-checking').count() == 0
+    assert page.get_by_text(page.locator('#import-status').inner_text(), exact=True).count() == 1
     assert len(posts) == 1
     saved = page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job"))')
     assert set(saved) == {'submissionPending', 'started'}
@@ -119,7 +121,8 @@ def test_stale_captures_live_responses_and_terminal_states(browser, studio):
     render(dict(status='running', stage='checking', pages_captured=2))
     assert page.locator('[aria-current=step]').inner_text() == 'Check wording & flow'
     render(dict(status='failed', stage='checking', pages_captured=2, error='<b>Synthetic failure</b>'))
-    assert page.locator('#reading-progress').inner_text() == '<b>Synthetic failure</b>'
+    assert page.locator('#reading-progress').inner_text() == 'Review needs attention.'
+    assert page.get_by_text('<b>Synthetic failure</b>', exact=True).count() == 1
     assert page.locator('#reading-progress b, [aria-current=step]').count() == 0
     render(dict(status='queued', stage=None, pages_captured=0), 'new-job')
     assert page.locator('#reading-preview img, [aria-current=step], [data-complete=true]').count() == 0
@@ -193,6 +196,7 @@ def test_pending_submission_reload_stays_locked_without_fake_job(browser, studio
     expect(page.locator('#sample-start')).to_be_disabled()
     expect(page.locator('#survey-link')).to_be_disabled()
     assert page.locator('#resume-checking').count() == 0
+    assert page.get_by_text(page.locator('#import-status').inner_text(), exact=True).count() == 1
     assert len(posts) == 1
     assert gets == []
     # The same marker survives repeated reloads, including beyond the accepted-job TTL.
@@ -212,6 +216,8 @@ def test_explicit_rejection_clears_submission_marker(browser, studio):
     page.route('**/api/reader/jobs', lambda route: route.fulfill(status=422, json={'detail':'Synthetic rejected input'}))
     start(page, studio)
     expect(page.locator('#import-status')).to_have_text('Synthetic rejected input')
+    assert page.get_by_text('Synthetic rejected input', exact=True).count() == 1
+    assert page.locator('#reading-preview [aria-live], #reading-preview [role=status]').count() == 0
     expect(page.locator('#sample-start')).to_be_enabled()
     assert page.evaluate('sessionStorage.getItem("surveycoach-pending-job")') is None
     page.reload()

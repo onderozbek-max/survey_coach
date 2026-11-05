@@ -145,7 +145,8 @@ def test_reading_state_tracks_actual_job_and_capture(browser, studio):
     assert page.locator('#reading-steps [data-complete=true]').count() == 2
     assert page.locator('#reading-steps [data-complete=true] svg').count() == 2
     render(dict(status='failed', stage='checking', pages_captured=4, error='Synthetic read failure'))
-    assert page.locator('#reading-progress').inner_text() == 'Synthetic read failure'
+    assert page.locator('#reading-progress').inner_text() == 'Review needs attention.'
+    assert page.get_by_text('Synthetic read failure', exact=True).count() == 1
     assert page.locator('#reading-steps [data-complete=true]').count() == 2
     render(dict(status='completed', stage='checking', pages_captured=4))
     assert page.locator('#reading-steps [data-complete=true]').count() == 4
@@ -178,7 +179,9 @@ def test_new_zero_capture_job_clears_previous_survey_preview(browser, studio):
         assert page.locator('#reading-preview img').count() == 0
         assert page.locator('#reading-preview [src]').count() == 0
         assert page.locator('#reading-preview .reading-phone > svg').count() == 1
-        assert page.locator('#reading-progress').inner_text() == expected
+        assert page.locator('#reading-progress').inner_text() == ('Review needs attention.' if status == 'failed' else expected)
+        if status == 'failed':
+            assert page.get_by_text(error, exact=True).count() == 1
         assert page.locator('#reading-steps [data-complete=true]').count() == 0
         assert page.locator('#reading-steps [data-complete=false]').count() == 4
         assert 'previous-survey' not in page.locator('#reading-preview').inner_html()

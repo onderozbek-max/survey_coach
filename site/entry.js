@@ -90,7 +90,10 @@
       : job.status === 'queued' ? 'Review queued…'
       : job.stage === 'checking' || !reader ? `${count ? `${count} screens captured. ` : ''}Checking wording and flow…`
       : count ? `Reading screen ${count}…` : 'Opening the test survey…';
-    $('reading-progress').textContent = text;
+    $('reading-progress').textContent = failed ? 'Review needs attention.' : text;
+    if (failed && $(outputId)?.textContent !== text) {
+      $(outputId).textContent = text; $(outputId).dataset.tone = 'error';
+    }
     context = count
       ? `${count} screens captured · only the visited path is checked.${!failed && !completed && job.stage === 'reading' ? ' Waiting for the next screen update.' : ''}`
       : reader ? 'No screens captured yet. The total is not known.' : 'Reviewing supplied content; no captured screen reported.';

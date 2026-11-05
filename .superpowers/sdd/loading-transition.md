@@ -23,9 +23,19 @@ Synthetic browser coverage: held POST; held first GET; ambiguous POST timeout; G
 
 Regression run first exposed two old contracts assuming three stages (including invented “Save review”). Updated only stage counts for the new actual four-step flow; rerun green. New lifecycle tests passed on their initial run; no claim of full pre-implementation TDD.
 
-`node --check` passes both changed JS files; `git diff --check` clean. All changed code files <600 lines. Muted status color #465f5a against darkest panel background #f2faf6 calculates **6.50:1** contrast.
+`node --check` passes both changed JS files; `git diff --check` clean. All changed code files <600 lines. Initial custom muted status contrast was 6.50:1; the integration follow-up below replaces these custom colors with shared foundation-token aliases.
 
 No live vendor requests, live model calls, external browser jobs, full suite, deployment, or push. The existing local FakeProvider fixture supplies one sample review for the recheck regression test. Default `python` lacked pytest; attempted uv environment resolution failed DNS; all actual checks then used the existing `.venv` (no new dependencies).
+
+## Integration follow-up
+Preserves the three fixes and regression evidence from commit **e4c50e9**.
+
+Reproduced the integration failures first: start-review tests failed four strict selectors because exact error detail appeared in both live status and panel; design-token tests failed the literal component colors and decorative gradient. Fixed without changing `tests/test_design_tokens.py` or `tests/test_start_review_e2e.py`:
+- `design-system.css` defines `--read-*` semantic aliases using existing palette, surface, boundary, frame and shadow tokens. Component CSS uses only those tokens and a flat background. No new hardcoded component colors, gradient, or glass.
+- Error detail has one source of truth: the existing live status. Panel gets a generic attention/reconnection headline, not repeated detail. Failed render paths update that same status once; workflow suppresses unchanged announcements instead of re-writing the same text. Regression assertions check exact error occurs once and no duplicate live region appears in the error panel.
+- POST-timeout test waits until submission-pending storage is written before advancing its deadline. Three isolated reruns passed (1.63s, 1.22s, 1.01s).
+
+Requested combined run: `.venv/bin/python -m pytest tests/test_loading_progress.py tests/test_home_page.py tests/test_start_review_e2e.py tests/test_design_tokens.py tests/test_workflow_e2e.py -q`: **33 passed**, one existing Starlette/httpx warning, 16.13s. Both JS syntax checks and diff check pass. No full suite, live/vendor calls, backend edits, delegation, or push.
 
 ## Loading-review follow-up (three requested fixes)
 - Accepted records no longer expire. A three-hour-old ID is restored and GET-verified with submission controls locked. HTTP 404 becomes explicit manual uncertainty, retaining the ID and lock; Resume only rechecks that same ID. Only observed completed/failed status clears it. Unknown submission markers likewise have no timer expiry.

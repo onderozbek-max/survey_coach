@@ -22,7 +22,7 @@
   const uncertainMessage = 'Request status unknown. A test response may already exist. Check My surveys or contact the local pilot owner to verify the request. Do not submit again while it may be running. No job reference was received, so this page cannot resume status checks.';
   function showUncertain(outputId) {
     message(outputId, uncertainMessage, 'error');
-    window.SC.readConnection?.(uncertainMessage, true);
+    window.SC.readConnection?.('Request needs attention.', true);
     window.SC.finishReadProgress?.();
   }
   function forget() { try { sessionStorage.removeItem(pendingKey); } catch (_) {} }
@@ -82,7 +82,7 @@
     if ($(outputId)?.textContent !== text) message(outputId, text, tone);
   }
   async function pauseChecking(jobId, outputId, text = 'Status checks paused. The job may still be working. Resume checking this same job; do not start another review.') {
-    window.SC.readConnection?.(text, true);
+    window.SC.readConnection?.('Review needs attention.', true);
     announce(outputId, text, 'error');
     await new Promise(resolve => {
       const resume = h('button', {type:'button', id:'resume-checking', class:'btn', onclick:() => {
@@ -104,7 +104,7 @@
         }
         errors++;
         const text = 'Connection interrupted. Waiting for a status response; retrying this job only. No new survey response will be created.';
-        window.SC.readConnection?.(text);
+        window.SC.readConnection?.('Waiting to reconnect. See the status message above.');
         announce(outputId, text, 'error');
         if (errors >= 3) { await pauseChecking(jobId, outputId); errors = 0; attempt = 0; }
         else await sleep(2000);
@@ -112,7 +112,7 @@
       }
       errors = 0;
       const text = window.SC.renderReadProgress?.(job, jobId, outputId);
-      announce(outputId, text || 'Waiting for the next job update.');
+      announce(outputId, text || 'Waiting for the next job update.', job.status === 'failed' ? 'error' : 'progress');
       if (job.status === 'failed') {
         forget();
         throw new Error(job.error || 'Review did not finish. Your previous review is unchanged.');
@@ -144,8 +144,8 @@
       ambiguous = submitted && !accepted && !error.rejected;
       if (submitted && !accepted && error.rejected) forget();
       const text = ambiguous ? uncertainMessage : error.message;
-      message('import-status', text, 'error');
-      window.SC.readConnection?.(text, true);
+      announce('import-status', text, 'error');
+      window.SC.readConnection?.('Review needs attention.', true);
       window.SC.finishReadProgress?.();
     } finally {
       // An unconfirmed POST is never automatically repeated or labelled a safe failure.
@@ -314,7 +314,7 @@
     if (!surveyId) home().catch(() => {});
     if (saved.submissionPending) showUncertain(outputId);
     else waitForJob(saved.jobId, outputId).then(job => openReview(job)).catch(error => {
-      message(outputId, error.message, 'error');
+      announce(outputId, error.message, 'error');
       window.SC.finishReadProgress?.(); lockRead(false);
       if (surveyId) review().catch(() => {});
     });
