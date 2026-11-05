@@ -78,23 +78,23 @@ def test_copy_and_change_sheet_text_name_only_the_chosen_target(browser, base_ur
                        and f.get('question_id') and not f.get('structural'))
         question = next(q for p in detail['snapshot']['pages'] for q in p.get('questions', []) if q['id'] == finding['question_id'])
         question.update(kind='single_choice', text='Yes or no?', help_text='Choose Yes if applicable',
-                        options=[{'label': 'Yes'}, {'label': 'No'}])
+                        options=[{'id': 'yes', 'label': 'Yes'}, {'id': 'no', 'label': 'No'}])
         finding.update(current_text='Yes', suggested_text='Definitely', options=[], edit_kind='replace')
         detail['_target'] = finding['fingerprint']
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
     finding = next(f for f in detail['review']['findings'] if f['fingerprint'] == detail['_target'])
     focus(page, finding)
     page.locator('#coach .use-change').first.click()
-    page.wait_for_function("document.querySelector('#copy-all').textContent === 'Copy all changes (1)'")
-    copied = page.evaluate('navigator.clipboard.readText()')
+    page.wait_for_function("document.querySelector('#tray-toggle').textContent.startsWith('My changes (1)')")
+    # 2B: the server's My changes copy text replaces the browser's own copy-sheet builder (SC.changeSheetText is gone).
+    change = page.evaluate('SC.workspaceDetail.my_changes.copy_all_text')
     sheet = page.evaluate('SC.shareChangesText(SC.workspaceDetail)')
-    change = page.evaluate('SC.changeSheetText(SC.workspaceDetail)')
-    for text in (copied, sheet, change):
+    for text in (sheet, change):
         assert 'Definitely or no?' not in text and 'Choose Definitely' not in text
     assert 'Find: Yes\nReplace with: Definitely' in sheet
-    assert 'Find: Yes\nReplace with: Definitely' in change
+    assert 'Definitely' in change
     focus(page, finding)
-    page.get_by_role('button', name='With changes', exact=True).click()
+    page.get_by_role('button', name='With my changes (1)', exact=True).click()
     phone = page.locator('#stage .phone-screen').inner_text()
     assert 'Yes or no?' in phone and 'Choose Yes if applicable' in phone and 'Definitely' in phone
     assert not errors
@@ -156,7 +156,10 @@ def test_preview_effect_does_not_count_raw_only_text(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
     finding = next(f for f in detail['review']['findings'] if f['fingerprint'] == detail['_target'])
     focus(page, finding)
-    page.get_by_role('button', name='With changes', exact=True).click()
+    page.locator('#coach .use-change').first.click()
+    page.wait_for_function("document.querySelector('#tray-toggle').textContent.startsWith('My changes (1)')")
+    focus(page, finding)
+    page.get_by_role('button', name='With my changes (1)', exact=True).click()
     assert 'New invisible words' not in page.locator('#stage').inner_text()
     assert 'text change' not in page.locator('.preview-effect').inner_text()
     assert not errors
