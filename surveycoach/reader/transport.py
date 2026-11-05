@@ -141,7 +141,7 @@ class GuardedTransport:
             # Origin/completion checks below run before any write is forwarded.
             if (origin(request.url) != self.origin
                     or (FINAL_ENDPOINT.search(unquote(parts.path)) and not self.participate)
-                    or self.requests > 150
+                    or self.requests > (500 if self.participate else 150)
                     or self.bytes > 20 * 1024 * 1024 or time.monotonic() > self.deadline
                     or (write and not self.write_allowed(request))):
                 return self.block(route)
