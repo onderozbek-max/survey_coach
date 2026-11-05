@@ -54,6 +54,11 @@ of actual received bytes. Imported local `asset_path` values are rejected.
 - `GET /api/surveys/{id}/versions/{version}/summary`: escaped HTML packet with
   readiness, unchecked checks, findings and decisions. Restrictive CSP; no active
   content. Manual completion is explicitly self-reported, not verified in RedJade.
+  `?download=true` adds the Review summary card (name, safe link, verdict, sign-off, You check list).
+- `PUT /api/surveys/{id}/reward` `{has_reward: bool|null, text?}`: the owner's reward answer (text only with `true`, at most 120 chars). 422 on bad input.
+- `POST /api/surveys/{id}/versions/{version}/signoff` `{name, acknowledge_open?}`: append-only local sign-off, 201 with the sign-off state; 422 while items are open unless `acknowledge_open`.
+- Detail also carries `reward`, `signoff`, `share` (Slack post, safe link, download route), `version_delta` (null on v1) and `presentation.journey`. Shapes and examples: `.superpowers/sdd/impl-3a-backend.md`.
+- `create_app(..., developer=True)` / `SURVEYCOACH_DEVELOPER=1` / `--developer` tells the page to offer the raw snapshot import (`metadata.developer`, `window.SURVEYCOACH_DEVELOPER`); the import API itself is unchanged.
 
 Unknown records return 404; invalid JSON/model fields return 422; blocked origins
 403; unsupported write content type 415; oversized bodies 413; invalid Host 400.
