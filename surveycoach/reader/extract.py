@@ -1,6 +1,7 @@
 """Interpret only observed DOM wording; never invent missing questions or labels."""
 import hashlib
 import json
+from collections.abc import Sequence
 
 from surveycoach.snapshot import Media, Option, Page, Question
 
@@ -19,13 +20,30 @@ def fingerprint(observation: dict) -> str:
     ])
 
 
-def extract_page(observation: dict, position: int) -> Page:
+def extract_page(observation: dict, position: int, *, existing_pages: Sequence[Page] = ()) -> Page:
+    """Preserve source IDs on first use; allocate deterministic IDs for revisits.
+
+    Rendered identity (fingerprint) is separate from capture-instance identity.
+    Raw observations retain source IDs even when an instance needs a new ID.
+    """
+    page_ids = {page.id for page in existing_pages}
+    question_ids = {question.id for page in existing_pages for question in page.questions}
+
+    def allocate(prefix, original, occupied):
+        candidate, occurrence = original, 1
+        while candidate in occupied:
+            occurrence += 1
+            candidate = stable_id(prefix, original, "occurrence", occurrence)
+        occupied.add(candidate)
+        return candidate
+
     questions = []
-    page_id = observation.get("source_page_id") or fingerprint(observation)
+    page_id = allocate("page", observation.get("source_page_id") or fingerprint(observation), page_ids)
     for index, group in enumerate(observation["groups"]):
         kind = group["kind"]
         items = group["items"]
-        qid = group.get("source_id") or stable_id("q", page_id, index, group["prompt"])
+        qid = allocate("q", group.get("source_id") or stable_id("q", page_id, index, group["prompt"]),
+                       question_ids)
         options = []
         if kind == "dropdown":
             labels = [o["label"] for o in items[0]["options"]]

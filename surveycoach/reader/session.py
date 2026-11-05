@@ -5,6 +5,7 @@ import logging
 import re
 import tempfile
 import time
+from collections import Counter
 from pathlib import Path
 
 from surveycoach.snapshot import SurveySnapshot
@@ -26,6 +27,9 @@ LINK = re.compile(r"\w+://\S+")
 READY = "(old) => { const t = document.body.innerText.trim(); " \
         "return !!t && t !== old && !/^(loading[. …]*|please wait[. …]*)$/i.test(t); }"
 logger = logging.getLogger(__name__)
+# Two traversals may be legitimate repeated trials; a third identical directed
+# transition is a bounded cycle. Page/time budgets remain independent backstops.
+MAX_TRANSITION_VISITS = 2
 
 
 def describe_error(error: BaseException) -> str:
@@ -95,7 +99,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
 
     async def capture(page, observed):
         number = len(result.captures)
-        model = extract_page(observed, number)
+        model = extract_page(observed, number, existing_pages=result.snapshot.pages)
         png = directory / f"page-{number:02d}.png"
         observation = directory / f"page-{number:02d}.json"
         await page.screenshot(path=str(png), timeout=3000 * slow)
@@ -138,6 +142,8 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                     except Exception:
                         pass
                 previous = set()
+                last_fp = None
+                transitions = Counter()
                 for _ in range(max_pages):
                     if time.monotonic() >= transport.deadline:
                         coverage.stop_reason = "time_limit"
@@ -156,10 +162,21 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                         observed = await page.evaluate(OBSERVE)
                     result.snapshot.title = result.snapshot.title or observed["title"]
                     fp = fingerprint(observed)
-                    if fp in previous:
+                    if participate:
+                        # A generic follow-up may recur after different concepts.
+                        # Count rendered transitions, never synthetic capture IDs.
+                        transition = (last_fp, fp)
+                        if last_fp is not None:
+                            transitions[transition] += 1
+                        if fp == last_fp or transitions[transition] > MAX_TRANSITION_VISITS:
+                            coverage.stop_reason = "loop"
+                            coverage.warnings.append("Repeated rendered transition exceeded the bounded visit limit; later pages were not read.")
+                            break
+                    elif fp in previous:
                         coverage.stop_reason = "loop"
                         break
                     previous.add(fp)
+                    last_fp = fp
                     await capture(page, observed)
                     if transport.definition is not None:
                         coverage.stop_reason = "definition_captured"
