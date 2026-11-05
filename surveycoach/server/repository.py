@@ -21,6 +21,7 @@ from surveycoach.recommendations import guard_recommendation
 from surveycoach.snapshot import SurveySnapshot, SurveyType
 from surveycoach.server.rounds import (canonical_source_url, change_sheet, compare_rounds,
                                        presentation, project_review, valid_decisions)
+from surveycoach.server.version_delta import build_version_delta
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -288,6 +289,7 @@ class Repository:
         data["carried_decisions"] = data["carried"]
         data = enrich(data, rubric)
         data["change_sheet"] = change_sheet(data)
+        data["version_delta"] = build_version_delta(data["round_changes"], version)
         return data
 
     @staticmethod
