@@ -43,9 +43,12 @@ of actual received bytes. Imported local `asset_path` values are rejected.
 - `GET /api/surveys/{id}/versions/{version}/decisions`: `{decisions: {...}}`,
   keyed by finding fingerprint.
 - `PUT /api/surveys/{id}/versions/{version}/decisions/{fingerprint}`:
-  `{action,picked_text?,reason?,manual_done?}`. Actions: `pick` (requires nonblank
-  picked_text from the saved finding's options), `original`, `keep` (requires nonblank reason), `open`. Non-pick
-  actions clear picked_text. Returns the saved object plus `fingerprint` and
+  `{action,picked_text?,reason?,keep_reason?,manual_done?}`. Actions: `pick` (requires nonblank
+  picked_text from the saved finding's options), `done` (author says they fixed it in RedJade; unverified, never
+  carried into the next version), `original` (older "mark done", counts as `done`), `keep` (requires a
+  `keep_reason` chip: `intentional | owner_decided | not_applicable | other`, or a nonblank `reason`; a note next to
+  a chip is at most 200 characters), `open`. Non-pick actions clear picked_text. Every save is also appended to
+  the `decision_events` history. Details and example payloads: `.superpowers/sdd/impl-2a-decisions.md`. Returns the saved object plus `fingerprint` and
   server-derived `original`. `manual_done` defaults false. These decisions are
   version-scoped; they never mutate snapshots or automatically improve scores.
 - `GET /api/surveys/{id}/versions/{version}/summary`: escaped HTML packet with
