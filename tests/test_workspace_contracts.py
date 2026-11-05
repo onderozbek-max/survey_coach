@@ -91,7 +91,9 @@ def test_unknown_and_portrait_media_are_not_fabricated_as_landscape(browser, stu
     }''')
     text = page.locator('#image-test').inner_text()
     assert 'Portrait' in text and 'Orientation unknown' in text
-    assert 'Image failed to load' in text
+    assert 'Reader could not verify image loading' in text
+    assert 'If it also fails there' in text
+    assert 'If it loads slowly' in text
     assert 'Landscape' not in text
     assert '1 / 1' not in page.locator('#image-test .media').last.get_attribute('style')
     page.close()
