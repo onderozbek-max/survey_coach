@@ -113,3 +113,14 @@ def test_fix_flow_cards_tray_drawers_and_end_states_use_plain_words(browser, flo
     assert flow_offenders(page) == []
     assert not errors
     context.close()
+
+
+@pytest.mark.parametrize('width', [1280, 390])
+@pytest.mark.parametrize('ready, signed', [(True, False), (False, False), (False, True)], ids=['ready', 'not-ready', 'signed'])
+def test_sign_off_states_use_plain_words(browser, base_url, ready, signed, width):
+    """3C: the Sign off step in every default state (card, Slack post, form, record), not just the demo data."""
+    from tests.signoff_helpers import earlier, open_signoff
+    context, page, detail, posts, errors = open_signoff(browser, base_url, ready=ready, signed=signed, width=width, history=[earlier()])
+    assert offenders(page) == []
+    assert not errors
+    context.close()
