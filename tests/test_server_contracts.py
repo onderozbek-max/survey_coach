@@ -135,13 +135,10 @@ def test_pending_save_locks_decisions_until_committed_and_survives_reload(browse
         page.get_by_role("button", name="Check survey").click()
         page.wait_for_url("**/review.html?**", timeout=30000)
         go_to(page, 'improve')
-        from tests.test_workspace_decisions import focus_finding, keep_mine
+        from tests.test_workspace_decisions import finding_with, focus_finding, handled_line, keep_mine
         # Empty Must-fix is valid; readiness must not depend on an active card.
         page.wait_for_function('SC.reviewReady === true')
-        finding = page.evaluate("""() => SC.workspaceDetail.review.findings.find(f =>
-          !f.absorbed_by && SC.choicesOf(f).length &&
-          ['must_fix','quick_wins','more'].some(t => SC.workspaceDetail.plan[t].some(
-            item => item.fingerprints.includes(f.fingerprint))))""")
+        finding = finding_with(page, True)
         assert finding, 'Fixture must contain a persisted, actionable recommendation'
         focus_finding(page, finding)
         held, requests = [], []
@@ -153,37 +150,39 @@ def test_pending_save_locks_decisions_until_committed_and_survives_reload(browse
             else:
                 route.continue_()
 
+        locked = '#coach .fix-handled button, #coach .decision-actions button'
         page.route("**/decisions/*", delay_first)
         page.locator('#coach .use-change').first.click()
-        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_disabled()
+        assert page.locator(locked).evaluate_all('bs => bs.length > 0 && bs.every(b => b.disabled)')
         assert len(held) == 1
         picked = requests[0]['picked_text']
         # A redraw and a chapter round-trip must not recreate enabled controls.
         for chapter in ('overview', 'improve'):
             page.locator(f'#chapter-nav [data-chapter={chapter}]').click()
         focus_finding(page, finding)
-        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_disabled()
-        for control in page.locator('#coach .use-change').all():
-            expect(control).to_be_disabled()
+        assert page.locator(locked).evaluate_all('bs => bs.length > 0 && bs.every(b => b.disabled)')
         assert len(requests) == 1, 'Locked UI must not emit a competing decision'
         response = held[0].fetch()
         assert response.status == 200
         held[0].fulfill(response=response)
+        page.locator('#toast').wait_for()                                 # the save finished (and may move the user on)
         focus_finding(page, finding)
-        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_enabled()
+        expect(page.locator('#undo-decision')).to_be_enabled()          # committed: the lock is released
         page.reload()
         page.locator('#stage .phone-screen').wait_for()
         focus_finding(page, finding)
         saved = page.evaluate('fp => SC.workspaceDetail.decisions[fp]', finding['fingerprint'])
         assert saved['action'] == 'pick' and saved['picked_text'] == picked
-        expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_enabled()
+        assert 'Added to My changes' in handled_line(page)
+        # Changing your mind is Undo, then Keep as is: the saved pick is replaced, never duplicated.
+        page.locator('#undo-decision').click()
+        page.get_by_role('button', name='Keep as is…', exact=True).wait_for()
         keep_mine(page, 'Required wording')
-        assert len(requests) == 2
+        assert [r['action'] for r in requests] == ['pick', 'open', 'keep']
         page.reload()
         page.locator('#stage .phone-screen').wait_for()
         focus_finding(page, finding)
-        assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
-        assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
-        assert page.locator('#copy-all').is_disabled()
+        assert 'Kept as is' in handled_line(page) and 'Required wording' in handled_line(page)
+        assert page.locator('#tray-toggle').inner_text().startswith('My changes (0)')
     finally:
         context.close()

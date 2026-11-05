@@ -1,4 +1,6 @@
-"""Persisted contextual decisions, including reordered requests against the real API."""
+"""Persisted contextual decisions, including reordered requests against the real API (fix flow: 2B selectors)."""
+import re
+
 from playwright.sync_api import expect
 
 from tests.test_site_e2e import browser
@@ -18,45 +20,55 @@ def open_sample(browser, studio):
 
 
 def focus_finding(page, finding):
+    """Open the card that holds this finding (a grouped card holds several; its Details list every member)."""
     page.evaluate("fingerprint => dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:fingerprint}))", finding['fingerprint'])
-    assert page.locator('#coach h3.headline').inner_text() == finding['headline']
+    page.locator(f'#coach .fix-card [data-fingerprint="{finding["fingerprint"]}"]').wait_for(state='attached')
 
 
 def finding_with(page, rewrite):
-    # Workflow exposes detail before the dynamically loaded app registers navigation.
+    """A finding whose card pastes a rewrite (rewrite=True) or only gives steps (False); never part of a group."""
     page.locator('#coach h3.headline').wait_for()
-    findings = page.evaluate('SC.workspaceDetail.review.findings')
-    return next(f for f in findings if bool(f.get('suggested_text') or f.get('options')) == rewrite)
+    return page.evaluate("""rewrite => {
+      const d = SC.workspaceDetail, kind = rewrite ? 'paste' : 'steps';
+      const entry = d.queue.items.find(e => e.action_kind === kind && e.fingerprints.length === 1);
+      return entry && d.review.findings.find(f => f.fingerprint === entry.fingerprints[0]);
+    }""", rewrite)
 
 
 def keep_mine(page, reason):
-    page.get_by_role('button', name='Keep as is', exact=True).click()
-    page.get_by_role('button', name='Other…', exact=True).click()
-    page.get_by_label('Reason for keeping', exact=False).fill(reason)
-    page.get_by_role('button', name='Save reason').click()
+    page.get_by_role('button', name='Keep as is…', exact=True).click()
+    page.get_by_role('button', name='Other', exact=True).click()
+    page.locator('#keep-note').fill(reason)
+    page.locator('#keep-save').click()
     page.locator('#toast').wait_for()
+
+
+def handled_line(page):
+    return page.locator('#coach .handled-line').inner_text()
 
 
 def test_action_only_keeps_reason_without_claiming_verification(browser, studio):
     context, page = open_sample(browser, studio)
     finding = finding_with(page, False)
+    assert finding, 'the sample must hold a steps-only item'
     focus_finding(page, finding)
     assert page.locator('#coach .use-change').count() == 0
     reason = 'Intentional research stimulus; keep full image.'
     keep_mine(page, reason)
     focus_finding(page, finding)
-    assert 'not a verified fix' in page.locator('.accepted-risk').inner_text()
+    assert 'Kept as is' in handled_line(page) and reason in handled_line(page)
+    assert not re.search(r'verified|fixed|checked', handled_line(page), re.I)       # keeping is never claimed as a fix
     page.reload()
     page.locator('#stage .phone-screen').wait_for()
     focus_finding(page, finding)
-    assert page.get_by_label('Reason for keeping', exact=False).input_value() == reason
-    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
+    assert 'Kept as is' in handled_line(page) and reason in handled_line(page)       # the reason survives a reload
     context.close()
 
 
 def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studio):
     context, page = open_sample(browser, studio)
     finding = finding_with(page, True)
+    assert finding, 'the sample must hold a single pasteable item'
     focus_finding(page, finding)
     pending = []
 
@@ -73,16 +85,18 @@ def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studi
     # UI serialization survives navigation. Retain the API revision-race guard
     # by delivering a newer authoritative decision outside the locked panel.
     focus_finding(page, finding)
-    assert page.get_by_role('button', name='Keep as is', exact=True).is_disabled()
+    assert page.locator('#coach .fix-handled button, #coach .decision-actions button').evaluate_all('bs => bs.length > 0 && bs.every(b => b.disabled)')      # locked while the save is out
     page.evaluate("""async fp => {
       SC.decisionRevisions.set(fp, 2);
       const d = SC.workspaceDetail;
       const response = await fetch(`/api/surveys/${d.id}/versions/${d.version}/decisions/${fp}`, {
         method:'PUT', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'keep', reason:'Required wording', revision:2, client_id:SC.decisionClient})});
+        body:JSON.stringify({action:'keep', keep_reason:'other', reason:'Required wording', revision:2, client_id:SC.decisionClient})});
       if (!response.ok) throw Error('Newer decision failed');
-      d.decisions[fp] = await response.json();
-      dispatchEvent(new CustomEvent('surveycoach-decisions', {detail:d}));
+      await response.json();
+      // Like the app after any save: refetch, so the queue reflects the server's decisions.
+      const fresh = await (await fetch(`/api/surveys/${d.id}/versions/${d.version}`)).json();
+      dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail:fresh}));
     }""", finding['fingerprint'])
     older = pending[0].request.post_data_json
     assert older['revision'] == 1 and older['action'] == 'pick'
@@ -96,15 +110,15 @@ def test_delayed_use_cannot_overwrite_newer_keep_after_navigation(browser, studi
     assert authoritative['client_id'] == older['client_id']
     assert authoritative['reason'] == 'Required wording'
     pending[0].fulfill(response=response)
+    page.wait_for_function("document.querySelector('#coach .issue-save-status')?.textContent !== 'Saving…'")
     focus_finding(page, finding)
-    expect(page.get_by_role('button', name='Keep as is', exact=True)).to_be_enabled()
-    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
-    assert page.locator('#coach .use-change').first.is_enabled()
-    assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
+    expect(page.locator('#coach .handled-line')).to_contain_text('Required wording')
+    assert 'Kept as is' in handled_line(page)
+    assert page.locator('#coach .use-change').count() == 0           # the late pick did not reopen or replace the keep
+    assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'      # Add never copies
     page.reload()
     page.locator('#stage .phone-screen').wait_for()
     focus_finding(page, finding)
-    assert page.get_by_label('Reason for keeping', exact=False).input_value() == 'Required wording'
-    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
-    assert page.locator('#copy-all').is_disabled()
+    assert 'Required wording' in handled_line(page)
+    assert page.locator('#tray-toggle').inner_text().startswith('My changes (0)')       # the stale pick never reached the tray
     context.close()

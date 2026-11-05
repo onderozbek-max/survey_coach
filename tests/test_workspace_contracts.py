@@ -38,7 +38,8 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     page.wait_for_url('**/review.html?**')
     go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
-    assert page.get_by_role('tab').count() == 3
+    assert page.get_by_role('tab').count() == 0           # 2B: one ordered fix list, no three-tab flow
+    assert page.locator('#fix-queue .fix-row').count() > 0
     summary = page.locator('#all-screens')
     summary.focus()
     page.keyboard.press('Enter')

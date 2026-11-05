@@ -12,7 +12,8 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
     assert page.locator('link[href="design-system.css"]').count() == 1
-    assert page.get_by_role('tab').count() == 3
+    assert page.get_by_role('tab').count() == 0           # 2B: one ordered fix list, no three-tab flow
+    assert page.locator('#fix-queue .fix-row').count() > 0
     page.locator('#all-screens').click()
     page.locator('.screen-row').first.click()
     assert page.locator('#coach .card').count() == 1
