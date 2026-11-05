@@ -148,7 +148,7 @@ def enrich(data: dict, rubric) -> dict:
         survey_type, source = display_type(data)
         data["overview"] = build_overview(
             snapshot, data["review"], decisions, data["screens"], data["plan"], rubric,
-            survey_type=survey_type, type_source=source)
+            survey_type=survey_type, type_source=source, coverage=data.get("coverage"))
         data["methodology"]["not_checked_automatically"] = data["overview"].pop("not_checked_automatically")
     data["presentation"] = presentation(data)
     return data

@@ -195,7 +195,8 @@ def _signal(sid: str, name: str, ids: set, ctx: dict) -> dict:
 
 def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
                    screens: list, plan: dict, rubric: Rubric, *,
-                   survey_type: str | None = None, type_source: str = "default") -> dict:
+                   survey_type: str | None = None, type_source: str = "default",
+                   coverage: dict | None = None) -> dict:
     """Project signals, one item list, the verdict and a per-screen energy map, without changing inputs.
 
     `survey_type` is the confirmed or detected type whose length target applies (default: the
@@ -208,7 +209,8 @@ def build_overview(snapshot: SurveySnapshot, review: dict, decisions: dict,
     all_findings = review.get("findings", [])
     findings = [f for f in all_findings if not f.get("absorbed_by")]
     targets = rubric.length_targets_minutes[survey_type]
-    extras = extra_items(snapshot, screens, timing, targets[1], TYPE_PHRASES[survey_type], survey_type, findings)
+    extras = extra_items(snapshot, screens, timing, targets[1], TYPE_PHRASES[survey_type], survey_type, findings,
+                         coverage)
     plan = plan if "must_fix" in plan else solo_plan(findings)
     items = build_items(findings, plan, decisions, extras, screens, SIGNAL_OF)
     time = time_info(snapshot, timing, targets, survey_type, type_source)

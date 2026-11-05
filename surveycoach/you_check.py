@@ -29,6 +29,7 @@ THEMES = {
     "required": ("Required questions", "Key questions are required", "honest", ("2.4", "8.6")),
     "other_text": ("Other answers", "Other answers show a text box", "honest", ("4.1",)),
     "timed_run": ("Timing", "One timed run-through", "time", ("2.1", "B5")),
+    "branch_paths": ("Other paths", "Check the other paths", "energy", ()),
 }
 _ASSUMES = re.compile(
     r"\b(?:you (?:said|answered|selected|chose|picked|mentioned|indicated|rated|told us)"
@@ -46,6 +47,7 @@ class _Context:
     target_high: float
     label: dict          # question id -> Q label
     screen: dict         # page id -> screen number
+    coverage: dict | None = None   # what the reader walked (detail["coverage"]); None when nothing was walked
 
     def names(self, labels: list[str]) -> str:
         shown = labels[:MAX_NAMES]
@@ -156,7 +158,33 @@ def _timed_run(ctx: _Context):
     return _found("timed_run", [], [], f"Time one run-through on your phone. Does it take {ask}?", reason)
 
 
-_DETECTORS = (_images, _display_logic, _randomization, _required, _other_text, _timed_run)
+def _branch_paths(ctx: _Context):
+    """The reader walks one route. Unless every path was walked, a survey with a walked route or with branching
+    the snapshot can see needs a human look at the other routes. A linear survey nobody walked has no
+    "other" route to claim, and a fully walked one has none left."""
+    if ctx.coverage and ctx.coverage.get("full_branching_coverage"):
+        return None
+    pages = [p for p in ctx.snapshot.pages if p.kind == "screen_out"]
+    hits = [(p, q) for p, q in ctx.asked() if q.conditional]
+    if not (ctx.coverage or pages or hits):
+        return None
+    named = []
+    if hits:
+        labels = [ctx.label[q.id] for _, q in hits]
+        named.append(f"{ctx.names(labels)} ({ctx.screens_text([p.id for p, _ in hits])})")
+    if pages:
+        named.append(f"the screen-out screen (screen {ctx.screen[pages[0].id]})" if len(pages) == 1 else
+                     f"the screen-out screens ({ctx.screens_text([p.id for p in pages])})")
+    reach = f" to reach {' and '.join(named)}" if named else ""
+    ask = "do those screens look right?" if named else "do you reach any screen we didn't show?"
+    return _found("branch_paths", [p.id for p, _ in hits] + [p.id for p in pages], [q.id for _, q in hits],
+                  f"We checked one route. Run it again on your phone and pick different answers{reach}: {ask}",
+                  "walked" if ctx.coverage else "branching")
+
+
+# Detection order is priority order: when more than MAX_ITEMS apply, the later ones are dropped, so the branch
+# check (which holds back sign-off) is raised first. Items are shown in THEMES order.
+_DETECTORS = (_branch_paths, _images, _display_logic, _randomization, _required, _other_text, _timed_run)
 
 
 def _finish(found: dict, ctx: _Context) -> dict:
@@ -173,10 +201,10 @@ def _finish(found: dict, ctx: _Context) -> dict:
 
 
 def build_you_checks(snapshot: SurveySnapshot, screens: list[dict], timing: Timing,
-                     target_high: float) -> list[dict]:
+                     target_high: float, coverage: dict | None = None) -> list[dict]:
     """Curated items for this survey, in fixed theme order. Pure: no I/O, snapshot untouched."""
     ctx = _Context(snapshot, timing, target_high,
                    label={q["id"]: q["label"] for s in screens for q in s["questions"]},
-                   screen={s["page_id"]: s["screen"] for s in screens})
-    found = (detect(ctx) for detect in _DETECTORS)
-    return [_finish(item, ctx) for item in found if item][:MAX_ITEMS]
+                   screen={s["page_id"]: s["screen"] for s in screens}, coverage=coverage)
+    found = [item for item in (detect(ctx) for detect in _DETECTORS) if item][:MAX_ITEMS]
+    return [_finish(item, ctx) for item in sorted(found, key=lambda item: list(THEMES).index(item["id"]))]

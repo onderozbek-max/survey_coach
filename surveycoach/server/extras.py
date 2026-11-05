@@ -36,4 +36,4 @@ def extras_for(data: dict, rubric: Rubric | None = None) -> list[dict]:
     snapshot = SurveySnapshot.model_validate(dict(data["snapshot"], survey_type=survey_type))
     return extra_items(snapshot, screen_labels(snapshot), estimate(snapshot),
                        rubric.length_targets_minutes[survey_type][1], TYPE_PHRASES[survey_type],
-                       survey_type, review.get("findings", []))
+                       survey_type, review.get("findings", []), data.get("coverage"))

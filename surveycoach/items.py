@@ -34,13 +34,13 @@ def duration_extra(minutes: float, target_high: float, phrase: str, survey_type:
 
 
 def extra_items(snapshot, screens: list, timing, target_high: float, phrase: str, survey_type: str,
-                findings: list) -> list[dict]:
+                findings: list, coverage: dict | None = None) -> list[dict]:
     """Finding-like items that are not findings, each decidable through the ordinary decisions API.
 
     The curated images check stands down when a finding already asks about those images.
     """
     findings = [f for f in findings if not f.get("absorbed_by")]   # only what the user can see explains anything
-    checks = build_you_checks(snapshot, screens, timing, target_high)
+    checks = build_you_checks(snapshot, screens, timing, target_high, coverage)
     if any(f.get("criterion_id") == "B7" and finding_state(f) == YOU_CHECK for f in findings):
         checks = [c for c in checks if c["id"] != "images"]
     extras = [dict(c, kind="you_check", state=YOU_CHECK) for c in checks]
