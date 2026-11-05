@@ -4,7 +4,8 @@
   const { h } = SC;
   const SCALE_CRITERIA = ["4.4", "6.3"];
 
-  const fixedText = (text, ctx) => (ctx.plan ? SC.applyFixes(text, ctx.plan, null, { page_id: ctx.pageId, question_id: ctx.questionId }) : text);
+  /** `field` is the address SC.fixField gave the fix (stem, help, option:N, scale, page): a rewrite lands only there. */
+  const fixedText = (text, ctx, field) => (ctx.plan ? SC.applyFixes(text, ctx.plan, null, { page_id: ctx.pageId, question_id: ctx.questionId, field }) : text);
   const scalePoints = (scale) => Array.from({ length: scale.points }, (_, i) => (scale.points === 11 ? i : i + 1));
   const dimensions = (m) => m.rendered_w > 0 && m.rendered_h > 0
     ? [m.rendered_w, m.rendered_h] : [m.natural_w, m.natural_h];
@@ -72,7 +73,7 @@
     q.options.forEach((o, i) => {
       if (hidden && i === q.options.length - hidden) items.push(h("li", { class: "fold" }, "Below the fold on a phone"));
       items.push(h("li", null, flaggedBlock([
-        o.media ? mediaBox(o.media, mine, ctx) : null, h("span", null, fixedText(o.label, ctx)),
+        o.media ? mediaBox(o.media, mine, ctx) : null, h("span", null, fixedText(o.label, ctx, `option:${i}`)),
       ], by.option.filter((e) => e.f.highlight === o.label), ctx)));
     });
     items.push(...suggestedAnswers(mine, ctx));
@@ -91,7 +92,7 @@
   }
 
   function scaleEnds(scale, ctx) {
-    const [low, high] = fixedText(`${scale.low_label || "(no label)"}${SC.SPLIT}${scale.high_label || "(no label)"}`, ctx).split(SC.SPLIT);
+    const [low, high] = fixedText(`${scale.low_label || "(no label)"}${SC.SPLIT}${scale.high_label || "(no label)"}`, ctx, 'scale').split(SC.SPLIT);
     return h("div", { class: "ends" }, h("span", null, low), h("span", null, high));
   }
 
@@ -126,8 +127,8 @@
     const selected = mine.some((e) => e.key === ctx.selected);
     return h("div", { class: `q${mine.length ? " flagged" : ""}${selected ? " selected" : ""}` },
       q.media.map((m) => mediaBox(m, mine, ctx)),
-      flaggedBlock(h("p", { class: "q-text" }, marked(fixedText(q.text, ctx), by.text, ctx)), [...by.text, ...by.scale], ctx),
-      q.help_text && h("p", { class: "help" }, fixedText(q.help_text, ctx)),
+      flaggedBlock(h("p", { class: "q-text" }, marked(fixedText(q.text, ctx, 'stem'), by.text, ctx)), [...by.text, ...by.scale], ctx),
+      q.help_text && h("p", { class: "help" }, fixedText(q.help_text, ctx, 'help')),
       questionBody(q, by, mine, ctx),
       q.required === false && h("p", { class: "help" }, "Optional"));
   }
@@ -147,19 +148,21 @@
         h('p', null, 'The earlier reader captured an upload or answer-validation error here. This is not evidence of the next survey screen. Run a fresh review to retry with the updated reader; later screens remain unverified.'));
     }
     if (page.kind === "intro") {
-      return [h("h3", null, "Welcome"), flaggedBlock(h("p", { class: "intro" }, marked(fixedText(SC.cleanCopy(page.intro_text || page.text), ctx), own, ctx)), own, ctx), h("div", { class: "next" }, "Start")];
+      return [h("h3", null, "Welcome"), flaggedBlock(h("p", { class: "intro" }, marked(fixedText(SC.cleanCopy(page.intro_text || page.text), ctx, 'page'), own, ctx)), own, ctx), h("div", { class: "next" }, "Start")];
     }
     if (page.kind !== "question") return [flaggedBlock(h("div", { class: "survey-copy" },
-      h('p', null, marked(fixedText(SC.cleanCopy(page.text || page.intro_text), ctx), own, ctx))), own, ctx),
+      h('p', null, marked(fixedText(SC.cleanCopy(page.text || page.intro_text), ctx, 'page'), own, ctx))), own, ctx),
       page.kind === 'info' && h('div', {class:'next'}, 'Next')];
 
     return [page.questions.map((q) => renderQuestion(q, entries, ctx)), pageNotes(own, ctx), h("div", { class: "next" }, "Next")];
   }
 
-  SC.renderPhone = (item, ctx) =>
-    h("div", { class: "phone-wrap" },
+  SC.renderPhone = (item, ctx) => {
+    ctx = ctx.plan ? { ...ctx, plan: SC.scopeFixes(ctx.plan, item.page) } : ctx;   // each rewrite gets its one field on this page
+    return h("div", { class: "phone-wrap" },
       h("div", { class: `phone${ctx.large ? " large" : ""}`, style: `--w:${ctx.device}px` },
         h("div", { class: "phone-bar" }, `${item.name} · Screen ${item.index + 1} of ${ctx.total}`),
         h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" },
           (item.page.media || []).map((m) => mediaBox(m, item.entries, ctx)), renderPage(item, ctx))));
+  };
 })();

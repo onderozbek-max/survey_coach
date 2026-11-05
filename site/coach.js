@@ -13,11 +13,22 @@
     const label = question?.label || screen.name;
     return `${label} · Screen ${screen.screen}${topic ? ` · ${topic}` : ''}`;
   };
+  const suggestionText = (entry, values) => SC.choicesOf(entry.f).find(c => c.value === values.get(entry.key))?.text;
+  /** "Use all N" counts only findings that really have a suggestion, hides below two, and says why it is disabled. */
+  const useAll = (applicable, missing, act, values, ctx) => {
+    if (applicable.length < 2) return null;
+    const chosen = applicable.every(e => ctx.decisionOf(e.key)?.action === 'pick' && ctx.decisionOf(e.key).picked_text === suggestionText(e, values));
+    const note = chosen ? `All ${applicable.length} suggestions are already chosen.`
+      : missing ? `${SC.plural(missing, 'finding')} here ${missing === 1 ? 'has' : 'have'} no suggested wording and stays open for you to decide.` : null;
+    return [h('button', {type:'button', id:'use-all', class:'btn btn-primary', disabled:chosen, 'aria-describedby':note ? 'use-all-note' : null,
+      onclick:() => act(applicable, e => values.get(e.key), '', applicable.map(e => suggestionText(e, values)).join('\n\n'))},
+      `Use all ${SC.plural(applicable.length, 'suggestion')}`), note && h('p', {id:'use-all-note', class:'meta'}, note)];
+  };
   SC.renderImproveItem = (item, ctx) => {
-    const pattern = item.count > 1, act = SC.improveActions(ctx), values = new Map();
+    const pattern = item.count > 1, act = SC.improveActions({...ctx, originId:item.id}), values = new Map();
     const rows = ctx.entries.map(entry => {
       const {f, key} = entry, saved = ctx.decisionOf(key), choices = SC.choicesOf(f), adding = f.edit_kind === 'add_answer';
-      let choice = choices.find(c => c.text === saved?.picked_text) || choices[0];
+      let choice = choices.find(c => c.value === ctx.draftOf(f)) || choices.find(c => c.text === saved?.picked_text) || choices[0];
       values.set(key, choice?.value);
       const suggested = h('div', {class:'suggested'});
       const renderSuggestion = () => SC.mount(suggested,
@@ -51,9 +62,10 @@
             if (ctx.operation.busy) return;
             choice = c; values.set(key,c.value); renderSuggestion();
             event.currentTarget.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === event.currentTarget)));
+            ctx.onDraft(key, c.value);       // the phone and comparison follow the same pick
           }},c.label || ['Recommended','Shorter','Friendlier'][index] || `Alternative ${index + 1}`))),
-        f.also_affects?.length && h('div', {class:'also-affects'}, h('strong', null, 'Also affects'),
-          h('ul', null, f.also_affects.map(fp => h('li', null, ctx.detail.review.findings.find(other => other.fingerprint === fp)?.headline || 'Related finding')))),
+        f.also_affects?.length > 0 ? h('div', {class:'also-affects'}, h('strong', null, 'Also affects'),
+          h('ul', null, f.also_affects.map(fp => h('li', null, ctx.detail.review.findings.find(other => other.fingerprint === fp)?.headline || 'Related finding')))) : null,
         h('details', {class:'more'}, h('summary', null, 'Details'), choice && h('p', null, f.explanation),
           f.current_text && h('div', {class:'issue-original'}, h('strong', null, adding ? 'Keep this question' : 'Original'),
             h('blockquote', null, ctx.originalOf(entry))),
@@ -68,6 +80,7 @@
           }},pattern ? 'Keep' : 'Keep as is')), keepPanel,
         SC.acceptedRisk(f,ctx.detail) && h('p', {class:'accepted-risk'}, `Kept on purpose: ${saved.reason} · accepted risk, not a verified fix.`), output);
     });
+    const applicable = ctx.entries.filter(entry => values.get(entry.key));
     return h('article', {class:'card selected',id:`card-${ctx.entries[0]?.key}`},
       !pattern && h('p', {class:'location'}, SC.improveLocation(ctx.entries[0].f,ctx.detail)),
       h('span', {class:'pill'}, SC.icon(item.tier === 'must_fix' ? 'alert' : 'sparkle'),
@@ -82,8 +95,7 @@
             if (ctx.operation.busy) return;
             ctx.operation.recovery = null; ctx.onAdvance();
           }}, 'Continue without copying')),
-      pattern && h('button', {type:'button',id:'use-all',class:'btn btn-primary',disabled:ctx.entries.some(e => !values.get(e.key)),
-        onclick:() => act(ctx.entries, e => values.get(e.key), '', ctx.entries.map(e => SC.choicesOf(e.f).find(c => c.value === values.get(e.key))?.text).join('\n\n'))}, `Use all ${item.count} suggestions`),
+      useAll(applicable, ctx.entries.length - applicable.length, act, values, ctx),
       h('button', {type:'button',id:'skip',class:'btn-text',onclick:() => { if (!ctx.operation.busy) ctx.onAdvance(); }}, 'Skip for now'));
   };
 })();

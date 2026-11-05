@@ -6,7 +6,7 @@
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') dismissTooltip?.();
   });
-  const close = h('button', {type:'button', class:'btn-secondary', autofocus:true, onclick:() => dialog.close()}, 'Close');
+  const close = h('button', {type:'button', class:'btn btn-secondary', autofocus:true, onclick:() => dialog.close()}, 'Close');
   const heading = h('h2', {id:'quality-dialog-heading'});
   const content = h('div');
   const dialog = h('dialog', {class:'quality-dialog', 'aria-labelledby':'quality-dialog-heading'}, close, heading, content);

@@ -9,19 +9,10 @@
       const key = detail.review.findings.findIndex(f => f.fingerprint === fp);
       return key < 0 ? null : {f:detail.review.findings[key], key};
     }).filter(Boolean);
-    const decided = item => entries(item).every(({f}) => {
-      const d = detail.decisions[f.fingerprint];
-      return d?.action === 'pick' && !d.stale_pick || d?.action === 'original'
-        || d?.action === 'keep' && Boolean(d.reason?.trim());
-    });
-    // Absorbed findings retain their own location, but are handled by the owning item.
-    const related = item => {
-      const roots = new Set(item.fingerprints);
-      for (const {f} of entries(item)) for (const fp of f.also_affects || []) roots.add(fp);
-      return detail.review.findings.filter(f => roots.has(f.fingerprint) || roots.has(f.absorbed_by));
-    };
-    const onPage = (f, pageId) => f.page_id === pageId || Boolean(f.question_id &&
-      detail.screens.find(s => s.page_id === pageId)?.questions?.some(q => q.id === f.question_id));
+    // Done, related findings and page membership are shared with the tabs, toolbar and drawer (progress.js).
+    const decided = item => SC.itemDecided(detail, item);
+    const related = item => SC.itemRelated(detail, item);
+    const onPage = (f, pageId) => SC.findingOnPage(detail, f, pageId);
     const allowed = item => related(item).some(f =>
       (!Object.hasOwn(filter, 'fingerprints') || filter.fingerprints.includes(f.fingerprint)) &&
       (!filter.page_id || onPage(f, filter.page_id)));
@@ -72,16 +63,18 @@
         if (hit) { tab = hit.name; active = hit.item.id; } else active = null;
         redraw();
       },
-      advance() {
+      advance(origin) {
+        // A late save/copy passes the item that started it; anything else may have moved on since.
+        if (origin !== undefined && !api.isActive(origin)) return false;
         const list = items(), index = list.findIndex(item => item.id === active);
         const rest = [...list.slice(index + 1), ...list.slice(0,index)];
         show(rest.find(item => !decided(item)), true);
+        return true;
       },
+      isActive: origin => origin === active && SC.currentChapter() === 'improve',
       renderBar(mode, changeMode, screenId) {
         const nav = h('div', {id:'queue-tabs',role:'tablist','aria-label':'Improvement queue'}, tabs.map(([name,label], i) => {
-          const total = detail.plan[name].length;
-          const position = name === tab ? detail.plan[name].findIndex(item => item.id === active) + 1 : 0;
-          const caption = name === tab && position > 0 ? `${label} ${position}/${total}` : `${label} ${total}`;
+          const progress = SC.progressOf(detail, name);
           return h('button', {type:'button', role:'tab', tabindex:name === tab ? '0' : '-1',
             'aria-selected':String(name === tab), 'aria-controls':'coach', 'data-fk':`queue-${name}`, onclick:() => chooseTab(name),
             onkeydown:event => {
@@ -89,17 +82,16 @@
               if (offset == null) return;
               event.preventDefault(); const next = tabs[(i + offset + 3) % 3][0]; chooseTab(next);
               document.querySelectorAll('#queue-tabs [role=tab]')[(i + offset + 3) % 3]?.focus();
-            }}, caption);
+            }}, label, ' ', h('span', {class:'tab-progress'}, progress.total ? SC.progressText(progress) : 'none'));
         }));
-        const progress = h('p', {id:'queue-progress', class:'meta', 'aria-live':'polite'},
-          `${detail.plan[tab].filter(decided).length} of ${detail.plan[tab].length} handled`);
+        const progress = h('p', {id:'queue-progress', class:'meta', 'aria-live':'polite'}, SC.progressText(SC.progressAll(detail)));
         return [h('div', {class:'queue-navigation'}, nav, progress), SC.renderEnergy(detail, pageId => window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:pageId})), {compact:true,selected:screenId}),
           h('div', {class:'queue-tools'}, h('button', {type:'button',id:'all-screens',onclick:() => SC.openScreens(detail)}, 'All screens'),
             h('div', {class:'seg',role:'group','aria-label':'Preview wording'}, [['current','Original'],['fixes','With changes']].map(([value,label]) =>
               h('button', {type:'button','aria-pressed':String(mode === value),'data-fk':`queue-mode-${value}`,onclick:() => changeMode(value)},label))))];
       },
       render(ctx) {
-        if (api.item) return SC.renderImproveItem(api.item, {...ctx, detail, entries:entries(api.item), onAdvance:api.advance});
+        if (api.item) return SC.renderImproveItem(api.item, {...ctx, detail, entries:entries(api.item), onAdvance:api.advance, isActive:api.isActive});
         const scoped = filter.page_id || Object.hasOwn(filter, 'fingerprints');
         const pageId = filter.page_id || ctx.pageId;
         const pageFindings = detail.review.findings.filter(f => onPage(f, pageId));

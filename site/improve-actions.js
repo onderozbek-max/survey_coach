@@ -1,4 +1,6 @@
-/* Save, then copy. Undo is revision-guarded and never rolls over a newer choice. */
+/* Save, then copy. Undo is revision-guarded and never rolls over a newer choice.
+   A late completion belongs to the queue item that started it (ctx.originId): once the user has moved on, it reports
+   through the toast only and never navigates, writes status text or takes focus. */
 (() => {
   'use strict';
   const SC = window.SC;
@@ -82,8 +84,9 @@
       } finally {
         operation.busy = false;
         ctx.onRender();
+        if (!ctx.isActive(ctx.originId)) return;
         if (finalStatus) status(finalStatus);
-        if (shouldAdvance) ctx.onAdvance();
+        if (shouldAdvance) ctx.onAdvance(ctx.originId);
         else focusRow(entries);
       }
     };

@@ -41,10 +41,11 @@ textarea { color:var(--text); background:var(--surface); border:1px solid var(--
 .app-header nav { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
 .app-header nav a { min-height:44px; display:inline-flex; align-items:center; }
 .pill { border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:7px 14px; color:var(--muted); font-size:13px; }
-.btn,.go { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; border:0; border-radius:var(--r-md); background:var(--surface); color:var(--text); font-weight:700; text-decoration:none; }
+.btn,.go { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; border:0; border-radius:var(--r-md); background:var(--accent-soft); color:var(--accent); font-weight:700; text-decoration:none; }
 .btn { border:1px solid var(--line-strong); }
 .btn-primary,.go { background:var(--accent); color:var(--on-accent); border:0; }
-.btn-secondary { background:var(--surface); border:1px solid var(--line-strong); color:var(--text); }
+/* A tinted fill and accent text keep buttons apart from text inputs, which are white with dark text. */
+.btn-secondary { background:var(--accent-soft); border:1px solid var(--line-strong); color:var(--accent); }
 .btn-text { background:transparent; border:0; color:var(--accent); }
 .btn:hover,.go:hover { text-decoration:underline; }
 .workflow-panel,.fix-card,.card,.survey-card { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); }
@@ -61,6 +62,7 @@ textarea { color:var(--text); background:var(--surface); border:1px solid var(--
 .pill[data-tone=neutral]::before { content:'i'; }
 .chip { display:inline-flex; align-items:center; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:650; }
 [data-tone=error] { border:1px solid var(--critical); background:var(--critical-soft); color:var(--critical); padding:14px; border-radius:12px; }
+[data-tone=notice] { border:1px solid var(--line-strong); padding:14px; border-radius:12px; background:var(--surface-2); }
 [data-tone=progress] { border:1px solid var(--accent); padding:14px; border-radius:12px; background:var(--surface-2); }
 .workspace-shell { max-width:var(--content); margin:auto; padding:12px 24px 48px; }
 .workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; margin:12px 0 20px; }

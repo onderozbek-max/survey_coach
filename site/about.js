@@ -4,7 +4,7 @@
   const SC = window.SC, { $, h, mount, icon } = SC;
   const reviewTrigger = $('about-review');
   const content = h('div', {id:'about-content'});
-  const close = h('button', {type:'button', class:'btn-secondary', autofocus:true}, 'Close');
+  const close = h('button', {type:'button', class:'btn btn-secondary', autofocus:true}, 'Close');
   const reviewDialog = reviewTrigger && h('dialog', {id:'about-review-dialog', class:'about-sheet',
     'aria-labelledby':'about-review-h'}, close, h('h2', {id:'about-review-h'}, 'About this review'), content);
   if (reviewDialog) document.body.append(reviewDialog);

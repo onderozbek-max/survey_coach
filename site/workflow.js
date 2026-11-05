@@ -3,7 +3,7 @@
   "use strict";
   const { h, mount, $, plural } = window.SC;
   const params = new URLSearchParams(location.search), surveyId = params.get("id");
-  let detail, activeRead = false;
+  let detail, activeRead = false, uncertainSubmission = false;   // uncertain: an earlier POST may still be running
   const pendingKey = 'surveycoach-pending-job';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   function storePending(value) {
@@ -17,15 +17,21 @@
       'Session storage is unavailable. This page cannot recover this request after a reload. Keep it open; do not reload and submit again.'));
   }
   function remember(jobId, started) {
+    if (uncertainSubmission) return;      // the unknown marker is never replaced by a guess
     if (!storePending({jobId, started})) storageWarning();
   }
+  // Shown above an existing review that was opened while an earlier request is unconfirmed.
+  const calmNotice = 'Request status unknown. A recent check may still be running, so new checks and edits are paused. You can read this review here. Check My surveys or ask the local pilot owner to confirm.';
   const uncertainMessage = 'Request status unknown. A test response may already exist. Check My surveys or contact the local pilot owner to verify the request. Do not submit again while it may be running. No job reference was received, so this page cannot resume status checks.';
   function showUncertain(outputId) {
     message(outputId, uncertainMessage, 'error');
     window.SC.readConnection?.('Request needs attention.', true);
     window.SC.finishReadProgress?.();
   }
-  function forget() { try { sessionStorage.removeItem(pendingKey); } catch (_) {} }
+  function forget() {
+    if (uncertainSubmission) return;      // nor cleared: only the owner can confirm what happened
+    try { sessionStorage.removeItem(pendingKey); } catch (_) {}
+  }
   function pending() {
     try {
       const saved = JSON.parse(sessionStorage.getItem(pendingKey));
@@ -38,6 +44,7 @@
     forget(); return null;
   }
   function lockRead(locked) {
+    if (!locked && uncertainSubmission) return;   // new submissions stay locked in this tab; reading is never blocked
     activeRead = locked;
     for (const control of document.querySelectorAll('#import-form input, #import-form button[type=submit], #recheck-form input, #recheck-form button[type=submit], #sample-start, #check-again')) {
       if (locked) {
@@ -186,15 +193,11 @@
   function surveyCard(s) {
     const signals = signalNames.map((name, index) => s.signals?.[index]
       || {name, state:'unknown', label:'Not checked yet'});
-    const pending = s.job && ['queued', 'running'].includes(s.job.status);
-    const must = !pending && s.must_fix > 0;
-    const ready = !pending && !must && s.ready_to_share === true;
-    const label = must ? `${s.must_fix} must-fixes` : ready ? 'Ready to share' : 'Checking…';
+    const status = window.SC.surveyStatus(s);
     return h('a', {class:'survey-card', href:`review.html?id=${encodeURIComponent(s.id)}#overview`},
       h('h3', null, s.title?.trim() || 'Untitled survey'),
       window.SC.renderQualityCompact(s.quality),
-      h('span', {class:'chip', 'data-state':must ? 'needs_work' : ready ? 'strong' : 'unknown'},
-        window.SC.icon(must ? 'alert' : ready ? 'check' : 'clock'), label),
+      h('span', {class:'chip', 'data-state':status.state}, window.SC.icon(signalIcons[status.state]), status.label),
       h('div', {class:'signals', role:'img', 'aria-label':signals.map(v => `${v.name}: ${v.label}`).join(', ')},
         signals.map(v => h('span', {class:'signal-dot', 'data-state':v.state, title:`${v.name}: ${v.label}`, 'aria-hidden':'true'},
           window.SC.icon(signalIcons[v.state] || 'clock')))),
@@ -237,7 +240,7 @@
       finally { button.disabled = false; }
     }}, input, h('button', {type:'submit', class:'btn'}, 'Save title'),
       h('button', {type:'button', class:'btn', onclick:() => { form.hidden = true; edit.hidden = false; }}, 'Cancel'));
-    mount($('title-tools'), edit, form, status);
+    mount($('title-tools'), !window.SC.readOnly && edit, form, status);
   }
   window.SC.refreshDetail = async version => {
     const updated = await api(endpoint(version));
@@ -266,7 +269,10 @@
     window.dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail}));
     return detail;
   };
-  async function review() {
+  /** The status line above a review. While a request is unconfirmed it also carries the calm notice. */
+  const reviewStatus = (text, tone = 'info') => message('review-status',
+    uncertainSubmission ? `${calmNotice} ${text}` : text, uncertainSubmission && tone !== 'error' ? 'notice' : tone);
+  async function review(carriedFailure = null) {
     detail = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
     detail.decisions ||= {};
     message('review-title', detail.title);
@@ -275,16 +281,19 @@
       const started = Date.now();
       remember(detail.job.id, started);
       window.SC.beginReadProgress?.(started, 'review-status', true);
+      let failure = carriedFailure;
       try { await waitForJob(detail.job.id, 'review-status'); }
+      catch (error) { failure = error.message; }       // the recheck failed; the previous review is still valid, so load it
       finally { lockRead(false); window.SC.finishReadProgress?.(); }
-      return review();
+      return review(failure);
     }
     if (!detail.review) {
-      message('review-status', detail.job?.error || 'No completed review. Return to My surveys or open Share to start a new check.', 'error');
+      reviewStatus(carriedFailure || detail.job?.error || 'No completed review. Return to My surveys or open Share to start a new check.', 'error');
       return;
     }
-    if (detail.job?.status === 'failed') message('review-status', `${detail.job.error || 'Latest check failed.'} Showing the previous completed review.`, 'error');
-    if (detail.job?.status !== 'failed') message('review-status', `Version ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
+    const failure = carriedFailure || (detail.job?.status === 'failed' ? detail.job.error || 'Latest check failed.' : null);
+    if (failure) reviewStatus(`${failure} Showing the previous completed review.`, 'error');
+    else reviewStatus(`Version ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
     titleEditor(); refreshDecisions();
     $('survey-link').value = window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
     $('check-again').onclick = revealRecheck;
@@ -309,15 +318,22 @@
   if (saved) {
     lockRead(true);
     const outputId = surveyId ? 'review-status' : 'import-status';
-    window.SC.beginReadProgress?.(saved.started, outputId, true);
-    // No correlation guess from survey listings: unknown submissions have no safe job reference.
-    if (!surveyId) home().catch(() => {});
-    if (saved.submissionPending) showUncertain(outputId);
-    else waitForJob(saved.jobId, outputId).then(job => openReview(job)).catch(error => {
-      announce(outputId, error.message, 'error');
-      window.SC.finishReadProgress?.(); lockRead(false);
-      if (surveyId) review().catch(() => {});
-    });
+    if (saved.submissionPending && surveyId) {
+      // Submissions stay locked, but an existing review opens read-only: no job reference is guessed or touched.
+      uncertainSubmission = true;
+      window.SC.readOnly = {reason:'Read-only while an earlier request is unconfirmed.'};
+      review().catch(error => message('review-status', error.message, 'error'));
+    } else {
+      window.SC.beginReadProgress?.(saved.started, outputId, true);
+      // No correlation guess from survey listings: unknown submissions have no safe job reference.
+      if (!surveyId) home().catch(() => {});
+      if (saved.submissionPending) { uncertainSubmission = true; showUncertain(outputId); }
+      else waitForJob(saved.jobId, outputId).then(job => openReview(job)).catch(error => {
+        announce(outputId, error.message, 'error');
+        window.SC.finishReadProgress?.(); lockRead(false);
+        if (surveyId) review(error.message).catch(() => {});
+      });
+    }
   } else {
     (surveyId ? review() : home()).catch(error => message(surveyId ? 'review-status' : 'import-status', error.message, 'error'));
   }

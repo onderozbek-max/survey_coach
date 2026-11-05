@@ -18,11 +18,11 @@
         h('p', null, `${list(changes.fixed).length} no longer flagged · ${list(changes.still).length} still flagged · ${list(changes.new).length} new · ${list(changes.uncertain).length} uncertain`),
         h('p', {class:'note'}, 'No longer flagged is not blanket verification: checks, paths or wording may have changed. Review the evidence below.'),
         [['fixed','No longer flagged'], ['still','Still flagged'], ['new','New this version'], ['uncertain','Not comparable / uncertain']].map(([key,label]) =>
-          list(changes[key]).length && h('details', null, h('summary', null, `${label} (${changes[key].length})`),
+          list(changes[key]).length > 0 ? h('details', null, h('summary', null, `${label} (${changes[key].length})`),
             h('ul', null, changes[key].map(item => h('li', null, describe(item, detail),
               (item.resolution || item.reason) && h('p', null, item.resolution || item.reason),
               (item.old_wording || item.before_text) && h('blockquote', null, `Before: ${item.old_wording || item.before_text}`),
-              (item.new_wording || item.after_text) && h('blockquote', null, `Now: ${item.new_wording || item.after_text}`)))))))
+              (item.new_wording || item.after_text) && h('blockquote', null, `Now: ${item.new_wording || item.after_text}`))))) : null))
         : h('p', {class:'note'}, detail.version > 1 ? 'Detailed version comparison is not available for this review. Nothing is claimed fixed.' : 'First version: choose changes, apply them in RedJade, then choose Check updated survey.')];
   };
   SC.changeSheetText = detail => {

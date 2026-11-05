@@ -48,11 +48,11 @@
         f.edit_kind === 'add_answer' ? h('div', null, h('p', null, `Keep question: ${f.current_text}`),
           h('p', null, 'Add answer option: ', h('ins', null, SC.issueDecision(f, detail).picked_text)))
           : SC.renderDiff(f.current_text, SC.issueDecision(f, detail).picked_text),
-        h('button', {type:'button', class:'btn-secondary', onclick:() => copy(SC.shareChangeText(f, detail), $('action-status'))}, 'Copy change')))))));
+        h('button', {type:'button', class:'btn btn-secondary', onclick:() => copy(SC.shareChangeText(f, detail), $('action-status'))}, 'Copy change')))))));
     if (!changes.length) mount($('change-list'), h('p', null, 'No changes chosen yet. Recommended previews are not included.'));
-    mount($('kept-reasons'), kept.length && h('details', null, h('summary', null, `Kept on purpose (${kept.length})`),
+    mount($('kept-reasons'), kept.length > 0 ? h('details', null, h('summary', null, `Kept on purpose (${kept.length})`),
       h('p', null, 'These are accepted risk, not verified fixes.'), h('ul', null, kept.map(f => h('li', null,
-        `${SC.improveLocation(f, detail)} · ${f.headline}: ${SC.issueDecision(f, detail).reason}`)))));
+        `${SC.improveLocation(f, detail)} · ${f.headline}: ${SC.issueDecision(f, detail).reason}`)))) : null);
     const button = $('copy-all');
     button.textContent = `Copy all changes (${changes.length})`;
     button.disabled = !changes.length; button.hidden = !changes.length;

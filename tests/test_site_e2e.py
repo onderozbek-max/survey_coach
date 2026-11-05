@@ -335,7 +335,7 @@ def test_the_clean_sample_has_no_issues_but_does_not_hide_unchecked_points(brows
     assert 'AI checked 3 of 3 parts' in header    # never an unqualified full ring
     page.locator('#all-screens').click()
     screens = page.locator('#screen-drawer').inner_text()
-    assert '0 findings' in page.locator('#screen-drawer').text_content()            # the AI did run, so 'yet' would be wrong
+    assert 'No items' in page.locator('#screen-drawer').text_content()            # the AI did run, so 'yet' would be wrong
     assert not stray_text(page)
 
 

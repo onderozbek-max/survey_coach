@@ -111,7 +111,8 @@ def test_cards_use_supplied_signals_and_never_infer_readiness(browser, studio):
     page.goto(studio + '/local.html')
     cards = page.locator('a.survey-card')
     cards.first.wait_for()
-    assert cards.locator('.chip').all_text_contents() == ['Checking…', 'Ready to share', 'Checking…', '2 must-fixes']
+    assert cards.locator('.chip').all_text_contents() == [
+        'No blockers found in what we checked', 'Ready to share', 'Not checked yet', '2 must-fixes']
     assert cards.first.locator('h3').inner_text() == 'Untitled survey'
     assert cards.nth(1).locator('h3').inner_text() == '<b>Literal title</b>'
     assert cards.nth(1).locator('b').count() == 0

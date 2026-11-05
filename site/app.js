@@ -49,7 +49,12 @@
   const survey = () => DATA.surveys[state.survey];
   const current = () => model.order[state.screen];
   const pageItem = () => (current().page ? current() : model.items[0]);
-  const choiceOf = (key) => state.choices[`${state.survey}:${survey().review.findings[key]?.fingerprint}`];
+  const draftScope = () => `${survey().id ?? state.survey}:${survey().version}`;
+  /** The one selected alternative: an unsaved draft pick wins over the saved decision, for coach and phone alike. */
+  const choiceOf = (key) => {
+    const f = survey().review.findings[key];
+    return SC.drafts.get(f, draftScope()) ?? state.choices[`${state.survey}:${f?.fingerprint}`];
+  };
   const projectionKey = detail => JSON.stringify([detail.id, detail.version, detail.survey_type,
     detail.review.findings.map(f => [f.fingerprint, SC.choicesOf(f)])]);
   /** The version picked for a finding, or null for "keep my original". Bundles of answer choices are never previewed. */
@@ -117,6 +122,8 @@
         return saveDecision(f.fingerprint, {action:picked ? 'pick' : reason ? 'keep' : 'original',
           picked_text:picked?.text || null, reason:reason || '', manual_done:false}, source.version);
       },
+      draftOf: f => SC.drafts.get(f, draftScope()),
+      onDraft: (key, value) => { SC.drafts.set(survey().review.findings[key], draftScope(), value); redrawStage(); },
       onRestore: (fp, prior, version) => saveDecision(fp, prior || {action:'open'}, version),
       onCopy: copy, operation:improveOperation, onRender:renderAll,
     };
@@ -124,7 +131,7 @@
 
   async function saveDecision(fingerprint, decision, version) {
     const detail = survey(), f = detail.review.findings.find(f => f.fingerprint === fingerprint);
-    if (!f || detail.version !== version) return false;
+    if (!f || detail.version !== version || SC.readOnly) return false;
     const choiceKey = `${state.survey}:${fingerprint}`;
     const priorChoice = state.choices[choiceKey];
     const revision = (decisionRevisions.get(f.fingerprint) || 0) + 1;
@@ -146,6 +153,7 @@
       }
       if (revision !== decisionRevisions.get(f.fingerprint)) return false;
       detail.decisions[f.fingerprint] = saved;
+      SC.drafts.clear(f.fingerprint);       // the saved decision is authoritative again
       if (localDetail && SC.refreshDetail) {
         try { await SC.refreshDetail(detail.version); }
         catch (_) {
@@ -260,6 +268,18 @@
         h("p", null, s.overview?.energy.path_uncertain ? SC.uncertainWalkthrough
           : `Estimated time to this screen: ${clock(seconds)} of ${clock(s.total_seconds)} on the captured path.`),
         !s.overview?.energy.path_uncertain && h("div", { class: "timebar", "aria-hidden": "true" }, h("i", { style: `left:${(seconds / s.total_seconds) * 100}%` }))));
+    const screens = comparing ? [...document.querySelectorAll('.comparison-phones .phone-screen')] : [];
+    for (const screen of screens) screen.addEventListener('scroll', () => {
+      for (const other of screens) if (other !== screen && Math.abs(other.scrollTop - screen.scrollTop) > 2) other.scrollTop = screen.scrollTop;
+    });
+  }
+
+  /** Redraw only the phone (a draft alternative changed), keeping its scroll and the coach's focus. */
+  function redrawStage() {
+    const top = document.querySelector('#stage .phone-screen')?.scrollTop || 0;
+    renderStage();
+    const screen = document.querySelector('#stage .phone-screen');
+    if (screen) screen.scrollTop = top;
   }
 
   /* ---------- boot ---------- */
@@ -285,17 +305,16 @@
     renderTop();
     mount($('improve-bar'), queue.renderBar(state.mode, value => { state.mode = value; renderAll(); }, pageItem().page.id));
     renderStage();
-    if (comparing) {
-      const screens = [...document.querySelectorAll('.comparison-phones .phone-screen')];
-      for (const screen of screens) screen.addEventListener('scroll',()=>{
-        for (const other of screens) if(other!==screen && Math.abs(other.scrollTop-screen.scrollTop)>2) other.scrollTop=screen.scrollTop;
-      });
-    }
     mount($("coach"), queue.render(context()));
     if (improveOperation.busy) {
       document.querySelectorAll('#coach button, #coach textarea').forEach(control => { control.disabled = true; });
       const status = document.querySelector('#coach .issue-save-status');
       if (status) status.textContent = 'Saving…';
+    }
+    if (SC.readOnly) {      // an unconfirmed request: decisions are read-only, previews and reading are not
+      document.querySelectorAll('#coach .decision-actions button, #coach .keep-reason button, #coach #use-all, #coach textarea')
+        .forEach(control => { control.disabled = true; });
+      document.querySelectorAll('#coach .issue-save-status').forEach(note => { note.textContent = SC.readOnly.reason; });
     }
     if (samePage) document.querySelector("#stage .phone-screen").scrollTop = keepTop;
     else document.querySelector('#stage .phone-screen').scrollTop = 0;

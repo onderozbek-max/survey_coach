@@ -31,34 +31,58 @@
     return list.find((c) => c.value === value) || list[0] || null;
   };
 
-  /** Apply the chosen fixes to one string, first fix wins. `hits` collects the fixes that really changed something. */
+  /** Apply the chosen fixes to one string, first fix wins. `hits` collects the fixes that really changed something.
+   * `fix.field` is an address from SC.fixField: a string pins the fix to that one field (stem, help, option:N, scale, page),
+   * null means the target is unclear so it stays manual, and undefined (raw callers) keeps the plain page/question scope. */
   SC.applyFixes = (text, plan, hits, target = {}) => plan.reduce((t, fix) => {
     if (fix.page_id && fix.page_id !== target.page_id) return t;
     if (fix.question_id && fix.question_id !== target.question_id) return t;
+    if (fix.field === null || (fix.field && target.field && fix.field !== target.field)) return t;
     if (!fix.from || !t.includes(fix.from)) return t;
     const changed = t.replace(fix.from, fix.to);
     if (hits && changed !== t) hits.add(fix.key);
     return changed;
   }, text);
 
+  const NO_OPTION_LABELS = ["dropdown", "grid_single", "grid_multi", "text_short", "text_long", "rating", "slider"];
+  const SCALE_ENDS = ["rating", "slider"];
+  const VALIDATION_SCREEN = /^please correct the following errors\s*:/i;
+
+  /** Exactly the replaceable strings the phone shows for a page, in render order (see phone.js). Raw capture text the
+   * phone never displays is not here, so it can neither be "fixed" nor counted as a visible change. */
+  SC.displayedFields = (page) => {
+    if (page.kind !== "question") {
+      const text = SC.cleanCopy(page.kind === "intro" ? page.intro_text || page.text : page.text || page.intro_text);
+      return text ? [{ id: "page", text }] : [];
+    }
+    if (VALIDATION_SCREEN.test((page.text || "").trim())) return [];
+    return (page.questions || []).flatMap((q) => [
+      { id: "stem", question_id: q.id, text: q.text },
+      { id: "help", question_id: q.id, text: q.help_text },
+      ...(NO_OPTION_LABELS.includes(q.kind) ? [] : (q.options || []).map((o, i) => ({ id: `option:${i}`, question_id: q.id, text: o.label }))),
+      ...(q.scale && SCALE_ENDS.includes(q.kind)
+        ? [{ id: "scale", question_id: q.id, text: `${q.scale.low_label || "(no label)"}${SC.SPLIT}${q.scale.high_label || "(no label)"}` }] : []),
+    ]).filter((field) => field.text);
+  };
+
+  /** The one field a fix targets. An exact match beats a partial one; anything not unique (duplicate labels, a word
+   * shared by stem and answers) is null: it stays a manual edit instead of rewriting several places. */
+  SC.fixField = (fix, page) => {
+    if (!fix.from) return null;
+    const mine = SC.displayedFields(page).filter((field) => (field.question_id ?? null) === (fix.question_id ?? null));
+    const exact = mine.filter((field) => field.text === fix.from);
+    const pool = exact.length ? exact : mine.filter((field) => field.text.includes(fix.from));
+    return pool.length === 1 ? pool[0].id : null;
+  };
+  SC.scopeFixes = (plan, page) => plan.map((fix) => (fix.field === undefined ? { ...fix, field: SC.fixField(fix, page) } : fix));
+
   /** Every string the phone shows through the fixer for this page, so "fixed in preview" can be checked, not assumed. */
-  SC.pageTexts = (page) => [SC.cleanCopy(page.intro_text), SC.cleanCopy(page.text), ...(page.questions || []).flatMap((q) => [
-    q.text, q.help_text, ...q.options.map((o) => o.label),
-    q.scale && `${q.scale.low_label || "(no label)"}${SC.SPLIT}${q.scale.high_label || "(no label)"}`]),
-  ].filter(Boolean);
+  SC.pageTexts = (page) => SC.displayedFields(page).map((field) => field.text);
 
   SC.hitsOn = (page, plan) => {
-    const hits = new Set();
-    const target = { page_id: page.id };
-    [page.intro_text, page.text].map(SC.cleanCopy).filter(Boolean).forEach((text) => SC.applyFixes(text, plan, hits, target));
-    (page.questions || []).forEach((q) => {
-      const texts = [q.text, q.help_text];
-      if (!["dropdown", "grid_single", "grid_multi"].includes(q.kind)) {
-        texts.push(...q.options.map((o) => o.label));
-        if (q.scale) texts.push(`${q.scale.low_label || "(no label)"}${SC.SPLIT}${q.scale.high_label || "(no label)"}`);
-      }
-      texts.filter(Boolean).forEach((text) => SC.applyFixes(text, plan, hits, { ...target, question_id: q.id }));
-    });
+    const hits = new Set(), scoped = SC.scopeFixes(plan, page);
+    SC.displayedFields(page).forEach((field) => SC.applyFixes(field.text, scoped, hits,
+      { page_id: page.id, question_id: field.question_id, field: field.id }));
     return hits;
   };
 

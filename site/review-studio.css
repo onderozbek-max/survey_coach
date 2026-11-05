@@ -12,7 +12,8 @@ html { scroll-padding-top:190px; }
 .queue-navigation { min-width:0; }
 #queue-progress { margin:0; font-size:12px; line-height:1; }
 #queue-tabs { display:flex; gap:8px; }
-#queue-tabs button { min-height:44px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted); padding:6px 10px; font-size:14px; white-space:nowrap; }
+#queue-tabs button { display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.25; min-height:44px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted); padding:6px 10px; font-size:14px; white-space:nowrap; }
+#queue-tabs .tab-progress { font-size:12px; font-weight:400; }
 #queue-tabs [aria-selected=true] { border-color:var(--accent); color:var(--accent); font-weight:700; }
 .improve-bar .energy-map { grid-column:2; grid-row:1; min-width:0; margin:0; padding:4px 8px; display:grid; grid-template-columns:minmax(120px,1fr) minmax(0,2fr); gap:0 16px; }
 .improve-bar .energy-bars { grid-row:1 / 4; }

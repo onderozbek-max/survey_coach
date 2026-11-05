@@ -16,7 +16,7 @@ def curated(detail):
 
 def test_queue_saves_copies_advances_and_undo_reopens(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=curated)
-    assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Must-fix 1/3', 'Quick wins 0', 'More ideas 0']
+    assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Must-fix\n0 of 3 done', 'Quick wins\nnone', 'More ideas\nnone']
     assert page.locator('#rail, .journey, #review-toolbar, .next-issue').count() == 0
     assert page.locator('#coach .location').inner_text().split(' · ')[0] == page.locator('#stage .phone-bar').inner_text().split(' · ')[0]
     assert page.locator('#coach .pill').first.inner_text() == 'Must-fix'
@@ -35,7 +35,7 @@ def test_queue_saves_copies_advances_and_undo_reopens(browser, base_url):
     assert page.locator('#coach h3.headline').evaluate('e => e === document.activeElement')
     assert page.locator('#status').inner_text().startswith('Next: ')
     page.locator('#undo').click()
-    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 1/3'")
+    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 0 of 3 done'")
     assert writes[-1]['action'] == 'open' and writes[-1]['revision'] == 2
     assert not errors
     context.close()
@@ -51,7 +51,7 @@ def test_keep_requires_reason_skip_does_not_save_and_drawer_searches_labels(brow
     assert not writes
     page.get_by_label('Reason for keeping', exact=False).fill('Required for comparability')
     page.get_by_role('button', name='Save reason', exact=True).click()
-    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 2/3'")
+    page.wait_for_function("document.querySelector('#queue-tabs [role=tab]').textContent === 'Must-fix 1 of 3 done'")
     assert writes[-1]['reason'] == 'Required for comparability'
     assert page.locator('#coach h3.headline').inner_text() != first
     page.locator('#skip').click()
@@ -142,8 +142,8 @@ def test_stale_alternatives_absorbed_and_completed_section(browser, base_url):
             item['decided'] = True
         detail['plan']['counts']['open_must_fix'] = 1
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 1/3'
-    assert page.locator('#queue-progress').inner_text() == '2 of 3 handled'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix\n2 of 3 done'
+    assert page.locator('#queue-progress').inner_text() == '2 of 3 done'
     assert page.get_by_text('We improved this suggestion since you chose it. Choose again.', exact=True).is_visible()
     assert page.locator('.also-affects').inner_text().endswith(detail['review']['findings'][-1]['headline'])
     assert page.locator('.alternatives button').all_inner_texts() == ['Precise', 'Shorter']

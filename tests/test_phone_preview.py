@@ -21,7 +21,7 @@ def test_clean_copy_fixture_parity_and_read_only_projection():
     for (const [raw, expected] of CASES) assert.equal(SC.cleanCopy(raw), expected);
     const page = {id:'p', kind:'intro', text:'Welcome!\n\nNext', intro_text:'Welcome!\nNext'};
     const before = JSON.stringify(page);
-    assert.deepEqual(SC.pageTexts(page), ['Welcome!', 'Welcome!']);
+    assert.deepEqual(SC.pageTexts(page), ['Welcome!']);   // an intro screen shows one copy (intro_text first)
     const hits = SC.hitsOn(page, [
       {key:1, from:'Next', to:'Not real copy', page_id:'p'},
       {key:2, from:'Welcome!', to:'Hello!', page_id:'p'},

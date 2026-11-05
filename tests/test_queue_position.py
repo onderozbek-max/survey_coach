@@ -1,4 +1,4 @@
-"""Position is navigation, not the number of decisions saved."""
+"""Progress is the number of decisions saved ("N of M done"), never the position of the open item."""
 from tests.test_issue_loop_ui import open_review, focus
 from tests.test_improve_ui import curated
 from tests.test_site_e2e import base_url, browser
@@ -15,38 +15,35 @@ def tiers(detail):
         detail['plan']['counts'][name] = len(selected)
 
 
-def test_position_follows_selected_item_and_tier(browser, base_url):
+def test_progress_counts_saved_decisions_not_the_open_item(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=tiers)
-    selected = page.locator('#queue-tabs [aria-selected=true]')
-    assert selected.inner_text() == 'Must-fix 1/3'
-    assert page.locator('#queue-progress').inner_text() == '0 of 3 handled'
-    for name, label in [('must_fix', 'Must-fix'), ('quick_wins', 'Quick wins'), ('more', 'More ideas')]:
-        items = detail['plan'][name]
-        assert items
-        fp = items[-1]['fingerprints'][0]
-        finding = next(f for f in detail['review']['findings'] if f['fingerprint'] == fp)
-        focus(page, finding)
-        assert selected.inner_text() == f'{label} {len(items)}/{len(items)}'
-        assert page.locator('#coach h3').inner_text() == items[-1]['headline']
-    # A filtered inspection still reports its ordinal in the full tier.
+    tabs = page.locator('#queue-tabs [role=tab]')
+    expected = ['Must-fix\n0 of 3 done', 'Quick wins\n0 of 3 done', 'More ideas\n0 of 2 done']
+    assert tabs.all_inner_texts() == expected
+    assert page.locator('#queue-progress').inner_text() == '0 of 8 done'
+    for name in ('must_fix', 'quick_wins', 'more'):
+        fp = detail['plan'][name][-1]['fingerprints'][0]
+        focus(page, next(f for f in detail['review']['findings'] if f['fingerprint'] == fp))
+        assert tabs.all_inner_texts() == expected
+        assert page.locator('#queue-progress').inner_text() == '0 of 8 done'
+    # A filtered inspection never changes the numbers either.
     third = detail['plan']['must_fix'][-1]
     page.evaluate("o => SC.goChapter('improve', o)", {'fingerprints': third['fingerprints']})
-    assert selected.inner_text() == 'Must-fix 3/3'
+    assert tabs.all_inner_texts() == expected
     page.evaluate("o => SC.goChapter('improve', o)", {'fingerprints': []})
-    assert selected.inner_text() == 'Must-fix 3'
-    assert page.locator('#queue-progress').inner_text() == '0 of 3 handled'
+    assert tabs.all_inner_texts() == expected
     assert not writes and not errors
     context.close()
 
 
-def test_save_advances_position_but_undo_restores_position_and_progress(browser, base_url):
+def test_save_advances_and_undo_restores_progress(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=curated)
     page.locator('#use-change').click()
     page.locator('#undo').wait_for()
-    assert page.locator('#queue-tabs [aria-selected=true]').inner_text() == 'Must-fix 2/3'
-    assert page.locator('#queue-progress').inner_text() == '1 of 3 handled'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix\n1 of 3 done'
+    assert page.locator('#queue-progress').inner_text() == '1 of 3 done'
     page.locator('#undo').click()
-    page.wait_for_function("document.querySelector('#queue-progress').textContent === '0 of 3 handled'")
-    assert page.locator('#queue-tabs [aria-selected=true]').inner_text() == 'Must-fix 1/3'
+    page.wait_for_function("document.querySelector('#queue-progress').textContent === '0 of 3 done'")
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix\n0 of 3 done'
     assert not errors
     context.close()
