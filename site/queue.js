@@ -124,7 +124,7 @@
             h('button', {type:'button', 'aria-pressed':String(mode === 'fixes'), 'data-fk':'queue-mode-fixes', disabled:changes === 0,
               'aria-describedby':changes === 0 ? 'mode-why' : null, title:changes === 0 ? 'Add a change to see it on the phone.' : null,
               onclick:() => changeMode('fixes')}, `With my changes (${changes})`),
-            changes === 0 && h('span', {id:'mode-why', class:'sr-only'}, 'Add a change to see it on the phone.'))];
+            changes === 0 && h('span', {id:'mode-why', class:'seg-hint'}, 'Add a change to see it on the phone.'))];
       },
       /** The filter chips and the ordered rows: shown beside the phone from 1024px, inside the Fix list drawer below. */
       renderList(onPicked = () => {}, onFilter = () => {}) {
