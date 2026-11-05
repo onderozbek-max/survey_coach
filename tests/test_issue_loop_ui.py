@@ -44,10 +44,11 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
 
     def derive():
         """The server rebuilds queue, plan and My changes from the decisions on every read; so does this stand-in.
-        A test's own screen names stay as the test set them."""
-        screens = detail['screens']
+        A test's own screen names and page fields (e.g. an injected stimulus_text, which enrich re-derives from the
+        page's text and media) stay as the test set them."""
+        screens, snapshot = detail['screens'], detail['snapshot']
         detail.update(enrich(detail, rubric))
-        detail['screens'] = screens
+        detail['screens'], detail['snapshot'] = screens, snapshot
     derive()
     writes = []
     errors = []

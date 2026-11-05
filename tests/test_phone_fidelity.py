@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from tests.test_issue_loop_ui import focus, open_review
-from tests.test_site_e2e import base_url, browser, open_screen
+from tests.test_site_e2e import add_change, base_url, browser, open_screen
 
 ROOT = Path(__file__).parent.parent
 IDEA = "Imagine an easy meal at home."
@@ -46,6 +46,16 @@ def stimulus_finding(detail, index=1):
 
 def screen_name(detail, index=1):
     return detail['screens'][index]['name']
+
+
+def preview_my_change(page, detail, finding):
+    """With my changes needs an added change (2B: only added changes are previewed): add it, return to its screen, turn it on."""
+    focus(page, finding)
+    add_change(page)
+    pages = detail['snapshot']['pages']
+    page_id = finding.get('page_id') or next(p['id'] for p in pages for q in p['questions'] if q['id'] == finding['question_id'])
+    open_screen(page, next(s['name'] for s in detail['screens'] if s['page_id'] == page_id))
+    page.locator('[data-fk=queue-mode-fixes]').click()
 
 
 # ---- D1: stimulus --------------------------------------------------------------------------------
@@ -106,14 +116,12 @@ def test_a_rewrite_of_stimulus_wording_lands_only_in_the_stimulus(browser, base_
     context, page, detail, writes, errors = open_review(
         browser, base_url, prepare=lambda d: holder.setdefault('f', stimulus_finding(d)))
     finding = holder['f']
-    open_screen(page, screen_name(detail))
-    focus(page, finding)
-    page.locator('[data-fk=queue-mode-fixes]').click()
+    preview_my_change(page, detail, finding)
     stimulus, stem = page.locator('#stage .stimulus'), page.locator('#stage .q-text').first
     assert 'Picture an easy meal at home.' in stimulus.inner_text()
     assert IDEA not in stimulus.inner_text()
     assert stem.inner_text().startswith(IDEA)           # same sentence in the stem: untouched
-    assert not writes and not errors
+    assert [w['action'] for w in writes] == ['pick'] and not errors      # the one Add to my changes, nothing else
     context.close()
 
 
@@ -167,7 +175,7 @@ def test_optional_never_duplicates_a_visible_vendor_label(browser, base_url):
 
 def long_list(detail):
     question = question_page(detail, 6)['questions'][0]
-    question['options'] = [{'label': f'Answer number {i} with a reasonably long label'} for i in range(1, 11)]
+    question['options'] = [{'id': f'long-{i}', 'label': f'Answer number {i} with a reasonably long label'} for i in range(1, 11)]
     question.update(kind='multi_choice', options_below_fold=0)
 
 
@@ -315,9 +323,7 @@ def test_the_preview_line_counts_your_changes_honestly(browser, base_url):
     holder = {}
     context, page, detail, writes, errors = open_review(
         browser, base_url, prepare=lambda d: holder.setdefault('f', stimulus_finding(d)))
-    open_screen(page, screen_name(detail))
-    focus(page, holder['f'])
-    page.locator('[data-fk=queue-mode-fixes]').click()
+    preview_my_change(page, detail, holder['f'])
     text = page.locator(LINE).inner_text()
     assert text == 'Showing your 1 change. RedJade is only changed when you edit it there.'
     assert not any(word in text.lower() for word in BANNED_IN_LINE)
@@ -335,8 +341,7 @@ def test_a_page_with_only_a_ghost_answer_says_so(browser, base_url, kind):
         holder['f'] = finding
     holder = {}
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    focus(page, holder['f'])
-    page.locator('[data-fk=queue-mode-fixes]').click()
+    preview_my_change(page, detail, holder['f'])
     assert page.locator('li.suggested-option').count() == 1
     text = page.locator(LINE).inner_text()
     assert text == 'Suggested answers must be added in RedJade; shown faded here.'
