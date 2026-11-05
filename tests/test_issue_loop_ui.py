@@ -28,6 +28,12 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
     for group in ('must_fix', 'quick_wins', 'more'):
         for item in detail['plan'][group]:
             item['fingerprints'] = [fingerprints[fp] for fp in item['fingerprints']]
+    overview = detail['overview']       # items and cards point at findings by fingerprint: keep them in step
+    for item in overview['items']:
+        item['fingerprints'] = [fingerprints.get(fp, fp) for fp in item.get('fingerprints', [])]
+    for signal in overview['signals']:
+        if signal.get('navigation'):
+            signal['navigation']['fingerprints'] = [fingerprints.get(fp, fp) for fp in signal['navigation']['fingerprints']]
     detail['round_changes'] = {'fixed': [], 'still': [], 'new': [], 'uncertain': []}
     metadata = page.evaluate('({criteria:SURVEYCOACH_DEMO.criteria, dimensions:SURVEYCOACH_DEMO.dimensions, ai_batches:SURVEYCOACH_DEMO.ai_batches})')
     if prepare:

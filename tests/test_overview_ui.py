@@ -14,16 +14,16 @@ def overview(browser, base_url, **kwargs):
 def test_supplied_overview_signals_strengths_and_energy(browser, base_url):
     context, page, detail, writes, errors = overview(browser, base_url)
     supplied = detail['overview']
-    assert page.locator('#overview-headline').inner_text() == supplied['headline']
+    assert page.locator('#overview-h').inner_text() == supplied['headline']
     assert page.locator('#overview-subline').inner_text() == supplied['subline']
-    assert page.locator('#overview-h').inner_text() == detail['title']
+    assert page.locator('#review-title').inner_text() == detail['title']      # the survey name is the page's H1
     assert page.locator('#signals li[data-signal]').count() == 6
     for signal in supplied['signals']:
         tile = page.locator(f'#signals [data-signal={signal["id"]}]')
         assert tile.locator('.signal-state').inner_text() == signal['label']
         assert tile.locator('.signal-state svg').count() == 1
         assert tile.get_attribute('role') != 'button'
-        assert tile.locator('button.signal-link').count() == int(bool(signal.get('navigation')))
+        assert tile.locator('button.signal-link').count() == int(bool(signal.get('navigation') and signal['navigation']['fingerprints']))
     assert page.locator('#strengths li').all_text_contents() == supplied['strengths'][:3]
     bars = page.locator('#energy-map button.energy-bar')
     assert bars.count() == len(detail['screens'])
@@ -35,7 +35,7 @@ def test_supplied_overview_signals_strengths_and_energy(browser, base_url):
     assert 'estimate' in page.locator('#energy-map .energy-caption').inner_text()
     assert page.locator('#chapter-overview .btn-primary').get_attribute('id') == 'start-improving'
     assert page.locator('#preview-member.btn-secondary').count() == 1
-    assert page.locator('.overview-mini[aria-hidden=true][inert] .phone').count() == 1
+    assert page.locator('.overview-mini, #chapter-overview .phone').count() == 0     # D15: no unreadable tiny phone
     assert page.locator('#chapter-overview').get_by_text('Scope-limited', exact=True).count() == 0
     assert 'checked points' not in page.locator('#chapter-overview').inner_text()
     assert not writes and not errors
@@ -53,8 +53,12 @@ def test_signal_energy_and_plan_routes_select_canonical_screen(browser, base_url
     page.locator('#energy-map .energy-bar').nth(3).click()
     assert detail['screens'][3]['name'] in page.locator('#stage .phone-bar').inner_text()
     go_to(page, 'overview')
-    page.locator('#plan-summary button').nth(1).click()
-    assert page.evaluate('SC.improveFilter.tab') == 'quick_wins'
+    page.locator('#plan-summary button').nth(0).click()
+    assert page.evaluate('SC.improveFilter.tab') == 'must_fix'
+    go_to(page, 'overview')
+    page.locator('#plan-summary button').nth(1).click()      # Improve opens the Fix flow on just those findings
+    assert page.evaluate('SC.improveFilter.fingerprints.length') > 0
+    assert page.locator('#coach .card, #coach [data-fingerprint]').first.is_visible()
     assert not writes and not errors
     context.close()
 
@@ -70,13 +74,15 @@ def test_style_refetches_and_generic_title_uses_patch(browser, base_url):
     requests = []
     page.on('request', lambda r: requests.append((r.method, r.url)))
     page.get_by_label('Community & fun', exact=True).check()
-    page.wait_for_function("document.querySelector('#status').textContent === 'Survey style saved'")
+    page.wait_for_function("document.querySelector('#status').textContent === 'Survey type saved'")
     assert writes == [{'survey_type': 'community_pulse'}]
     assert any(method == 'GET' and '/api/surveys/synthetic' in url for method, url in requests)
-    page.locator('#name-survey').click()
+    assert page.locator('#review-title').inner_text() == 'Untitled survey'      # a generic site title is not a name
+    page.locator('#rename-survey').click()
+    assert page.get_by_role('textbox', name='Survey name', exact=True).input_value() == ''
     page.get_by_role('textbox', name='Survey name', exact=True).fill('Our next idea')
     page.get_by_role('button', name='Save', exact=True).click()
-    page.wait_for_function("document.querySelector('#overview-h').textContent === 'Our next idea'")
+    page.wait_for_function("document.querySelector('#review-title').textContent === 'Our next idea'")
     assert writes[-1] == {'title': 'Our next idea'}
     assert not errors
     context.close()
@@ -86,7 +92,7 @@ def test_style_refetches_and_generic_title_uses_patch(browser, base_url):
 def test_responsive_layout_and_primary_action(browser, base_url, width):
     context, page, detail, writes, errors = overview(browser, base_url, width=width)
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-    assert page.locator('.overview-mini').is_visible() == (width >= 760)
+    assert page.locator('.overview-mini').count() == 0
     if width < 760:
         assert page.locator('.energy-swipe').is_visible()
         assert page.locator('.overview-actions').evaluate("el => getComputedStyle(el).position") == 'fixed'
@@ -143,11 +149,11 @@ def test_high_energy_uses_canonical_name_and_sparse_labels(browser, base_url):
 
 def test_failed_style_patch_keeps_evidence_and_restores_radio(browser, base_url):
     context, page, detail, writes, errors = overview(browser, base_url)
-    original = page.locator('#overview-headline').inner_text()
+    original = page.locator('#overview-h').inner_text()
     page.route('**/api/surveys/synthetic', lambda r: r.fulfill(status=503, json={'detail':'Style unavailable'}))
     page.get_by_label('Product test', exact=True).check()
     page.wait_for_function("document.querySelector('#status').textContent === 'Style unavailable'")
-    assert page.locator('#overview-headline').inner_text() == original
+    assert page.locator('#overview-h').inner_text() == original
     assert not page.get_by_label('Product test', exact=True).is_checked()
     assert not writes and not errors
     context.close()
@@ -178,63 +184,58 @@ def test_dialog_keyboard_trap_close_and_reopen_has_no_duplicate_clock(browser, b
 
 
 @pytest.mark.parametrize('width', [390, 1280])
-def test_long_signal_summary_has_keyboard_details(browser, base_url, width):
-    headline = 'The leading finding remains readable. ' * 40 + 'Final headline words.'
-    location = 'Q8a · Screen 18'
-    summary = f'{location}: {headline}'
-    support = 'Captured evidence: Exact saved words, with no invented conclusion.'
+def test_long_category_lists_fold_behind_a_keyboard_operable_control(browser, base_url, width):
+    long_text = 'This finding headline is deliberately long so it has to wrap inside its card. ' * 3
 
     def prepare(detail):
-        detail['overview']['signals'][0]['summary'] = summary
-        detail['overview']['signals'][0]['lead'] = {'headline': headline, 'location': location}
-        detail['overview']['signals'][0]['details'] = [support, 'Not assessed: Branch-specific pacing']
+        detail['overview']['signals'][0]['items'] = [
+            {'kind': 'finding', 'state': 'worth_improving', 'open': True, 'headline': f'{long_text}{i}', 'fingerprints': []}
+            for i in range(6)]
     context, page, detail, writes, errors = overview(browser, base_url, width=width, prepare=prepare)
-    tile = page.locator('#signals > li').first
-    preview = tile.locator('.signal-summary')
-    assert preview.inner_text() == summary
-    assert preview.evaluate('el => el.clientHeight <= 2 * parseFloat(getComputedStyle(el).lineHeight)')
-    expansion = tile.locator('details')
-    control = expansion.locator('summary')
-    assert control.inner_text() == 'Details'
-    assert not expansion.get_attribute('open')
+    card = page.locator('#signals > li').first
+    assert card.locator('ul.signal-items').first.locator('li').count() == 3        # three shown, the rest folded
+    fold = card.locator('details.signal-more')
+    control = fold.locator('summary')
+    assert control.inner_text() == 'Show 3 more' and not fold.get_attribute('open')
+    assert control.bounding_box()['height'] >= 44
     control.focus()
     page.keyboard.press('Enter')
-    full = expansion.locator('p').first
-    assert full.is_visible() and full.inner_text() == support
-    lead = expansion.locator('.signal-lead')
-    assert lead.is_visible() and lead.inner_text() == headline
-    assert lead.evaluate('el => el.clientHeight >= el.scrollHeight')
-    assert location in expansion.inner_text()
-    assert 'Not assessed: Branch-specific pacing' in expansion.inner_text()
-    assert full.evaluate('el => el.clientHeight >= el.scrollHeight')
-    assert not preview.is_visible()
+    assert fold.locator('li').count() == 3 and fold.locator('li').first.is_visible()
     assert control.evaluate('el => el === document.activeElement')
     page.keyboard.press('Space')
-    assert not full.is_visible() and preview.is_visible()
+    assert not fold.locator('li').first.is_visible()
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert not writes and not errors
     context.close()
 
 
-def test_evidence_details_escape_saved_text_and_do_not_guess_legacy_evidence(browser, base_url):
-    quote = 'Captured evidence: <img src=x onerror="window.injected=true">'
+def test_card_text_is_escaped_and_cards_without_a_route_have_no_link(browser, base_url):
+    quote = '<img src=x onerror="window.injected=true">'
 
     def prepare(detail):
-        detail['overview']['signals'][1]['details'] = [quote, 'Not assessed: One idea per question']
-        detail['overview']['signals'][2].pop('details', None)
-        detail['overview']['signals'][2].pop('lead', None)
+        detail['overview']['signals'][1]['items'] = [
+            {'kind': 'finding', 'state': 'worth_improving', 'open': True, 'headline': quote, 'fingerprints': []}]
         detail['overview']['signals'][2]['navigation'] = None
     context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
     clarity = page.locator('[data-signal=clarity]')
-    clarity.locator('summary').click()
-    assert clarity.locator('.signal-details p').first.inner_text() == quote
-    assert clarity.locator('.signal-details img').count() == 0
+    assert clarity.locator('.signal-items li').first.inner_text().endswith(quote)
+    assert clarity.locator('img').count() == 0
     assert not page.evaluate('Boolean(window.injected)')
-    honest = page.locator('[data-signal=honest]')
-    honest.locator('summary').click()
-    assert honest.locator('.signal-details p').inner_text() == 'No supporting check details were saved.'
-    assert honest.locator('.signal-lead').inner_text() == detail['overview']['signals'][2]['summary']
-    assert honest.locator('.signal-lead').is_visible()
-    assert honest.locator('.signal-link').count() == 0
+    assert page.locator('[data-signal=honest] .signal-link').count() == 0
+    assert not writes and not errors
+    context.close()
+
+
+def test_done_items_are_ticked_and_open_items_name_their_state(browser, base_url):
+    def prepare(detail):
+        detail['overview']['signals'][0]['items'] = [
+            {'kind': 'finding', 'state': 'you_check', 'open': True, 'headline': 'Open one', 'fingerprints': []},
+            {'kind': 'finding', 'state': 'worth_improving', 'open': False, 'headline': 'Done one', 'fingerprints': []}]
+    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
+    rows = page.locator('#signals > li').first.locator('.signal-items li')
+    assert ' '.join(rows.nth(0).inner_text().split()) == 'You check: Open one'
+    assert ' '.join(rows.nth(1).inner_text().split()) == 'Done: Done one'
+    assert rows.nth(0).locator('svg').count() == rows.nth(1).locator('svg').count() == 1
     assert not writes and not errors
     context.close()
 
