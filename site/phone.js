@@ -50,16 +50,17 @@
   function mediaBox(m, entries, ctx) {
     const label = m.alt || m.element_id || "Survey image";
     const [width, height] = dimensions(m), known = width > 0 && height > 0;
-    const sourceKnown = m.natural_w > 0 && m.natural_h > 0;
+    const sourceKnown = m.loaded !== false && m.natural_w > 0 && m.natural_h > 0;
     const landscape = sourceKnown ? m.natural_w > m.natural_h : known && width > height;
-    const orientation = !known ? "Orientation unknown" : landscape ? "Landscape" : (sourceKnown ? m.natural_w < m.natural_h : width < height) ? "Portrait" : "Square";
+    const orientation = m.loaded === false || !known ? "Orientation unknown" : landscape ? "Landscape" : (sourceKnown ? m.natural_w < m.natural_h : width < height) ? "Portrait" : "Square";
     const box = h("div", { class: `media${m.loaded === false ? " broken" : ""}`, role: "img",
-      "aria-label": `${label}: ${orientation}, image placeholder${m.loaded === false ? ", failed to load" : ""}`,
+      "aria-label": `${label}: ${orientation}, image placeholder${m.loaded === false ? ", loading not verified by reader" : ""}`,
       style: known ? `aspect-ratio:${width} / ${height};height:auto;min-height:0` : "min-height:100px" },
-      h("span", null, `${orientation} · Image placeholder`, h("br"), m.loaded === false ? "Image failed to load" : label));
+      h("span", null, `${orientation} · Image placeholder`, h("br"), m.loaded === false ? "Reader could not verify image loading" : label));
     const note = h("p", { class: "image-reminder" },
       h("strong", null, landscape ? "Check on mobile: " : !known ? "Check image size on mobile: " : "Image preview: "),
-      landscape ? "This horizontal image may be hard to read on a phone. Review the actual survey on a mobile device for tiny content, cropping or distortion. Orientation alone is not a failure."
+      m.loaded === false ? "Check this screen in the actual survey on a phone. If it also fails there, check the link and re-upload it. If it loads slowly, try a smaller file with readable detail. If it works, report a reader capture issue."
+        : landscape ? "This horizontal image may be hard to read on a phone. Review the actual survey on a mobile device for tiny content, cropping or distortion. Orientation alone is not a failure."
         : "Placeholder only—not the actual image. Verify the image in the survey on a mobile device.");
     const mine = entries.filter((e) => e.f.element_id && e.f.element_id === m.element_id);
     // Controls sit outside the image: role=img descendants are not interactive.

@@ -40,6 +40,8 @@ def all_media(ctx: ReviewContext) -> list[MediaRef]:
 
 
 def _ratio(m: Media) -> float | None:
+    if not m.loaded:
+        return None  # A failed image's rendered box does not establish source shape.
     w, h = (m.natural_w, m.natural_h) if m.natural_w and m.natural_h else (m.rendered_w, m.rendered_h)
     return w / h if w and h else None
 
@@ -175,10 +177,13 @@ def cannot_see_image(ctx: ReviewContext) -> CheckResult:
         if broken or tiny:
             findings.append(finding(
                 "B7", "must_fix",
-                f"Image didn't load: {_label(ref)}" if broken else f"Image options are too small to judge ({ref.media.rendered_w} px)",
-                f'The image "{_label(ref)}" failed to load.' if broken else f"An image is only {ref.media.rendered_w} px wide.",
-                "Fix or replace the image so members can see what they're judging." if broken
+                f"Reader could not verify image loading: {_label(ref)}" if broken else f"Image options are too small to judge ({ref.media.rendered_w} px)",
+                f'The reader observed an unloaded image: "{_label(ref)}". The cause was not measured.' if broken else f"An image is only {ref.media.rendered_w} px wide.",
+                "Open this screen in the actual survey on a phone. If the image also fails there, check its link and re-upload it. "
+                "If it loads slowly, try a smaller file while keeping text and details readable. "
+                "If it works there, report a reader capture issue; this observation does not establish a network or file-size problem." if broken
                 else "Show the images larger, at least 2 per row, so members can judge them.",
-                "Members guess when they can't see, and the answers are meaningless.",
+                "If members cannot see an image, they may lack information needed to answer; a reader-only failure does not prove that." if broken
+                else "Members need readable image choices to make an informed selection.",
                 page_id=ref.page_id, question_id=ref.question_id, element_id=ref.media.element_id or None))
     return result("B7", None, *findings) if findings else blocker_ok("B7")
