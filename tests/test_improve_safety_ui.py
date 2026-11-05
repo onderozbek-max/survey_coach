@@ -43,7 +43,8 @@ def test_refetched_detail_replaces_queue_membership(browser, base_url):
       dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail:d}));
     }""")
     assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix 0'
-    assert page.locator('#coach h3').inner_text() == 'All 0 must-fixes handled'
+    assert page.locator('#coach h3').inner_text() == 'No must-fixes in this review'
+    assert page.locator('#coach .card').count() == 0
     assert not writes and not errors
     context.close()
 

@@ -134,8 +134,14 @@ def test_pending_save_locks_decisions_until_committed_and_survives_reload(browse
         page.get_by_role("button", name="Check survey").click()
         page.wait_for_url("**/review.html?**", timeout=30000)
         page.locator('#chapter-nav [data-chapter=improve]').click()
-        from tests.test_workspace_decisions import finding_with, focus_finding, keep_mine
-        finding = finding_with(page, True)
+        from tests.test_workspace_decisions import focus_finding, keep_mine
+        # Empty Must-fix is valid; readiness must not depend on an active card.
+        page.wait_for_function('SC.reviewReady === true')
+        finding = page.evaluate("""() => SC.workspaceDetail.review.findings.find(f =>
+          !f.absorbed_by && SC.choicesOf(f).length &&
+          ['must_fix','quick_wins','more'].some(t => SC.workspaceDetail.plan[t].some(
+            item => item.fingerprints.includes(f.fingerprint))))""")
+        assert finding, 'Fixture must contain a persisted, actionable recommendation'
         focus_finding(page, finding)
         held, requests = [], []
 

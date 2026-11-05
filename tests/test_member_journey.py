@@ -73,7 +73,16 @@ def test_journey_comparison_and_question_stem_visible(browser, studio):
     assert page.locator('#all-screens').is_visible()
     assert page.get_by_role('navigation', name='Member effort by screen').count() == 0
     # Comparison is intentionally unavailable on screens without text changes.
-    page.evaluate("() => { const f=SC.workspaceDetail.review.findings.find(f=>f.current_text && !f.structural && (f.suggested_text || f.options?.length)); window.dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:f.fingerprint})); }")
+    finding = page.evaluate("""() => {
+      const d = SC.workspaceDetail;
+      return d.review.findings.find(f => !f.absorbed_by && !f.structural && f.question_id &&
+        SC.choicesOf(f).length && d.snapshot.pages.some(p => p.questions?.some(q =>
+          q.id === f.question_id && q.text.includes(f.current_text))));
+    }""")
+    assert finding, 'Sample must provide a genuine question rewrite to compare'
+    page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
+    assert page.locator('#coach h3.headline').inner_text() == finding['headline']
+    assert finding['current_text'] in page.locator('#stage .phone-screen').inner_text()
     tools(page)
     page.get_by_role('button', name='Compare wording', exact=True).click()
     assert not errors

@@ -259,7 +259,12 @@ def test_first_rewrite_wins_when_two_fixes_target_the_same_words(browser, base_u
 def test_a_finding_without_a_real_fix_has_no_copy_button(browser, base_url):
     page, _ = open_page(browser, base_url)
     open_screen(page, "Q7")
-    assert card_with(page, "Image didn't load").locator('.use-change').count() == 0
+    finding = page.evaluate("SC.workspaceDetail.review.findings.find(f => f.criterion_id === 'B7' && !f.absorbed_by)")
+    assert finding
+    page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
+    assert page.locator('#coach h3').inner_text() == finding['headline']
+    assert page.locator('#coach .use-change').count() == 0
+    assert page.locator('#coach .suggested h4').inner_text() == 'Recommended action'
 
 
 def test_original_and_rewrite_make_changed_wording_comparable(browser, base_url):
@@ -385,9 +390,15 @@ def test_the_title_is_not_pretended_to_be_previewed_and_an_overridden_fix_says_w
     assert not page.evaluate('Object.keys(SC.workspaceDetail.decisions).length')
 
 
-def test_with_fixes_the_true_time_promise_beats_an_ai_rewrite_of_the_same_paragraph(browser, base_url):
+def test_with_fixes_does_not_invent_a_verified_time_promise(browser, base_url):
     page, _ = open_page(browser, base_url)
     page.get_by_role("button", name="With changes").click()
     open_screen(page, "Welcome")
     intro = phone_text(page)
-    assert "about 4 minutes" in intro and "about 3 minutes" not in intro               # the code-made fix is a fact, so it goes first
+    assert 'about 3 minutes' in intro and 'about 4 minutes' not in intro
+    finding = page.evaluate("SC.workspaceDetail.review.findings.find(f => f.criterion_id === '1.4' && !f.absorbed_by)")
+    assert finding and not finding.get('suggested_text') and not finding.get('options')
+    page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
+    assert page.locator('#coach h3').inner_text() == finding['headline']
+    assert page.locator('#coach .use-change').count() == 0
+    assert page.locator('#coach .suggested').get_by_text(finding['explanation'], exact=True).is_visible()
