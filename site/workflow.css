@@ -31,9 +31,6 @@
 .review-studio #action-status{flex-basis:100%;margin:0;font-size:12px}
 .review-studio #action-status:empty{display:none}
 .review-studio .change-sheet pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;line-height:1.7;background:var(--surface);padding:16px;border-radius:8px}
-.review-studio .round-timeline{display:flex;gap:8px;flex-wrap:wrap}
-.review-studio .round-timeline a{display:inline-block;border:1px solid var(--line-strong);border-radius:20px;padding:8px 14px;color:var(--accent);text-decoration:none}
-.review-studio .round-timeline [aria-current=page]{background:var(--accent);color:var(--phone-bg)}
 .review-studio .title-edit{border:0;background:transparent;color:var(--accent);text-decoration:underline;font:inherit;font-size:12px;cursor:pointer;min-height:36px}
 .review-studio .title-form{display:flex;gap:8px;flex-wrap:wrap;max-width:650px}
 .review-studio .title-form input{flex:1 1 240px}
@@ -41,4 +38,4 @@
 .review-studio #recheck-form{display:grid;gap:12px;max-width:780px}
 .review-studio #recheck-form label{font-weight:600}
 .review-studio .btn:disabled{opacity:.5;cursor:not-allowed}
-@media(max-width:600px){.review-studio .review-details{padding:14px}.review-studio .issue-jump{grid-template-columns:1fr}.review-studio .issue-state{grid-column:1}.review-studio .review-actionbar{padding:10px;gap:6px;left:14px;right:14px}.review-studio .review-actionbar .btn{flex:1;font-size:12px;padding:10px}.review-studio .round-timeline a{padding:8px 12px}}
+@media(max-width:600px){.review-studio .review-details{padding:14px}.review-studio .issue-jump{grid-template-columns:1fr}.review-studio .issue-state{grid-column:1}.review-studio .review-actionbar{padding:10px;gap:6px;left:14px;right:14px}.review-studio .review-actionbar .btn{flex:1;font-size:12px;padding:10px}}

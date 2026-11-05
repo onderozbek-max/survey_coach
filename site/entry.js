@@ -4,9 +4,7 @@
   const SC = window.SC, {h, $} = SC;
   let timer, started, lastResponse, panel, currentJob, lastCount = 0, lastCapture, context = '';
   const seconds = stamp => Math.max(0, Math.floor((Date.now() - stamp) / 1000));
-  fetch('/api/reader/mode').then(response => response.ok ? response.json() : null).then(mode => {
-    if (typeof mode?.notice === 'string' && mode.notice.trim() && $('reader-mode')) $('reader-mode').textContent = mode.notice;
-  }).catch(() => {});
+  // The test-link line beside the link field is fixed product copy (brief 4.7); the server's engineering notice is not shown.
 
   function tick() {
     if (!panel) return;

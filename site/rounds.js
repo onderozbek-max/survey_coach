@@ -9,12 +9,14 @@
     return finding?.headline ? `${item.screen_label || SC.issueLocation(finding, detail.snapshot).label}: ${finding.headline}`
       : item.headline || item.label || 'Previously flagged issue (location not comparable)';
   };
+  /** Versions only exist once there are two. Version 1 alone has nothing to compare, so it renders nothing (D16). */
   SC.renderRounds = (detail, surveyId) => {
-    const changes = detail.round_changes;
-    return [h('h2', null, detail.version > 1 ? `Since version ${detail.version - 1}` : 'First version'),
-      h('nav', {class:'round-timeline', 'aria-label':'Review versions'}, (detail.versions || [{version:detail.version}]).map(v =>
-        h('a', {href:`review.html?id=${encodeURIComponent(surveyId)}&version=${v.version}#share`, 'aria-current':v.version === detail.version ? 'page' : false}, `Version ${v.version}`))),
-      changes ? h('div', {class:'round-comparison'},
+    const changes = detail.round_changes, versions = detail.versions || [{version:detail.version}];
+    if (detail.version < 2 && versions.length < 2) return [];
+    return [h('h3', null, detail.version > 1 ? `Since version ${detail.version - 1}` : 'Versions'),
+      h('nav', {class:'round-timeline', 'aria-label':'Review versions'}, h('ol', null, versions.map(v =>
+        h('li', null, h('a', {href:`review.html?id=${encodeURIComponent(surveyId)}&version=${v.version}#share`, 'aria-current':v.version === detail.version ? 'page' : false}, `Version ${v.version}`))))),
+      detail.version < 2 ? null : changes ? h('div', {class:'round-comparison'},
         h('p', null, `${list(changes.fixed).length} no longer flagged · ${list(changes.still).length} still flagged · ${list(changes.new).length} new · ${list(changes.uncertain).length} uncertain`),
         h('p', {class:'note'}, 'No longer flagged is not blanket verification: checks, paths or wording may have changed. Review the evidence below.'),
         [['fixed','No longer flagged'], ['still','Still flagged'], ['new','New this version'], ['uncertain','Not comparable / uncertain']].map(([key,label]) =>
@@ -23,7 +25,7 @@
               (item.resolution || item.reason) && h('p', null, item.resolution || item.reason),
               (item.old_wording || item.before_text) && h('blockquote', null, `Before: ${item.old_wording || item.before_text}`),
               (item.new_wording || item.after_text) && h('blockquote', null, `Now: ${item.new_wording || item.after_text}`))))) : null))
-        : h('p', {class:'note'}, detail.version > 1 ? 'Detailed version comparison is not available for this review. Nothing is claimed fixed.' : 'First version: choose changes, apply them in RedJade, then choose Check updated survey.')];
+        : h('p', {class:'note'}, 'Detailed version comparison is not available for this review. Nothing is claimed fixed.')];
   };
   /** The change sheet is the server's My changes text: one writer, so the tray, Copy all and this sheet cannot disagree. */
   SC.renderChangeSheet = detail => {

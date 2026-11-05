@@ -80,6 +80,7 @@
       return await response.json();
     } finally { clearTimeout(timeout); }
   }
+  window.SC.api = api;       // the one fetch path, shared with the sign-off step
   // tone: "info" | "progress" | "error"; styled where a page opts in (home.css).
   const message = (id, text, tone = "info") => { const el = $(id); if (el) { el.textContent = text; el.dataset.tone = tone; } };
   async function copy(text, output) {
@@ -190,7 +191,7 @@
   function refreshDecisions() {
     window.SC.workspaceDetail = detail;
     mount($('fix-list'), window.SC.renderIssueList(detail));
-    window.SC.renderShare(detail, copy);
+    window.SC.renderShare(detail, copy);   // renders the sign-off step too
     const kept = window.SC.issueCounts(detail).kept;
     message('decision-verdict', kept ? `${kept} kept on purpose · accepted risk, not verified fixes.` : '');
   }

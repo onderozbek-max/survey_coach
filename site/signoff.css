@@ -1,0 +1,47 @@
+/* Sign off step: the review card, the Slack post and the sign-off record. Tokens only, one calm column.
+   The hero is Copy Slack post (the only primary button); signing off is deliberately quiet. */
+.review-studio #chapter-share { max-width:840px; }
+.review-card, .slack-section, .signoff-card, .share-changes { padding:var(--s-5); margin-bottom:var(--s-4); background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); }
+.review-card h3, .slack-section h3, .signoff-card h3, .share-changes h3 { margin:0 0 var(--s-3); font-size:var(--fs-22); }
+.review-card h4, .signoff-history h4 { margin:var(--s-4) 0 var(--s-2); font-size:var(--fs-16); }
+.review-facts { display:grid; grid-template-columns:max-content minmax(0,1fr); gap:var(--s-2) var(--s-4); margin:0; }
+.review-facts dt { color:var(--muted); font-size:var(--fs-14); padding-top:2px; }
+.review-facts dd { margin:0; display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); overflow-wrap:anywhere; min-width:0; font-variant-numeric:tabular-nums; }
+.test-link { padding:2px var(--s-2); border-radius:var(--r-sm); background:var(--surface-2); font-size:var(--fs-14); overflow-wrap:anywhere; }
+.you-check-list, .open-at-signing, .signoff-timeline { list-style:none; margin:0; padding:0; display:grid; gap:var(--s-2); }
+.you-check-list li, .open-at-signing li { display:flex; gap:var(--s-3); align-items:flex-start; }
+.you-check-list .state-icon, .open-at-signing .state-icon { margin-top:2px; }
+.you-check-list p { margin:0; }
+.who-when, .where, .quiet { color:var(--muted); font-size:var(--fs-14); }
+.quiet { margin:var(--s-2) 0; }
+.share-actions { display:flex; flex-wrap:wrap; gap:var(--s-3); margin-bottom:var(--s-4); }
+.slack-post { margin:0; padding:var(--s-4); border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface-2); color:var(--text); font:var(--fs-14)/1.5 var(--font); white-space:pre-wrap; overflow-wrap:anywhere; }
+.signoff-open { margin:0 0 var(--s-3); font-weight:650; font-variant-numeric:tabular-nums; }
+.signoff-form { display:grid; gap:var(--s-3); max-width:480px; }
+.signoff-form label { font-weight:650; }
+.signoff-form input[type=text] { padding:0 var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); }
+.signoff-form .ack { display:flex; align-items:flex-start; gap:var(--s-3); min-height:44px; font-weight:400; }
+.signoff-form .ack input { width:24px; height:24px; margin:0; flex:none; }
+.field-error:empty { display:none; }
+.field-error { margin:0; padding:var(--s-3); border:1px solid var(--critical); border-radius:var(--r-sm); background:var(--critical-soft); color:var(--critical); font-size:var(--fs-14); }
+.signoff-row { display:flex; flex-wrap:wrap; gap:var(--s-3); align-items:center; }
+.signed-line { display:flex; align-items:center; gap:var(--s-3); margin:0 0 var(--s-2); color:var(--positive); font-size:var(--fs-18); }
+.signoff-card[data-signed=true] { border-color:var(--positive); }
+.signoff-timeline { padding-left:var(--s-4); border-left:2px solid var(--line-strong); }
+.signoff-timeline li { position:relative; color:var(--muted); font-size:var(--fs-14); }
+.signoff-timeline li::before { content:''; position:absolute; left:calc(-1 * var(--s-4) - 6px); top:.45em; width:10px; height:10px; border-radius:50%; background:var(--surface); border:2px solid var(--line-strong); }
+/* The version timeline (rounds.js): a quiet vertical timeline of text links, not a row of buttons. */
+.review-studio .round-timeline ol { list-style:none; margin:var(--s-3) 0; padding:0 0 0 var(--s-4); border-left:2px solid var(--line-strong); display:grid; gap:var(--s-1); }
+.review-studio .round-timeline li { position:relative; }
+.review-studio .round-timeline li::before { content:''; position:absolute; left:calc(-1 * var(--s-4) - 6px); top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--surface); border:2px solid var(--line-strong); }
+.review-studio .round-timeline li:has([aria-current=page])::before { background:var(--accent); border-color:var(--accent); }
+.review-studio .round-timeline a { display:inline-flex; align-items:center; min-height:44px; padding:0; border:0; border-radius:0; background:none; color:var(--accent); text-decoration:underline; }
+.review-studio .round-timeline [aria-current=page] { background:none; color:var(--text); font-weight:700; text-decoration:none; }
+#share-changes #copy-all { margin-top:var(--s-3); }
+@media (max-width:600px) {
+  .review-card, .slack-section, .signoff-card, .share-changes { padding:var(--s-4); }
+  .review-facts { grid-template-columns:minmax(0,1fr); gap:0; }
+  .review-facts dd { margin-bottom:var(--s-3); }
+  .share-actions .btn { flex:1 1 100%; }
+  .signoff-form .btn { width:100%; }
+}

@@ -38,6 +38,7 @@ def studio(tmp_path):
 
 def test_import_saved_choices_phone_and_updated_review(browser, studio):
     context = browser.new_context(viewport={"width": 390, "height": 844}, permissions=["clipboard-read", "clipboard-write"])
+    context.add_init_script("window.SURVEYCOACH_DEVELOPER = true;")   # 3C: the raw snapshot import is developer-only now
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -78,7 +79,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     go_to(page, 'share')
     page.locator('.round-timeline').wait_for()
     assert page.locator('.round-timeline a').count() == 2
-    assert '/versions/2/summary?download=1' in page.locator('#download-summary').get_attribute('href')
+    assert '/versions/2/summary?download=true' in page.locator('#download-summary').get_attribute('href')
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert not errors
     context.close()

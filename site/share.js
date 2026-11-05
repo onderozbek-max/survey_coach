@@ -1,4 +1,5 @@
-/* Share records explicit choices, never preview defaults or claims of launch readiness. */
+/* Share: the review card, the Slack post and sign-off (share-card.js, signoff.js), then the changes the author chose.
+   Choices are explicit, never preview defaults or claims of launch readiness. */
 (() => {
   'use strict';
   const SC = window.SC, {h, mount, $} = SC;
@@ -26,6 +27,8 @@
     } catch (_) { return ''; }
   };
   SC.renderShare = (detail, copy) => {
+    mount($('share-card'), SC.renderReviewCard(detail), SC.renderSlackPost(detail));
+    SC.renderSignoff(detail);
     const changes = SC.shareChanges(detail), kept = detail.review.findings.filter(f => !f.absorbed_by && SC.acceptedRisk(f, detail));
     const handled = fp => {
       const f = detail.review.findings.find(f => f.fingerprint === fp);
@@ -55,6 +58,5 @@
     button.disabled = !changes.length; button.hidden = !changes.length;
     button.onclick = () => copy(SC.shareChangesText(detail), $('action-status'));
     mount($('version-changes'), SC.renderRounds(detail, detail.id));
-    $('download-summary').href = `/api/surveys/${encodeURIComponent(detail.id)}/versions/${detail.version}/summary?download=1`;
   };
 })();

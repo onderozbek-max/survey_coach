@@ -57,7 +57,7 @@
 
   host.append(
     h('a', {href: 'local.html', class: 'hdr-brand', 'aria-label': 'SurveyCoach home'},
-      h('span', {class: 'brand-mark', 'aria-hidden': 'true'}), h('span', {class: 'brand-word'}, 'Survey', h('span', null, 'Coach'))),
+      SC.logoMark(), h('span', {class: 'brand-word'}, 'Survey', h('span', null, 'Coach'))),
     h('a', {href: 'local.html', class: 'hdr-mysurveys'}, 'My surveys'),
     h('div', {class: 'hdr-title'}, h('div', {class: 'hdr-name'}, title, renameButton, form, status), chip),
     h('div', {class: 'hdr-steps-wrap'}, stepsButton, nav),
