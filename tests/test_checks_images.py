@@ -127,9 +127,11 @@ def test_7_6_passes_light_described_images():
 
 
 # B7 members can't see what they judge
-def test_b7_flags_broken_images():
+def test_b7_unloaded_capture_is_unverified_not_a_confirmed_blocker():
     snapshot = with_image(image(loaded=False))
-    assert [f.severity for f in run(images.cannot_see_image, snapshot).findings] == ["must_fix"]
+    checked = run(images.cannot_see_image, snapshot)
+    assert [f.severity for f in checked.findings] == ["worth_improving"]
+    assert checked.assessed is False
 
 
 def test_b7_flags_images_too_small_to_judge_in_image_choice():

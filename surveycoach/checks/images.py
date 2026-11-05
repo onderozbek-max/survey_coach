@@ -176,7 +176,7 @@ def cannot_see_image(ctx: ReviewContext) -> CheckResult:
         tiny = ref.in_image_choice and ref.media.rendered_w is not None and ref.media.rendered_w < TOO_SMALL_CSS_PX
         if broken or tiny:
             findings.append(finding(
-                "B7", "must_fix",
+                "B7", "worth_improving" if broken else "must_fix",
                 f"Reader could not verify image loading: {_label(ref)}" if broken else f"Image options are too small to judge ({ref.media.rendered_w} px)",
                 f'The reader observed an unloaded image: "{_label(ref)}". The cause was not measured.' if broken else f"An image is only {ref.media.rendered_w} px wide.",
                 "Open this screen in the actual survey on a phone. If the image also fails there, check its link and re-upload it. "
@@ -186,4 +186,7 @@ def cannot_see_image(ctx: ReviewContext) -> CheckResult:
                 "If members cannot see an image, they may lack information needed to answer; a reader-only failure does not prove that." if broken
                 else "Members need readable image choices to make an informed selection.",
                 page_id=ref.page_id, question_id=ref.question_id, element_id=ref.media.element_id or None))
-    return result("B7", None, *findings) if findings else blocker_ok("B7")
+    if findings:
+        return CheckResult(criterion_id="B7", findings=findings,
+                           assessed=not any(not ref.media.loaded for ref in all_media(ctx)))
+    return blocker_ok("B7")

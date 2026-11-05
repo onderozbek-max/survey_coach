@@ -14,6 +14,14 @@ def test_unloaded_image_is_scoped_to_reader_and_has_conditional_action():
     assert 'smaller' in finding.explanation.lower()
     assert 'readable' in finding.explanation.lower()
     assert 'meaningless' not in finding.member_impact.lower()
+    result = cannot_see_image(context(snapshot))
+    assert finding.severity == 'worth_improving'
+    assert result.assessed is False
+    from surveycoach.scoring import score
+    from surveycoach.rubric import load_rubric
+    card = score(load_rubric(), {'B7': result})
+    assert 'B7' not in card.open_blockers
+    assert 'B7' in card.pending_blockers
 
 
 def test_failed_source_dimensions_do_not_create_shape_finding():
