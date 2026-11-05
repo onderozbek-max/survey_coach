@@ -7,6 +7,7 @@ from dataclasses import asdict
 import re
 
 from surveycoach.fix_queue import build_queue
+from surveycoach.journey import build_journey
 from surveycoach.labels import screen_labels
 from surveycoach.quality import build_quality
 from surveycoach.recommendations import with_action
@@ -16,7 +17,7 @@ from surveycoach.server.plan import build_plan
 from surveycoach.server.rounds import field_location, locate, locations, presentation
 from surveycoach.signals import build_overview
 from surveycoach.snapshot import SurveySnapshot
-from surveycoach.timing import TimingConstants, reading_basis
+from surveycoach.timing import TimingConstants, estimate, reading_basis
 
 ABSORBS = {
     "B1": {"5.1", "5.2", "5.3"}, "B2": {"4.1", "4.3", "8.4"},
@@ -132,5 +133,7 @@ def enrich(data: dict, rubric) -> dict:
         data["methodology"]["not_checked_automatically"] = data["overview"].pop("not_checked_automatically")
     data["queue"] = build_queue(data.get("overview", {}).get("items", []))
     data["my_changes"] = build_my_changes(data)
-    data["presentation"] = presentation(data)
+    journey = build_journey(snapshot, data["screens"], estimate(snapshot), data.get("overview", {}).get("items", []))
+    data["presentation"] = {**presentation(data), "journey": journey["segments"],
+                            "journey_sections": journey["sections"]}
     return data

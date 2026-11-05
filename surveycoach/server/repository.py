@@ -287,7 +287,6 @@ class Repository:
         data["round_changes"]["unchecked_paths"] = presentation(data)["scope"]["unchecked_paths"]
         data["carried_decisions"] = data["carried"]
         data = enrich(data, rubric)
-        data["presentation"] = presentation(data)
         data["change_sheet"] = change_sheet(data)
         return data
 
