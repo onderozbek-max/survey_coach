@@ -55,6 +55,68 @@ def test_unloaded_reader_image_does_not_silently_reduce_layout_credit():
     assert "B7" not in review.scorecard.open_blockers
 
 
+@pytest.mark.parametrize("failure", ["link", "truncation", "both"])
+@pytest.mark.parametrize("location", ["page", "question", "option"])
+def test_media_cannot_dilute_observed_layout_failures(failure, location):
+    snapshot = one_question_survey(question())
+    page = snapshot.pages[1]
+    if failure in {"link", "both"}:
+        page.links_out = ["https://example.com/made-up-study-details"]
+    if failure in {"truncation", "both"}:
+        page.questions[0].text = "Which meal would you pref..."
+    baseline = phone.stays_put(context(snapshot))
+    assert 0 < baseline.fraction < 1
+    assert len(baseline.findings) == (2 if failure == "both" else 1)
+    before = snapshot.model_dump()
+    for loaded in (True, False):
+        pictured = snapshot.model_copy(deep=True)
+        media = image(loaded=loaded)
+        if location == "page":
+            pictured.pages[1].media = [media]
+        elif location == "question":
+            pictured.pages[1].questions[0].media = [media]
+        else:
+            pictured.pages[1].questions[0].options[0].media = media
+        assert phone.stays_put(context(pictured)) == baseline
+    assert snapshot.model_dump() == before
+
+
+@pytest.mark.parametrize("kind", ["grid_single", "grid_multi", "rating", "slider"])
+@pytest.mark.parametrize("raw_container", [False, True])
+def test_grid_scale_intro_overlap_counts_once_but_preserves_extra_occurrences(kind, raw_container):
+    rows = ["Prepared family meals", "Fresh salad kits"] if kind.startswith("grid") else []
+    q = Question(id="q", text="Rate these products", kind=kind, rows=rows,
+                 help_text="Consider each product separately.",
+                 scale=Scale(points=3, low_label="Not appealing", high_label="Very appealing",
+                             labels=["Not appealing", "Somewhat appealing", "Very appealing"]))
+    prose = "Imagine convenient meals for your family."
+    baseline = SurveySnapshot(title="Meals", pages=[Page(id="p", position=0, kind="question",
+                                                        intro_text=prose, questions=[q])])
+    captured = baseline.model_copy(deep=True)
+    container = "\n".join([prose, q.text, q.help_text, *rows, *q.scale.labels])
+    captured.pages[0].intro_text = container
+    if raw_container:
+        captured.pages[0].text = container
+    before = captured.model_dump()
+    seconds = estimate(baseline).total_seconds
+    assert estimate(captured).total_seconds == seconds
+    assert captured.model_dump() == before
+    # An extra row/scale occurrence inside the intro remains real reading, even
+    # when raw repeats that complete intro. Never erase all matching labels.
+    label = rows[0] if rows else q.scale.low_label
+    extra_seconds = round(len(label.split()) * .3, 1)
+    repeated_intro = captured.model_copy(deep=True)
+    repeated_intro.pages[0].intro_text += "\n" + label
+    if raw_container:
+        repeated_intro.pages[0].text = repeated_intro.pages[0].intro_text
+    assert estimate(repeated_intro).total_seconds == pytest.approx(seconds + extra_seconds)
+    # A separate raw occurrence after an already-covered intro must also survive.
+    if raw_container:
+        repeated_raw = captured.model_copy(deep=True)
+        repeated_raw.pages[0].text += "\n" + label
+        assert estimate(repeated_raw).total_seconds == pytest.approx(seconds + extra_seconds)
+
+
 def test_image_choice_threshold_is_layout_advice_not_answer_deletion():
     q = question(kind="image_choice", options=tuple(f"Pack {i}" for i in range(7)))
     for option in q.options:

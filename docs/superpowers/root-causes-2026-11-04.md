@@ -39,9 +39,24 @@ Changed production files are 53–350 lines, below 600. Named-path diff whitespa
 
 ## Deferred / remaining risks — not claimed fixed
 
-1. **Parent UI handoff:** `site/energy.js:SC.previewReadingDelta` separately sums intro, raw, question/help/options and skips dropdown/grid options: duplicate rewrite savings remain possible. `SC.pageTexts`/preview word-count consumers also need representation-parity tests. Backend overview timing itself uses `estimate`; no site code edited here.
+1. **Original UI handoff, subsequently integrated:** `b51036e` changed preview deltas to consume canonical evidence, `5015a3e` exports the same `timing.reading_basis` used by timing into enriched/demo pages, and `8142bd7` renders missing evidence without false zero. See `.superpowers/sdd/canonical-reading-basis.md`. Other `SC.pageTexts`/preview consumers were not comprehensively audited here; no authored site code was edited by this backend worker.
 2. Exact option/row/scale subtraction requires whole-line evidence; flattened labels intentionally remain conservatively counted. Partial scale labels may not establish actual visual repetition. No semantic collapse or global word deduplication is safe.
 3. Other fixed phone/grid/word/image-size thresholds still produce heuristic scores; this audit did not validate them scientifically or comprehensively rewrite every rule. Do not treat a low score as measured member difficulty. Image shape/resolution availability is not a complete accessibility/layout assessment.
 4. `loaded: bool` cannot represent all media diagnostic states. No schema overhaul attempted. B7 verification still needs actual-phone evidence; AI text review must not clear it. Existing non-AI ownership tests pass.
 5. Legacy projection can still validate partial saved dictionaries with today's model defaults; direct quality/scope projections are now conservative, but migrating historical evidence requires a separately scoped policy. No user history rewritten.
 6. Timing remains uncalibrated captured-screen effort, not measured completion or a reliable member route. No actual survey duration or revised review result claimed; no saved capture/DB was opened or regenerated.
+
+## Review follow-up — recurrence guards
+
+Read `.superpowers/sdd/root-cause-review.md`: reviewer found no blocker and reproduced 119 passing tests, but identified two genuine test-coverage gaps. Added **17 parametrized cases** in `tests/test_root_cause_invariants.py`; production code already passes, so no speculative source change:
+
+- **Denominator protection (9 cases):** outgoing link, truncated prompt, and both together; page/question/option media; each compares absent, loaded and unloaded media against the same non-perfect 6.5 fraction and exact findings. This catches media dilution that clean-survey 1.0 comparisons cannot detect. Capture immutability is also checked.
+- **Intro-container protection (8 cases):** grid single/multi, rating and slider; structured baseline with unique prose versus labels/question/help inside intro only or complete intro repeated in raw. Baseline counts independent prose once. Each preserves an extra row/scale occurrence inside intro, including when raw repeats that full container; repeated-container cases also preserve a separate extra raw label after the removed intro.
+
+Verification: **136 passed in 1.03s**, one existing Starlette/httpx deprecation warning, using the reviewer's same explicit eight-file subset:
+
+```sh
+.venv/bin/python -m pytest tests/test_root_cause_invariants.py tests/test_timing.py tests/test_scoring.py tests/test_quality.py tests/test_checks_answers_phone.py tests/test_checks_images.py tests/test_review_projection.py tests/test_enrich_contract.py -q
+```
+
+These are test-gap guards, not claimed new red/green production defects. No full suite, delegation, live calls, actual DB, push or UI edits. Named-path commit preserves unrelated staged progress/loading-worker changes.
