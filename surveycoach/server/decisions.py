@@ -5,20 +5,14 @@ text-direction characters into a screen. HTML escaping stays the renderer's job 
 """
 from __future__ import annotations
 
-import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
+from surveycoach.safe_text import clean_text
 from surveycoach.status import KEEP_REASONS
 
 KEEP_NOTE_MAX = 200
-_UNSAFE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]")
-
-
-def clean_text(value: str | None) -> str:
-    """No control, zero-width or bidi-override characters; newlines and tabs stay."""
-    return _UNSAFE.sub("", value or "").strip()
 
 
 def read_decision(decision: dict) -> dict:

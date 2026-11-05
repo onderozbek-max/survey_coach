@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from surveycoach.reward import validate_reward
 from surveycoach.server.decisions import DecisionRequest
 from surveycoach.server.report import attachment_filename
 from surveycoach.server.repository import Repository
@@ -58,6 +59,18 @@ class SurveyUpdate(BaseModel):
     def has_update(self):
         if self.title is None and self.survey_type is None:
             raise ValueError("Supply a title or survey_type")
+        return self
+
+
+class RewardUpdate(BaseModel):
+    """Does this survey offer a reward? `has_reward` is required: null puts the question back to unanswered."""
+    model_config = ConfigDict(extra="forbid", strict=True)
+    has_reward: StrictBool | None
+    text: str = ""
+
+    @model_validator(mode="after")
+    def valid_answer(self):
+        self.text = validate_reward(self.has_reward, self.text).text
         return self
 
 
@@ -139,6 +152,10 @@ def create_app(db_path, provider=None) -> FastAPI:
     @app.patch("/api/surveys/{survey_id}")
     def update(survey_id: str, body: SurveyUpdate):
         return repository.update(survey_id, title=body.title, survey_type=body.survey_type)
+
+    @app.put("/api/surveys/{survey_id}/reward")
+    def set_reward(survey_id: str, body: RewardUpdate):
+        return repository.set_reward(survey_id, body.has_reward, body.text)
 
     @app.get("/api/surveys/{survey_id}/versions/{version}/change-sheet")
     def changes(survey_id: str, version: int):

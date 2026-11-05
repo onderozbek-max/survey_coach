@@ -9,6 +9,7 @@ from surveycoach.findings import CheckResult, Finding
 from surveycoach.judge import AiRunInfo, JudgeCache, run_judge
 from surveycoach.judge.grounding import CREDIT_CAP_WITH_FINDING
 from surveycoach.llm import LlmProvider
+from surveycoach.reward import Reward
 from surveycoach.rubric import Rubric, load_rubric
 from surveycoach.scoring import ScoreCard, score
 from surveycoach.snapshot import SurveySnapshot
@@ -80,9 +81,10 @@ def _withhold_unverified_media(results: dict[str, CheckResult], snapshot: Survey
 
 
 def run_review(snapshot: SurveySnapshot, rubric: Rubric | None = None, kept_blockers: frozenset[str] = frozenset(),
-               provider: LlmProvider | None = None, cache: JudgeCache | None = None) -> Review:
+               provider: LlmProvider | None = None, cache: JudgeCache | None = None,
+               reward: Reward = Reward()) -> Review:
     rubric = rubric or load_rubric()
-    context = ReviewContext.build(snapshot, rubric)
+    context = ReviewContext.build(snapshot, rubric, reward)
     results = run_all(context)
     ai: AiRunInfo | None = None
     if provider is not None:

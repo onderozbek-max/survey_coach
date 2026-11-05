@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 
 from surveycoach.reader.naming import is_generic_title, presentable_title
 from surveycoach.reader.survey_type import detect_survey_type
+from surveycoach.reward import Reward, read_reward, validate_reward
 from surveycoach.rubric import load_rubric
 from surveycoach.server.decisions import read_decision
 from surveycoach.server.extras import extras_for
@@ -82,6 +83,8 @@ class Repository:
             self.db.execute("ALTER TABLE surveys ADD COLUMN display_title TEXT")
         if "survey_type" not in columns:
             self.db.execute("ALTER TABLE surveys ADD COLUMN survey_type TEXT")
+        if "reward" not in columns:
+            self.db.execute("ALTER TABLE surveys ADD COLUMN reward TEXT")
         # A stopped process cannot finish its in-process jobs. Never leave a spinner forever.
         with self.transaction() as db:
             db.execute("UPDATE jobs SET status='failed', error='Local server stopped before review finished', "
@@ -162,6 +165,15 @@ class Repository:
             response.update(survey_type=survey_type, survey_type_chosen=True)
         return response
 
+    def set_reward(self, survey_id: str, has_reward: bool | None, text: str = "") -> dict:
+        """Store the owner's answer for the whole survey (every version reads the same one)."""
+        answer = validate_reward(has_reward, text)
+        with self.transaction() as db:
+            if not db.execute("UPDATE surveys SET reward=? WHERE id=?",
+                              (json.dumps(answer.as_dict()), survey_id)).rowcount:
+                raise KeyError("Survey not found")
+        return {"id": survey_id, "survey_id": survey_id, "reward": answer.as_dict()}
+
     @staticmethod
     def _latest_review(db, survey_id: str, version: int):
         row = db.execute("SELECT reviews.data FROM reviews JOIN jobs ON jobs.id=reviews.job_id "
@@ -195,7 +207,7 @@ class Repository:
             verdict = overview.get("verdict")
             item.update({key: detail[key] for key in ("title", "title_confirmed", "title_generic",
                                                       "survey_type", "survey_type_chosen",
-                                                      "survey_type_detection")})
+                                                      "survey_type_detection", "reward")})
             item.update(signals=overview.get("signals", []), verdict=verdict,
                         tiles=verdict["tiles"] if verdict else None, job=detail.get("job"),
                         methodology=self._home_methodology(detail))
@@ -237,7 +249,7 @@ class Repository:
                     "job": self._job(job) if job else None}
             if review:
                 data.update(review)
-            metadata = db.execute("SELECT display_title,survey_type FROM surveys WHERE id=?", (survey_id,)).fetchone()
+            metadata = db.execute("SELECT display_title,survey_type,reward FROM surveys WHERE id=?", (survey_id,)).fetchone()
             # The user's own name wins; a generic stored title is projected, never rewritten.
             data["title"] = metadata["display_title"] or presentable_title(stored)
             data["title_confirmed"] = bool(metadata["display_title"])
@@ -245,7 +257,9 @@ class Repository:
             data["survey_type"] = metadata["survey_type"] or data["snapshot"]["survey_type"]
             data["survey_type_chosen"] = bool(metadata["survey_type"])
             # A suggestion for the UI to confirm; it never counts as the user's choice.
-            data["survey_type_detection"] = detect_survey_type(stored).model_dump(mode="json")
+            data["survey_type_detection"] = dict(detect_survey_type(stored).model_dump(mode="json"),
+                                                 confirmed=data["survey_type_chosen"])
+            data["reward"] = read_reward(json.loads(metadata["reward"]) if metadata["reward"] else None).as_dict()
             data["snapshot_title"] = row["title"]
             data["coverage"] = self._coverage(db, survey_id, version)
             # What can actually be fetched; coverage counters are claims, this is the evidence.
@@ -258,7 +272,7 @@ class Repository:
         """Project one round only. This never loads or walks historical rounds."""
         effective = dict(data["snapshot"], survey_type=data["survey_type"])
         if data["review"]:
-            data["review"] = project_review(effective, data["review"])
+            data["review"] = project_review(effective, data["review"], Reward(**data["reward"]))
             data["review"]["findings"] = [guard_recommendation(finding, effective)
                                            for finding in data["review"].get("findings", [])]
             rubric = rubric or load_rubric()

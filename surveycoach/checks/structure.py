@@ -7,11 +7,11 @@ from surveycoach.checks.registry import (ReviewContext, blocker_ok, check, clip,
                                          result)
 from surveycoach.checks.text import plural
 from surveycoach.findings import CheckResult, Finding
+from surveycoach.reward import Reward
 from surveycoach.snapshot import Page, Question
 
 SCREEN_OUT_EFFORT_SECONDS = 120
 OPEN_TEXT = {"text_short", "text_long"}
-REWARD_WORDS = re.compile(r"\b(points?|rewards?|earn(?:ed|ing)?|gift ?cards?|\$\d+)\b", re.I)
 THANKS = re.compile(r"\bthank", re.I)
 MINUTES_PHRASE = re.compile(
     r"(?:about\s+)?\d+(?:\.\d+)?\s*(?:(?:-|\u2013|to)\s*\d+(?:\.\d+)?\s*)?(?:minutes?|mins?)\b", re.I)
@@ -141,16 +141,40 @@ def _intro_headline(promised: float | None, no_time: bool, wrong_time: bool) -> 
     return "Welcome doesn't mention a reward"
 
 
+def _reward_question(reward: Reward) -> str:
+    """Unanswered: ask whether there is one. Answered yes: ask only whether the welcome says so."""
+    if reward.has_reward is None:
+        return "If members get a reward, is the exact reward in the welcome text?"
+    if reward.text:
+        return f"Members get a reward ({reward.text}): does the welcome text mention it?"
+    return "Members get a reward: does the welcome text say what it is?"
+
+
 def _intro_action(ctx: ReviewContext, intro: str, estimated: float, promised: float | None, *, time_issue: bool) -> dict:
     """Time problems paste a timed line when the route is timed, else ask for one timed run. A missing
     reward is a question, never a made-up sentence: only the study owner knows whether a reward applies."""
     if not time_issue:
-        return {"you_check": "If members get a reward, is the exact reward in the welcome text?"}
+        return {"you_check": _reward_question(ctx.reward)}
     if ctx.timing.calibrated:
         return {"suggested_text": fixed_intro(intro, estimated, fix_time=True, add_reward=False)}
     check = (f"If it is not about {promised:g} minutes, fix the time in the welcome text." if promised is not None
              else "Add the real time to the welcome text.")
     return {"steps": ["Time one run-through on your phone.", check]}
+
+
+def _intro_explanation(reward: Reward, *, time_issue: bool, no_reward: bool) -> str:
+    """Unanswered keeps the original wording; an answer drops whatever it has settled."""
+    if reward.has_reward is None:
+        return ("Verify the estimated time with a timed run. If a reward applies, state its confirmed terms "
+                "separately; no reward details were supplied. A time rewrite is offered only for a calibrated, "
+                "verified route.")
+    parts = []
+    if time_issue:
+        parts.append("Verify the estimated time with a timed run. A time rewrite is offered only for a calibrated, "
+                     "verified route.")
+    if no_reward:
+        parts.append("You said members get a reward; state it in the welcome text.")
+    return " ".join(parts)
 
 
 @check("1.4")
@@ -160,7 +184,7 @@ def time_and_reward(ctx: ReviewContext) -> CheckResult:
     if ctx.timing.path_uncertain:
         return result("1.4", None)
     overrun = promised is not None and _promise_overrun(promised, estimated)
-    no_reward = not REWARD_WORDS.search(intro)
+    no_reward = ctx.reward.has_reward is not False and not ctx.reward.mentioned_in(intro)   # "no reward" settles it
     fraction = ((not no_time and not overrun) + (not no_reward)) / 2
     # B5 reports a badly broken promise; here only the smaller overruns, so nothing is said twice.
     wrong_time = overrun and (not ctx.timing.calibrated or not _promise_broken(promised, estimated))
@@ -171,13 +195,14 @@ def time_and_reward(ctx: ReviewContext) -> CheckResult:
         details.append(f"The intro promises {promised:g} minutes; estimated member completion is about {estimated:g}. "
                        "Verify this estimate before changing the promise.")
     if no_reward:
-        details.append("No reward terms are stated; whether a reward applies is unknown.")
+        details.append("No reward terms are stated; whether a reward applies is unknown."
+                       if ctx.reward.has_reward is None else
+                       "You said members get a reward, but the welcome text doesn't mention it.")
     if not details:
         return result("1.4", fraction)
     return result("1.4", fraction, finding(
         "1.4", "worth_improving", _intro_headline(promised, no_time, wrong_time), " ".join(details),
-        "Verify the estimated time with a timed run. If a reward applies, state its confirmed terms separately; "
-        "no reward details were supplied. A time rewrite is offered only for a calibrated, verified route.",
+        _intro_explanation(ctx.reward, time_issue=no_time or wrong_time, no_reward=no_reward),
         "Knowing how long it takes helps members decide to start." if no_time or wrong_time
         else "Members like to know up front whether a reward applies.",
         page_id=_intro_page_id(ctx), current_text=intro or None,

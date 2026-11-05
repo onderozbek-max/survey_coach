@@ -4,6 +4,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from surveycoach.labels import finding_label, screen_labels
 from surveycoach.reader.policy import UnsafeSurveyURL, validate_url
+from surveycoach.reward import Reward
 from surveycoach.server.decisions import read_decision
 from surveycoach.server.extras import extras_for
 from surveycoach.snapshot import SurveySnapshot
@@ -296,7 +297,7 @@ def change_sheet(detail):
     return sorted(lines, key=lambda line: line["position"])
 
 
-def project_review(snapshot, review):
+def project_review(snapshot, review, reward=None):
     """Refresh code evidence on read, never stored history or historical AI judgements.
 
     New reviews retain assessed results, including AI passes with no findings. Merge
@@ -314,7 +315,7 @@ def project_review(snapshot, review):
 
     projected = deepcopy(review)
     rubric = load_rubric()
-    current = run_review(SurveySnapshot.model_validate(snapshot), rubric=rubric)
+    current = run_review(SurveySnapshot.model_validate(snapshot), rubric=rubric, reward=reward or Reward())
     results = current.results
     affected = set(results)
     retained = [f for f in projected.get("findings", [])

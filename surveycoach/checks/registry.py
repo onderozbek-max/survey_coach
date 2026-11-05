@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 from surveycoach.findings import CheckResult, Finding, Severity
+from surveycoach.reward import Reward
 from surveycoach.rubric import Rubric
 from surveycoach.snapshot import SurveySnapshot
 from surveycoach.timing import Timing, estimate, parse_promised_minutes
@@ -17,10 +18,11 @@ class ReviewContext:
     rubric: Rubric
     timing: Timing
     promised_minutes: float | None
+    reward: Reward = Reward()      # the owner's answer; unanswered unless the caller knows it
 
     @classmethod
-    def build(cls, snapshot: SurveySnapshot, rubric: Rubric) -> "ReviewContext":
-        return cls(snapshot, rubric, estimate(snapshot), parse_promised_minutes(snapshot.intro_text))
+    def build(cls, snapshot: SurveySnapshot, rubric: Rubric, reward: Reward = Reward()) -> "ReviewContext":
+        return cls(snapshot, rubric, estimate(snapshot), parse_promised_minutes(snapshot.intro_text), reward)
 
 
 CheckFn = Callable[[ReviewContext], CheckResult]
