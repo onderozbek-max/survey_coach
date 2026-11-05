@@ -10,7 +10,6 @@
 .text-size button:last-child { border-right-width:0; }
 .text-size [aria-pressed="true"] { background:var(--accent); color:var(--on-accent); font-weight:700; }
 
-.timing .timebar { height:8px; background:var(--line); }
-.timing .timebar::before, .timing .timebar::after { content:none; display:none; background:none; }
+.timing .timebar { position:relative; height:8px; max-width:390px; margin:6px auto 0; border-radius:var(--r-pill); background:var(--line); }
 .timing .timebar b { position:absolute; top:0; bottom:0; left:0; border-radius:inherit; background:var(--line-strong); }
 .timing [title] { cursor:help; }

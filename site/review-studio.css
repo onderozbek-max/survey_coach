@@ -31,15 +31,12 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 121px); }
 .improve-bar .energy-fill { max-height:32px; }
 .improve-bar .energy-label,.improve-bar .energy-caption { display:none; }
 .queue-tools { display:flex; gap:8px; align-items:center; }
-.queue-tools button,.preview-settings button { min-height:44px; padding:6px 12px; border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:12px; }
+.queue-tools button { min-height:44px; padding:6px 12px; border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:12px; }
 .queue-tools .seg { display:flex; padding:0; }
 .queue-tools .seg [aria-pressed=true] { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
 .review-studio .studio,.review-studio .studio:has(.comparing),body:not(.review-studio) #chapter-improve .studio { display:grid; grid-template-columns:minmax(340px,400px) minmax(0,560px); grid-template-areas:'stage coach'; justify-content:center; align-items:start; gap:48px; }
 .review-studio .stage { grid-area:stage; position:sticky; top:calc(var(--header-h,69px) + 121px); padding:0; border:0; background:transparent; }
 .review-studio .coach { grid-area:coach; min-width:0; padding:0; }
-.preview-settings { font-size:12px; margin-bottom:8px; }
-.preview-settings summary { min-height:24px; cursor:pointer; }
-.preview-settings button { margin:4px; }
 .phone-wrap { margin:0 auto 12px; }
 .review-studio .phone { --w:390px; border:8px solid var(--phone-frame); border-radius:32px; box-shadow:var(--shadow-2); max-width:100%; }
 .review-studio .phone-bar { padding:10px 14px; font-size:12px; color:var(--muted); background:var(--phone-surface); border-bottom:1px solid var(--line); }
@@ -120,10 +117,8 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 121px); }
   .review-studio .phone { width:min(var(--w,390px),350px,100%); }
   .review-studio .phone-screen { height:390px; }
   .review-studio .card { padding:20px; }
-  .review-studio .phone-controls { margin-bottom:0; }
   .review-studio .preview-tools summary { min-height:24px; }
   .review-studio .preview-tools { margin-bottom:0; }
-  .review-studio #phone-settings { min-height:24px; padding:2px 12px; }
   .review-studio #review-status { margin:0; }
   .review-studio .decision-verdict:empty { display:none; }
   .improve-bar { margin:8px 0 2px; }
