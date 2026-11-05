@@ -130,7 +130,8 @@
               changes === 0 && h('span', {id:'mode-why', class:'sr-only'}, 'Add a change to see it on the phone.')))];
       },
       renderList(onPicked = () => {}) {
-        return SC.fixList({entries:visible(), active, isOpen, handledKind, onSelect:entry => { api.select(entry); onPicked(); }});
+        // Close a drawer first: a modal dialog would swallow the focus the card is about to take.
+        return SC.fixList({entries:visible(), active:active || place?.id || null, isOpen, handledKind, onSelect:entry => { onPicked(); api.select(entry); }});
       },
       render(ctx) {
         if (view === 'card' && api.active) return SC.renderImproveItem(resolve(api.active), {...ctx, queue:api, detail, onAdvance:api.advance, isActive:api.isActive});
