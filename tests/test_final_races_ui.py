@@ -73,6 +73,8 @@ def test_failed_new_job_keeps_previous_review_available(browser, base_url):
         detail['job'] = {'id':'job', 'status':'failed', 'error':'Synthetic recheck failure'}
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='overview', prepare=prepare)
     assert 'previous completed review' in page.locator('#review-status').inner_text()
-    assert page.locator('#overview-headline').is_visible()
+    # 1B: the verdict headline is the #overview-h heading (the old #overview-headline paragraph is gone).
+    headline = page.locator('#overview-h')
+    assert headline.is_visible() and headline.inner_text() == detail['overview']['headline']
     assert not errors
     context.close()

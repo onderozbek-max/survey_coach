@@ -96,7 +96,11 @@ def test_answer_additions_are_ghosts_not_stem_rewrites_or_verified_fixes(browser
     assert ghost.evaluate('e => getComputedStyle(e).borderStyle') == 'dashed'
     assert 'Keep this entire stem' in page.locator('#stage .phone-screen .q-text').all_inner_texts()
     assert 'I did not shop this year' not in page.locator('#stage .phone-screen .q-text').all_inner_texts()
-    assert 'not accepted or saved' in page.locator('.preview-effect').inner_text()
+    # 1B: the preview line says nothing was saved in plain words (the old "hypothetical, not accepted or saved"),
+    # and it never claims the suggested answer is applied or verified.
+    effect = page.locator('.preview-effect').inner_text()
+    assert 'RedJade is only changed when you edit it there' in effect
+    assert 'verified' not in effect.lower()
     assert page.evaluate('JSON.stringify(SC.workspaceDetail.snapshot)') == raw
     page.get_by_role('button', name='Original', exact=True).click()
     assert ghost.count() == 0

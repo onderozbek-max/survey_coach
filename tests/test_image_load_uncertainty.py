@@ -6,8 +6,12 @@ from surveycoach.checks.images import cannot_see_image, phone_friendly_shape
 def test_unloaded_image_is_scoped_to_reader_and_has_conditional_action():
     snapshot = one_question_survey(question(media=[image(loaded=False, natural=(0, 0))]))
     finding = cannot_see_image(context(snapshot)).findings[0]
-    assert 'reader' in finding.headline.lower()
-    assert 'verify' in finding.headline.lower()
+    # 1C: members never see the word "reader"/"verify" in the headline; the scope (a capture observation,
+    # cause not measured) lives in the evidence and the headline asks for a check instead of claiming a defect.
+    assert 'reader' not in finding.headline.lower()
+    assert finding.headline.lower().startswith('check that')
+    assert 'reader observed' in finding.evidence.lower() and 'not measured' in finding.evidence.lower()
+    assert finding.action_kind == 'you_check' and 'phone' in finding.you_check.lower()
     assert 'phone' in finding.explanation.lower()
     assert 'if' in finding.explanation.lower()
     assert 're-upload' in finding.explanation.lower()

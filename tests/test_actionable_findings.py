@@ -48,8 +48,11 @@ def test_click_becomes_tap_and_the_word_is_highlighted(flawed):
 
 def test_one_intro_finding_requests_verification_without_inventing_promises(flawed):
     (f,) = by_criterion(flawed, "1.4")
-    assert "3 min" in f.headline and "reward" in f.headline
-    assert f.suggested_text is None
+    # 1C: the headline leads with the time problem; the unknown reward stays in the evidence, never as a promise.
+    assert "3 min" in f.headline and "check the time" in f.headline
+    assert "reward" in f.evidence and "unknown" in f.evidence
+    assert f.suggested_text is None  # uncalibrated route: no invented time rewrite
+    assert f.action_kind == "steps" and "Time one run-through" in f.steps[0]
     assert "timed run" in f.explanation and "calibrated" in f.explanation
 
 
@@ -67,8 +70,11 @@ def test_unlabeled_scale_end_gets_a_matching_label(flawed):
 
 def test_unverified_image_names_capture_without_hidden_layout_penalty(flawed):
     (observation,) = by_criterion(flawed, "B7")
-    assert "Relaxed fit" in observation.headline and observation.element_id == "img3"
-    assert "could not verify" in observation.headline.lower()
+    # 1C: the headline is a plain-language ask; the capture still names the image and says the cause is unmeasured.
+    assert "Relaxed fit" in observation.evidence and observation.element_id == "img3"
+    assert observation.headline.startswith("Check that") and "phone" in observation.headline
+    assert "not measured" in observation.evidence
+    assert observation.action_kind == "you_check" and observation.steps == []
     assert observation.severity == "worth_improving"
     assert flawed.results["B7"].assessed is False
     assert "B7" in flawed.scorecard.pending_blockers
@@ -82,7 +88,7 @@ def test_unverified_image_names_capture_without_hidden_layout_penalty(flawed):
 
 def test_the_time_overrun_is_reported_even_though_it_is_below_the_blocker_threshold(flawed):
     assert not by_criterion(flawed, "B5") and flawed.est_minutes > flawed.promised_minutes * 1.25
-    assert any("promise checked" in f.headline for f in by_criterion(flawed, "1.4"))
+    assert any("check the time" in f.headline for f in by_criterion(flawed, "1.4"))
     assert any("estimated member completion" in f.evidence.lower() for f in by_criterion(flawed, "1.4"))
 
 

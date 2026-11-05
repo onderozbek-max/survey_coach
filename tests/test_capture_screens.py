@@ -89,7 +89,7 @@ def test_real_server_cleanup_on_exception_and_actual_group(tmp_path):
             members = [f for f in pattern['review']['findings']
                        if f['fingerprint'] in group['fingerprints']]
             assert len({f['question_id'] for f in members}) == 3
-            assert {f['criterion_id'] for f in members} == {'3.3'}
+            assert {f['criterion_id'] for f in members} == {'9.1'}
             port = httpx.URL(base).port
             raise RuntimeError('forced capture failure')
     with socket.socket() as probe:

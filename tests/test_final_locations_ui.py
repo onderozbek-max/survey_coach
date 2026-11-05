@@ -33,7 +33,8 @@ def test_exact_question_labels_topics_and_share_match_download(browser, base_url
     def prepare(d):
         d.clear(); d.update(deepcopy(detail))
     context, page, returned, writes, errors = open_review(browser, base_url, prepare=prepare)
-    group = next(i for i in detail['plan']['quick_wins'] if i['count'] == 3)
+    # 1C groups identical actions (here the same emoji-free paste on three questions) into one card; it can land in any tier.
+    group = next(i for tier in ('must_fix', 'quick_wins', 'more') for i in detail['plan'][tier] if i['count'] == 3)
     members = [f for f in detail['review']['findings'] if f['fingerprint'] in group['fingerprints']]
     focus(page, members[0])
     for f in members:

@@ -31,16 +31,20 @@ VIEWPORTS = {'desktop': {'width': 1440, 'height': 900},
              'mobile': {'width': 390, 'height': 844}}
 
 
+SNACKS = ('Fruit \U0001F34E', 'Crackers', 'Nuts')
+
+
 def pattern_snapshot():
-    """Actual repeated engine input, not a synthetic override of review output."""
+    """Actual repeated engine input, not a synthetic override of review output. Three questions share one
+    answer label with an emoji, so the engine raises the same "Emoji in an answer choice" check with the
+    same paste on each and the plan groups them (different rewrites never merge)."""
     return {'title': 'Synthetic grouped instructions', 'source_url': 'fixture://board-pattern',
             'pages': [
                 {'id': 'intro', 'position': 0, 'kind': 'intro',
                  'intro_text': 'Welcome! Help us choose snacks. This takes about 2 minutes.'},
                 *[{'id': f'p{i}', 'position': i, 'kind': 'question', 'questions': [
                     {'id': f'q{i}', 'kind': 'multi_choice', 'text': text,
-                     'options': [{'id': 'a', 'label': 'Fruit'}, {'id': 'b', 'label': 'Crackers'},
-                                 {'id': 'c', 'label': 'Nuts'}]}]}
+                     'options': [{'id': f'o{n}', 'label': label} for n, label in enumerate(SNACKS)]}]}
                   for i, text in enumerate(('Which snacks do you buy?',
                                             'Which snacks do you share?',
                                             'Which snacks do you pack?'), 1)],
@@ -220,7 +224,10 @@ def capture(browser, base, detail, pattern, group, output, reduced_motion, clien
             # Choose actual engine wording through the UI, scoped to this disposable DB.
             page.locator('#use-change').click()
             page.locator('#undo').wait_for()
-            page.locator('[data-chapter=share]').click()
+            share_link = page.locator('#chapter-nav [data-chapter=share]')
+            if not share_link.is_visible():      # narrow headers collapse the steps into a menu
+                page.locator('#steps-button').click()
+            share_link.click()
             page.locator('#change-list li').first.wait_for()
             snap('share', 'one synthetic decision chosen in UI; no launch verification')
             review(detail, 'overview')

@@ -35,7 +35,8 @@ def test_community_emoji_only_answer_is_flagged(label):
     assert findings[0].headline == "Answer is only an emoji"
     assert findings[0].explanation == (
         "Add a word next to the emoji so every member, and screen readers, get the same meaning.")
-    assert findings[0].member_impact == "Emoji alone can read differently across phones and assistive technology."
+    assert findings[0].member_impact == "An emoji can look different on each phone."  # 1C: plain, <= 20 words
+    assert findings[0].steps == ["Add a word next to the emoji in this answer."]
 
 
 @pytest.mark.parametrize("text,flagged", [
