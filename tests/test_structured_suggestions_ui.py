@@ -4,7 +4,6 @@
 copies; Copy is its own button, so exact-copy assertions press Copy. Presentation contracts are unchanged."""
 import pytest
 
-from tests.test_improve_ui import curated
 from tests.test_issue_loop_ui import focus, open_review
 from tests.test_site_e2e import base_url, browser
 
@@ -15,7 +14,7 @@ COPY = {'name': 'Copy the new wording', 'exact': True}
 
 
 def recommendation(detail, text=TEXT, structural=True, adding=False):
-    finding = curated(detail)[0]
+    finding = next(f for f in detail['review']['findings'] if f.get('suggested_text') or f.get('options'))
     question = next(q for p in detail['snapshot']['pages'] for q in p.get('questions', [])
                     if q.get('options'))
     question.update(text=STEM, kind='single_choice', options=[dict(id=str(i), label=t) for i, t in enumerate(OLD)])
