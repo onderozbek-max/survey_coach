@@ -96,7 +96,7 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 96px); }
 .nothing-icon { display:inline-flex; color:var(--positive); }
 .completion { display:grid; justify-items:start; gap:var(--s-4); padding:var(--s-6) var(--s-5); border:1px solid var(--celebrate); border-radius:var(--r-md); background:var(--celebrate-soft); color:var(--text); }
 .completion h3 { margin:0; font-size:var(--fs-22); }
-.celebrate-mark { position:relative; display:grid; place-items:center; width:64px; height:64px; border-radius:50%; background:var(--surface); color:var(--celebrate); border:2px solid var(--celebrate); animation:celebrate-pop var(--dur-3) var(--ease) both; }
+.celebrate-mark { position:relative; margin:var(--s-4) var(--s-4) var(--s-3); display:grid; place-items:center; width:64px; height:64px; border-radius:50%; background:var(--surface); color:var(--celebrate); border:2px solid var(--celebrate); animation:celebrate-pop var(--dur-3) var(--ease) both; }
 .celebrate-dot { --i:0; position:absolute; top:calc(50% - 4px); left:calc(50% - 4px); width:8px; height:8px; border-radius:50%; background:var(--celebrate); transform:rotate(calc(var(--i) * 45deg)) translateY(-44px); animation:celebrate-dot var(--dur-3) var(--ease) both; }
 @keyframes celebrate-pop { from { transform:scale(.6); opacity:0; } to { transform:scale(1); opacity:1; } }
 @keyframes celebrate-dot { from { transform:rotate(calc(var(--i) * 45deg)) translateY(-20px); opacity:0; } to { transform:rotate(calc(var(--i) * 45deg)) translateY(-44px); opacity:1; } }
