@@ -67,30 +67,41 @@ def _question_seconds(question: Question, c: TimingConstants) -> float:
     return reading * c.seconds_per_word + c.interaction(question) + media * c.image_seconds
 
 
-def _unrepresented_text(text: str, represented: list[str], *, whole_lines: bool = False) -> str:
+def _unrepresented_text(
+    text: str, represented: list[str], *, whole_lines: bool = False,
+) -> tuple[str, list[str]]:
     """Subtract one exact captured copy per field, never semantic similarity.
 
     Whitespace is layout, but case and punctuation remain evidence. Longest
     fields go first so a short option cannot eat part of a question. Matching
     stays page-local and bounded to avoid removing labels inside other words.
+    Return unmatched fields too, so a removed container cannot also consume
+    another occurrence of a field already covered inside that container.
     """
     remaining = text
+    unmatched = []
     for field in sorted((t for t in represented if t.strip()), key=len, reverse=True):
         exact = r"\s+".join(re.escape(word) for word in field.split())
         # Option labels embedded in prose aren't evidence of a rendered option.
         pattern = (r"^[^\S\n]*" + exact + r"[^\S\n]*$" if whole_lines
                    else r"(?<!\w)" + exact + r"(?!\w)")
-        remaining = re.sub(pattern, " ", remaining, count=1, flags=re.M)
-    return remaining
+        remaining, count = re.subn(pattern, " ", remaining, count=1, flags=re.M)
+        if not count:
+            unmatched.append(field)
+    return remaining, unmatched
 
 
 def _page_seconds(page: Page, c: TimingConstants) -> float:
     represented = [field for q in page.questions for field in (q.text, q.help_text)]
     options = [o.label for q in page.questions for o in q.options]
-    intro = _unrepresented_text(page.intro_text, represented)
-    intro = _unrepresented_text(intro, options, whole_lines=True)
-    raw = _unrepresented_text(page.text, [page.intro_text, *represented])
-    raw = _unrepresented_text(raw, options, whole_lines=True)
+    intro, outside_intro = _unrepresented_text(page.intro_text, represented)
+    intro, options_outside_intro = _unrepresented_text(intro, options, whole_lines=True)
+    raw, missing_intro = _unrepresented_text(page.text, [page.intro_text])
+    # A full intro match already accounts for its contained structured fields.
+    # Without that match, raw still needs its own structured-field subtraction.
+    intro_removed = bool(page.intro_text.strip()) and not missing_intro
+    raw, _ = _unrepresented_text(raw, outside_intro if intro_removed else represented)
+    raw, _ = _unrepresented_text(raw, options_outside_intro if intro_removed else options, whole_lines=True)
     text_words = _words(intro) + _words(raw)
     questions = sum(_question_seconds(q, c) for q in page.questions)
     return text_words * c.seconds_per_word + questions + c.page_overhead

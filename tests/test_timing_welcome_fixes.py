@@ -78,6 +78,38 @@ def test_extra_exact_occurrence_is_not_globally_erased():
     assert timed_page(q.text + "\n" + q.text) == pytest.approx(round(expected, 1))
 
 
+def test_overlapping_intro_and_question_preserve_legitimate_extra_occurrence():
+    q = Question(id="q", text="How often do you buy meal kits?", kind="single_choice")
+    intro = "Please consider your usual purchases. " + q.text
+    base = timed_page(intro, intro=intro, questions=[q])
+    repeated = timed_page(intro + "\n" + q.text, intro=intro, questions=[q])
+    assert base == 8.1  # intro/structured overlap is read once, plus interaction and page overhead
+    assert repeated == 10.2  # the separate seven-word occurrence adds 2.1 seconds
+
+
+@pytest.mark.parametrize("field", ["text", "help", "option"])
+def test_intro_coverage_does_not_consume_another_raw_field_occurrence(field):
+    q = captured_question()
+    wording = {"text": q.text, "help": q.help_text, "option": q.options[0].label}[field]
+    intro = "Consider your usual purchases.\n" + wording
+    base = timed_page(intro, intro=intro)
+    repeated = timed_page(intro + "\n" + wording, intro=intro)
+    assert repeated - base == pytest.approx(len(wording.split()) * 0.3)
+
+
+def test_intro_with_two_question_occurrences_preserves_both_when_raw_duplicates_it():
+    q = captured_question()
+    intro = q.text + "\n" + q.text
+    expected = timed_page() + len(q.text.split()) * 0.3
+    assert timed_page(intro, intro=intro) == pytest.approx(round(expected, 1))
+
+
+def test_intro_coverage_does_not_hide_raw_fields_when_full_intro_is_absent():
+    q = captured_question()
+    intro = "Consider your usual purchases. " + q.text
+    assert timed_page(q.text, intro=intro) == timed_page(intro=intro)
+
+
 def test_intro_copied_into_raw_capture_is_read_only_once():
     assert timed_page(WELCOME, intro=WELCOME, questions=[]) == timed_page(intro=WELCOME, questions=[])
 

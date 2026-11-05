@@ -34,3 +34,18 @@ Owned implementation: `surveycoach/timing.py`, `surveycoach/snapshot.py`, `surve
 Owned feature/contract tests: `tests/test_timing_welcome_fixes.py`, timing-only assertions in `tests/test_actionable_findings.py` and `tests/test_committee_trust_engine.py`.
 
 No external/live/real-database/user-data changes, delegation, or push. Other workers' UI/content/phone/image changes and staged progress are intentionally excluded from the commit.
+
+## P2 review follow-up: overlapping representations (c2a7e47)
+
+Owner: code-puppy-6d6eda
+
+- [x] Reproduce the reported intro-container bug before implementation: **4 failed, 27 passed** in the feature regression file. Failures covered the exact 8.1-to-10.2-second reproduction and repeated question/help/option fields following a removed intro.
+- [x] Track unmatched structured fields while subtracting them from intro reading. If raw includes the full intro, that removed container already covers its matched structured fields; only unmatched fields may be subtracted again from raw. If the full intro is absent, raw retains its independent structured-field subtraction.
+- [x] Assert intro/structured overlap counts once (8.1 seconds), while a legitimate extra seven-word question contributes 2.1 seconds (10.2 total). Also retain both occurrences when the intro itself contains the question twice, and cover absent-full-intro behavior.
+- [x] Focused GREEN: **118 passed in 0.48s**, using the existing virtualenv:
+
+```sh
+.venv/bin/python -m pytest tests/test_timing_welcome_fixes.py tests/test_timing.py tests/test_checks_structure.py tests/test_committee_trust_engine.py tests/test_actionable_findings.py -q
+```
+
+`git diff --check` passed for implementation/tests. Scope for this follow-up is only `surveycoach/timing.py`, `tests/test_timing_welcome_fixes.py`, and this named report; no UI, live services, full suite, delegation, database/user-data changes, or push. Commit uses `--only` to preserve unrelated staged work.
