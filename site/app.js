@@ -176,8 +176,8 @@
   function renderTop() {
     const top = $('topbar');
     if (!top) return;
-    const {verdict, headline} = survey().overview, {state, label} = SC.verdictState(verdict);
-    mount(top, SC.stateChip(state, {label}),
+    const {verdict, headline} = survey().overview, status = SC.verdictState(verdict);
+    mount(top, SC.stateChip(status.state, {label: status.label}),
       h('p', {class:'verdict-line'}, h('strong', null, headline), verdict && ` · ${verdict.time.label}`),
       !localDetail && h('label', {class:'pick'}, h('span', null, 'Sample survey'),
         h('select', {'data-fk':'survey-picker', onchange:e => chooseSurvey(Number(e.target.value))},

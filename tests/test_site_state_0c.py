@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tests.test_issue_loop_ui import focus, open_review
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to
 
 ROOT = Path(__file__).parent.parent
 PENDING_KEY = 'surveycoach-pending-job'
@@ -338,10 +339,10 @@ def test_uncertain_marker_opens_existing_review_read_only_and_blocks_submissions
     assert len(page.locator('#chapter-overview').inner_text()) > len('Overview') + 20
     saved = page.evaluate('key => JSON.parse(sessionStorage.getItem(key))', PENDING_KEY)
     assert saved['submissionPending'] is True and set(saved) == {'submissionPending', 'started'}
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     for selector in ('#check-again', '#recheck-form button[type=submit]', '#survey-link'):
         assert page.locator(selector).is_disabled(), selector
-    page.locator('[data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.wait_for_selector('#coach .card')
     for selector in ('#coach .use-change', '#coach .keep-as-is'):
         assert page.locator(selector).first.is_disabled(), selector

@@ -3,6 +3,7 @@ import pytest
 
 from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -22,7 +23,7 @@ def test_playback_stops_on_chapter_exit_and_reentry_shows_play(browser, base_url
     screen = page.locator('#stage .phone-bar').inner_text()
     page.locator(f'[data-chapter={destination}]').click()
     page.clock.run_for(3_600_000)
-    page.locator('[data-chapter=improve]').click()
+    go_to(page, 'improve')
     assert page.locator('#stage .phone-bar').inner_text() == screen
     tools(page)
     assert page.get_by_role('button', name='Play as a member', exact=True).is_visible()
@@ -67,7 +68,7 @@ def test_journey_comparison_and_question_stem_visible(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#stage .phone-screen').first.wait_for()
     assert page.locator('#stage .phone-screen').first.evaluate('e => e.scrollTop') == 0
     assert page.locator('#all-screens').is_visible()

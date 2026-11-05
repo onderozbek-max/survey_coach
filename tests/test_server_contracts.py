@@ -16,6 +16,7 @@ from surveycoach.server.repository import Repository
 from surveycoach.server.service import run_job
 from surveycoach.snapshot import SurveySnapshot
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -133,7 +134,7 @@ def test_pending_save_locks_decisions_until_committed_and_survives_reload(browse
         page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
         page.get_by_role("button", name="Check survey").click()
         page.wait_for_url("**/review.html?**", timeout=30000)
-        page.locator('#chapter-nav [data-chapter=improve]').click()
+        go_to(page, 'improve')
         from tests.test_workspace_decisions import focus_finding, keep_mine
         # Empty Must-fix is valid; readiness must not depend on an active card.
         page.wait_for_function('SC.reviewReady === true')

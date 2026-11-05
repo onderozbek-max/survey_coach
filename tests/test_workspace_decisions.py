@@ -2,6 +2,7 @@
 from playwright.sync_api import expect
 
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -11,7 +12,7 @@ def open_sample(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
     return context, page
 

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from surveycoach.server import create_app
 from surveycoach.server.service import summary_packet
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -31,11 +32,11 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     query = page.url.split('?', 1)[1]
     page.goto(studio + '/index.html?' + query)
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
     assert page.get_by_role('tab').count() == 3
     summary = page.locator('#all-screens')
@@ -54,7 +55,7 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     assert page.locator('#screen-drawer .screen-row').count() > 0
     headings = page.locator('#screen-drawer strong').all_inner_texts()
     assert not any('fingerprint' in text or 'q-' in text for text in headings)
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     assert page.locator('#download-summary').inner_text() == 'Download summary'
     assert page.locator('#download-summary').get_attribute('href').endswith('/summary?download=1')
     assert page.locator('details.studio-tools').count() == 0

@@ -9,6 +9,7 @@ import uvicorn
 from surveycoach.server import create_app
 from surveycoach.snapshot import SurveySnapshot
 from tests.test_site_e2e import browser
+from tests.site_helpers import open_how_we_check, go_to
 
 ROOT = Path(__file__).parent.parent
 
@@ -44,7 +45,7 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     page.get_by_label("Survey snapshot file (.json)").set_input_files(str(ROOT / "fixtures/boxer-briefs.json"))
     page.get_by_role("button", name="Check survey").click()
     page.wait_for_url("**/review.html?**", timeout=30000)
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#all-screens').click()
     jump = page.locator('.screen-row').first
     headline = jump.locator('strong').inner_text()
@@ -65,8 +66,8 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
     assert page.locator('#copy-all').is_disabled()
     assert page.locator('#stage .phone-screen').is_visible()
-    page.locator('#about-review').click()
-    assert 'saved locally' in page.get_by_role('dialog', name='About this review').inner_text()
+    open_how_we_check(page)
+    assert 'saved locally' in page.get_by_role('dialog', name='How we check').inner_text()
     page.keyboard.press('Escape')
     page.locator('#check-again').click()
     page.locator('.advanced-recheck > summary').click()
@@ -74,9 +75,9 @@ def test_import_saved_choices_phone_and_updated_review(browser, studio):
     updated = SurveySnapshot.model_validate_json((ROOT / "fixtures/boxer-briefs.json").read_text())
     updated.title += " revised"
     page.get_by_label("Updated snapshot file (.json)").set_input_files({"name": "revised.json", "mimeType": "application/json", "buffer": updated.model_dump_json().encode()})
-    page.get_by_role("button", name="Start next version").click()
+    page.get_by_role("button", name="Check updated survey").click()
     page.wait_for_url(lambda url: str(url) != before, timeout=30000)
-    page.locator('#chapter-nav [data-chapter=share]').click()
+    go_to(page, 'share')
     page.locator('.round-timeline').wait_for()
     assert page.locator('.round-timeline a').count() == 2
     assert '/versions/2/summary?download=1' in page.locator('#download-summary').get_attribute('href')

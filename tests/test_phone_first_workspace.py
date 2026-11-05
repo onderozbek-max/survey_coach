@@ -1,5 +1,6 @@
 """The member experience, not report chrome, is the first-screen centrepiece."""
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -8,7 +9,7 @@ def test_phone_is_visible_above_fold_on_saved_review(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
     phone = page.locator('#stage .phone').bounding_box()
     assert phone['y'] < 450  # Chapter navigation now shares the top half of the viewport.
@@ -23,7 +24,7 @@ def test_return_to_review_always_opens_member_experience(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#all-screens').click()
     page.locator('.screen-row').last.click()
     page.reload()

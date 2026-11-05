@@ -328,6 +328,7 @@ def test_unchecked_points_are_disclosed_as_unknown_not_earned(browser, base_url)
 def test_the_second_sample_reports_its_own_verdict_without_claiming_launch_approval(browser, base_url):
     page, _ = open_page(browser, base_url)
     page.locator('[data-fk="survey-picker"]').select_option(index=1)
+    assert page.locator('[data-fk="survey-picker"]').evaluate('el => el.selectedIndex') == 1   # the picker shows what is on screen
     header = page.locator("#topbar").inner_text()
     overview = page.evaluate('SURVEYCOACH_DEMO.surveys[1].overview')
     assert page.locator('.card').count() == 0 and overview['headline'] in header

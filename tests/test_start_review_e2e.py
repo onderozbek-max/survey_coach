@@ -2,6 +2,7 @@
 import pytest
 
 from tests.test_site_e2e import browser
+from tests.site_helpers import open_how_we_check, go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -48,18 +49,18 @@ def test_link_start_to_saved_review_preserves_partial_coverage(browser, studio, 
     page.get_by_label('RedJade preview link').fill('https://example.redjade.net/test')
     page.get_by_role('button', name='Check survey', exact=True).click()
     page.wait_for_url('**/review.html?**', timeout=30000)
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     for reload in (False, True):
         if reload:
             page.reload()
-        page.locator('#chapter-nav [data-chapter=improve]').click()
+        go_to(page, 'improve')
         page.locator('#all-screens').click()
         jump = page.locator('.screen-row').first
         jump.wait_for(state='visible')
         jump.click()
         page.locator('#coach .card').wait_for()
-        page.locator('#about-review').click()
-        summary = page.get_by_role('dialog', name='About this review')
+        open_how_we_check(page)
+        summary = page.get_by_role('dialog', name='How we check')
         assert '3 captured screens checked' in summary.inner_text()
         assert 'Reached the end of the observed path.' in summary.inner_text()
         assert 'Unvisited branches and uncaptured screens were not checked.' in summary.inner_text()

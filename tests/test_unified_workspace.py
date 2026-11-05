@@ -1,5 +1,6 @@
 """Canonical review navigation and honest image reminders, synthetic localhost only."""
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -8,7 +9,7 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
     assert page.locator('link[href="design-system.css"]').count() == 1
     assert page.get_by_role('tab').count() == 3
@@ -16,7 +17,7 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     page.locator('.screen-row').first.click()
     assert page.locator('#coach .card').count() == 1
     assert page.locator('#stage .phone-screen').is_visible()
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     download = page.get_by_role('link', name='Download summary', exact=True)
     assert '/versions/1/summary?download=1' in download.get_attribute('href')
     assert download.is_visible()
