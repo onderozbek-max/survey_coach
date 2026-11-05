@@ -180,6 +180,17 @@ def test_detected_type_carries_a_confidence_label_and_a_confirmed_flag(repo):
     assert home["survey_type_detection"]["confirmed"] is True and home["reward"] == again["reward"]
 
 
+def test_every_check_uses_the_same_time_target_as_the_verdict(repo):
+    # Stored as a product test (5 min), but it reads as a concept test (6 min): 5.5 minutes must not be flagged.
+    snap = concept_survey("non_ihut_product").model_copy(deep=True)
+    for n in range(3):
+        snap.pages.insert(-1, page(50 + n, question(f"t{n}", f"Tell us more, part {n}?", kind="text_long", options=())))
+    detail = repo.detail(save_review(repo, snap))
+    time = detail["overview"]["verdict"]["time"]
+    assert time["survey_type"] == "services_concept" and 5 < time["minutes"] <= time["target_high"]
+    assert [f for f in detail["review"]["findings"] if f["criterion_id"] == "2.1"] == []
+
+
 def test_the_time_target_follows_the_confirmed_type(repo):
     survey_id = saved(repo, concept_survey("non_ihut_product"))
     unconfirmed = repo.detail(survey_id)["overview"]["verdict"]["time"]

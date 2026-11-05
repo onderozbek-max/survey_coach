@@ -15,7 +15,7 @@ from surveycoach.reader.survey_type import detect_survey_type
 from surveycoach.reward import Reward, read_reward, validate_reward
 from surveycoach.rubric import load_rubric
 from surveycoach.server.decisions import read_decision
-from surveycoach.server.extras import extras_for
+from surveycoach.server.extras import display_type, extras_for
 from surveycoach.server.present import enrich, present_findings
 from surveycoach.recommendations import guard_recommendation
 
@@ -300,7 +300,9 @@ class Repository:
 
     def _project_detail(self, data, rubric=None):
         """Project one round only. This never loads or walks historical rounds."""
-        effective = dict(data["snapshot"], survey_type=data["survey_type"])
+        # The type whose length target the verdict uses (confirmed, else a trusted detection) is the one
+        # every check is judged by, so the verdict and a length finding can never name different targets.
+        effective = dict(data["snapshot"], survey_type=display_type(data)[0])
         if data["review"]:
             data["review"] = project_review(effective, data["review"], Reward(**data["reward"]))
             data["review"]["findings"] = [guard_recommendation(finding, effective)
