@@ -46,8 +46,8 @@ def test_download_contains_ordered_member_story_and_only_explicit_changes():
     body = summary_packet(data, download=True)
     assert data == before
     assert escape(data["overview"]["headline"]) in body
-    sections = ["Headline", "Member experience", "Changes chosen", "Kept on purpose",
-                "Still open", "What we checked / not checked"]
+    sections = [escape(data["overview"]["headline"]), "Member experience", "Changes chosen",
+                "Kept on purpose", "Still open", "What we checked / not checked"]
     assert [body.index(f"<h2>{name}</h2>") for name in sections] == sorted(
         body.index(f"<h2>{name}</h2>") for name in sections)
     for signal in data["overview"]["signals"]:
@@ -119,7 +119,7 @@ def test_no_review_is_unknown_not_a_clean_bill_of_health(tmp_path):
         ai=False)
     with TestClient(app, base_url="http://localhost") as client:
         body = client.get(f"/api/surveys/{created['id']}/versions/1/summary?download=1").text
-        assert body.count("Not checked yet") >= 6
+        assert body.count("Not checked automatically") >= 6
         assert "Review not available" in body
         assert "No must-fixes found" not in body
 

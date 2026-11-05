@@ -13,6 +13,7 @@ from pydantic import TypeAdapter
 from surveycoach.reader.naming import is_generic_title, presentable_title
 from surveycoach.reader.survey_type import detect_survey_type
 from surveycoach.rubric import load_rubric
+from surveycoach.server.extras import extras_for
 from surveycoach.server.present import enrich, present_findings
 from surveycoach.recommendations import guard_recommendation
 
@@ -180,29 +181,29 @@ class Repository:
                               "WHERE v2.survey_id=v.survey_id) ORDER BY v.created_at DESC, v.survey_id").fetchall()
             surveys = [dict(row) for row in rows]
         # Reuse authoritative detail projection (including effective type and valid
-        # decisions); Home must not invent a second signal/readiness calculation.
+        # decisions); Home must not invent a second signal/verdict calculation.
         for item in surveys:
             detail = self.detail(item["id"], item["version"])
-            signals = detail.get("overview", {}).get("signals", [])
+            overview = detail.get("overview", {})
+            verdict = overview.get("verdict")
             item.update({key: detail[key] for key in ("title", "title_confirmed", "title_generic",
                                                       "survey_type", "survey_type_chosen",
                                                       "survey_type_detection")})
-            item.update(signals=signals, quality=detail["quality"], job=detail.get("job"),
-                        readiness=None, must_fix=None, score_checked=None)
-            review = detail.get("review") or {}
-            if review:
-                card = review["scorecard"]
-                item.update(readiness=card["readiness"],
-                            must_fix=sum(f["severity"] == "must_fix" for f in review["findings"]),
-                            score_checked=[round(card["score"]), card["checked_points"]])
-            coverage = detail.get("coverage")
+            item.update(signals=overview.get("signals", []), verdict=verdict,
+                        tiles=verdict["tiles"] if verdict else None, job=detail.get("job"),
+                        methodology=self._home_methodology(detail))
             item["ready_to_share"] = bool(
-                review and item["readiness"] == "ready" and item["must_fix"] == 0
-                and len(signals) == 6 and all(s["state"] == "strong" for s in signals)
-                and not review.get("unchecked")
-                and (not coverage or coverage.get("full_branching_coverage") is True)
+                verdict and verdict["kind"] == "ready_for_signoff"
                 and (item["job"] or {}).get("status") == "completed")
         return surveys
+
+    @staticmethod
+    def _home_methodology(detail: dict) -> dict:
+        """Score and readiness for experts only; the card itself leads with the verdict."""
+        review = detail.get("review") or {}
+        card = review.get("scorecard")
+        return {"quality": detail["methodology"]["quality"], "readiness": card["readiness"] if card else None,
+                "score_checked": [round(card["score"]), card["checked_points"]] if card else None}
 
     def _raw_detail(self, survey_id: str, version: int | None = None) -> dict:
         with self.transaction() as db:
@@ -255,7 +256,7 @@ class Repository:
                                            for finding in data["review"].get("findings", [])]
             rubric = rubric or load_rubric()
             titles = {c.id: c.title for c in rubric.criteria} | {b.id: b.title for b in rubric.blockers}
-            data["review"]["findings"] = present_findings(data["review"]["findings"], titles)
+            data["review"]["findings"] = present_findings(data["review"]["findings"], titles, effective)
         self._qualify(data["review"], data["coverage"])
         data["decisions"] = valid_decisions(data)
         return data
@@ -319,7 +320,8 @@ class Repository:
         with self.transaction() as db:
             detail = self._project_detail(self._raw_detail(survey_id, version))
             findings = (detail["review"] or {}).get("findings", [])
-            finding = next((f for f in findings if f["fingerprint"] == fingerprint), None)
+            finding = next((f for f in [*findings, *extras_for(detail)]
+                            if f["fingerprint"] == fingerprint), None)
             if finding is None:
                 raise KeyError("Finding not found in this version's latest review")
             allowed = [option["text"] for option in finding.get("options", [])]

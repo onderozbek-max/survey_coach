@@ -1,8 +1,12 @@
-"""Specific, scoped member-experience evidence; navigation stays canonical."""
+"""Specific, scoped member-experience evidence; navigation stays canonical.
+
+Cards lead with state and the one thing to act on; counts and per-check credit live under
+`methodology` (expert detail), never in the summary.
+"""
 import pytest
 
 from builders import page, question, survey
-from tests.test_signals import finding, overview, result, signal
+from tests.test_signals import finding, honest_passes, overview, result, signal
 
 
 DIMENSIONS = [('clarity', '3.4'), ('honest', '4.2'), ('energy', '8.2'),
@@ -19,11 +23,12 @@ def test_summary_leads_with_highest_priority_finding_and_exact_question_label(si
     card = signal(overview({cid: result(.5)}, findings, snapshot=snapshot), sid)
     assert card['summary'] == 'Q8a · Screen 1: The actual urgent issue'
     assert card['lead'] == {'headline': 'The actual urgent issue', 'location': 'Q8a · Screen 1'}
-    assert card['findings'] == ['minor', 'urgent', 'later']
+    # Items follow the fix plan: blockers first, in screen order, then the improvements.
+    assert card['findings'] == ['urgent', 'later', 'minor']
+    assert [i['state'] for i in card['items']] == ['fix_before_launch', 'fix_before_launch', 'worth_improving']
     assert card['pages'] == ['p1', 'p2']
-    assert card['summary'] not in card['details']
-    assert any('Exact captured words' in text for text in card['details'])
-    assert any('3 recorded findings' in text for text in card['details'])
+    assert card['summary'] not in card['methodology']['details']
+    assert any('3 recorded findings' in text for text in card['methodology']['details'])
 
 
 def test_page_and_whole_survey_findings_use_canonical_locations():
@@ -35,52 +40,56 @@ def test_page_and_whole_survey_findings_use_canonical_locations():
 
 
 @pytest.mark.parametrize('sid,cid', DIMENSIONS)
-def test_unknown_names_dimension_specific_missing_evidence(sid, cid):
+def test_unchecked_card_has_no_state_and_methodology_names_what_did_not_run(sid, cid):
     card = signal(overview(), sid)
-    assert card['state'] == 'unknown'
-    assert card['summary'] != 'Not checked yet.'
-    assert card['name'].lower().split()[0] in card['summary'].lower()
-    assert card['coverage']['checked'] == 0
-    assert cid in card['coverage']['missing']
-    assert any('Not assessed:' in text for text in card['details'])
+    assert card['state'] is None and card['label'] == 'Not checked automatically'
+    assert card['summary'] == 'Not checked automatically.'
+    assert card['methodology']['coverage']['checked'] == 0
+    assert cid in card['methodology']['coverage']['missing']
+    assert any('Not assessed:' in text for text in card['methodology']['details'])
+    assert 'coverage' not in card and 'details' not in card   # expert detail is not on the card
 
 
 @pytest.mark.parametrize('sid,cid', DIMENSIONS)
-def test_checked_summary_names_only_assessed_check_and_discloses_missing(sid, cid):
+def test_one_passing_check_is_disclosed_in_methodology_but_never_looks_good(sid, cid):
     card = signal(overview({cid: result()}), sid)
-    assert card['state'] == 'strong'
-    assert '1 of ' in card['summary']
-    assert 'assessed' in card['summary']
-    assert card['coverage']['checked'] == 1
-    assert card['coverage']['total'] > 1
-    assert any('checked evidence only' in text for text in card['details'])
-    assert any('Not assessed:' in text for text in card['details'])
-    assert not any(word in card['summary'] for word in ['Every member', 'Comfortable on a phone'])
+    assert card['state'] is None
+    assert card['methodology']['coverage']['checked'] == 1
+    assert card['methodology']['coverage']['total'] > 1
+    assert any('checked evidence only' in text for text in card['methodology']['details'])
+    assert any('Not assessed:' in text for text in card['methodology']['details'])
+    assert not any(word in card['summary'] for word in ['Every member', 'Comfortable on a phone', 'assessed'])
 
 
 def test_low_credit_without_finding_is_not_an_invented_positive():
     card = signal(overview({'3.4': result(0)}), 'clarity')
-    assert 'Grammar and spelling' in card['summary']
-    assert '0%' in card['summary']
-    assert 'Looking good' not in card['summary']
+    assert card['state'] is None and card['summary'] == 'Not checked automatically.'
+    assert any('Grammar and spelling (0% credit)' in text for text in card['methodology']['details'])
 
 
 def test_not_applicable_is_not_missing_and_legacy_ai_is_not_checked():
     card = signal(overview({'3.1': {'fraction': 1}, '3.4': result(),
                             '3.5': result(applies=False)}), 'clarity')
-    assert card['coverage'] == {'checked': 1, 'total': 5,
-                                'missing': ['3.1', '3.2', '3.3'],
-                                'not_applicable': ['3.5']}
-    assert any('Not applicable: Consistent terms' in text for text in card['details'])
+    assert card['methodology']['coverage'] == {'checked': 1, 'total': 6,
+                                               'missing': ['2.3', '3.1', '3.2', '3.3'],
+                                               'not_applicable': ['3.5']}
+    assert any('Not applicable: Consistent terms' in text for text in card['methodology']['details'])
 
 
-def test_absorbed_and_handled_findings_do_not_become_a_verified_pass():
-    card = signal(overview({'4.2': result()}, [finding(cid='4.2', absorbed_by='root')]), 'honest')
-    assert 'An answer is missing' in card['summary']
-    assert card['findings'] == []
+def test_absorbed_findings_are_not_cards_and_do_not_become_a_verified_pass():
+    card = signal(overview(honest_passes(), [finding(cid='4.2', absorbed_by='root')]), 'honest')
+    assert card['findings'] == [] and card['items'] == []
+    assert card['state'] == 'looks_good'          # nothing left open here, and 4.2 earned full credit
+    card = signal(overview(honest_passes() | {'4.2': result(.5)},
+                           [finding(cid='4.2', absorbed_by='root')]), 'honest')
+    assert card['state'] is None                  # partial credit only an absorbed finding explains
+
+
+def test_a_handled_finding_is_done_not_a_verified_fix():
     card = signal(overview({'4.2': result()}, [finding()], {'issue': {'action': 'pick'}}), 'honest')
-    assert 'An answer is missing' in card['summary']
-    assert any('not verified fixes' in text for text in card['details'])
+    assert [(i['id'], i['open']) for i in card['items']] == [('issue', False)]
+    assert card['lead'] is None
+    assert any('not verified fixes' in text for text in card['methodology']['details'])
 
 
 def cross_dimension_detail():
@@ -104,7 +113,7 @@ def test_cross_dimension_absorbed_evidence_resolves_primary_navigation():
 def test_unresolvable_or_cyclic_absorption_does_not_promise_navigation(parent):
     card = signal(overview(findings=[finding(absorbed_by=parent)]), 'honest')
     assert card['navigation'] is None
-    assert not any('navigation opens' in text for text in card['details'])
+    assert not any('navigation opens' in text for text in card['methodology']['details'])
 
 
 def test_real_null_fraction_blockers_are_complete_but_missing_unassessed_are_not():
@@ -113,12 +122,11 @@ def test_real_null_fraction_blockers_are_complete_but_missing_unassessed_are_not
     assert review['results']['B4'] == dict(criterion_id='B4', fraction=None,
         applies=True, assessed=True, findings=review['results']['B4']['findings'])
     out = overview(review['results'])
-    assert not any('No complete blocker assessment:' in text
-                   for text in signal(out, 'tone')['details'])
-    assert any('Broken time promise' in text for text in signal(out, 'time')['details'])
-    assert any('Leading question on the main research topic' in text
-               for text in signal(out, 'honest')['details'])
+    details = lambda sid: signal(out, sid)['methodology']['details']
+    assert not any('No complete blocker assessment:' in text for text in details('tone'))
+    assert any('Broken time promise' in text for text in details('time'))
+    assert any('Leading question on the main research topic' in text for text in details('honest'))
     review['results']['B4']['applies'] = False
     card = signal(overview(review['results']), 'tone')
-    assert any('Blocker not applicable: No intro page' in text for text in card['details'])
-    assert not any('No complete blocker assessment:' in text for text in card['details'])
+    assert any('Blocker not applicable: No intro page' in text for text in card['methodology']['details'])
+    assert not any('No complete blocker assessment:' in text for text in card['methodology']['details'])

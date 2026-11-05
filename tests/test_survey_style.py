@@ -99,12 +99,12 @@ def test_list_uses_effective_type_for_score(tmp_path):
         ])
         created = repository.submit(data, False)
         run_job(repository, created["job_id"])
-        old_score = repository.list_surveys()[0]["score_checked"]
+        old_score = repository.list_surveys()[0]["methodology"]["score_checked"]
         repository.update(created["id"], survey_type="community_pulse")
         seen = repository.list_surveys()[0]
         card = repository.detail(created["id"])["review"]["scorecard"]
-        assert seen["score_checked"] == [round(card["score"]), card["checked_points"]]
-        assert seen["score_checked"] != old_score
+        assert seen["methodology"]["score_checked"] == [round(card["score"]), card["checked_points"]]
+        assert seen["methodology"]["score_checked"] != old_score
         assert seen["survey_type"] == "community_pulse"
         assert seen["survey_type_chosen"] is True
     finally:

@@ -4,14 +4,17 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import asdict
 
-from surveycoach.quality import build_quality
-from surveycoach.timing import TimingConstants, reading_basis
 import re
 
 from surveycoach.labels import screen_labels
+from surveycoach.quality import build_quality
+from surveycoach.recommendations import with_action
+from surveycoach.server.extras import display_type
 from surveycoach.server.plan import build_plan
+from surveycoach.server.rounds import actual_wording, locate, locations, presentation
 from surveycoach.signals import build_overview
 from surveycoach.snapshot import SurveySnapshot
+from surveycoach.timing import TimingConstants, reading_basis
 
 ABSORBS = {
     "B1": {"5.1", "5.2", "5.3"}, "B2": {"4.1", "4.3", "8.4"},
@@ -57,15 +60,40 @@ def humanize(text: str | None, titles: dict[str, str]) -> tuple[str, list[str]]:
     return prose, list(dict.fromkeys(covered))
 
 
-def present_findings(findings: list[dict], titles: dict[str, str]) -> list[dict]:
+def field_location(finding: dict, place: dict | None, screens: list[dict]) -> str | None:
+    """Where in RedJade to look, e.g. "RedJade > Q1 > Question text". None when it can't be pinned down."""
+    if place is None:
+        return None
+    screen = next(s for s in screens if s["page_id"] == place["page_id"])
+    question = place.get("question")
+    if question is None:
+        return f"RedJade > {screen['name']} > {'Welcome text' if screen['name'] == 'Welcome' else 'Screen text'}"
+    wording = actual_wording(place, finding)
+    label = next((q["label"] for q in screen["questions"] if q["id"] == question["id"]), screen["name"])
+    scale = question.get("scale") or {}
+    part = "Question text"
+    if wording == question.get("help_text") and wording:
+        part = "Help text"
+    elif wording in [v for v in (scale.get("low_label"), scale.get("high_label"), *scale.get("labels", [])) if v]:
+        part = "Scale label"
+    for index, option in enumerate(question.get("options", []), 1):
+        if wording == option["label"]:
+            part = f"Answer {index}"
+    return f"RedJade > {label} > {part}"
+
+
+def present_findings(findings: list[dict], titles: dict[str, str], snapshot: dict | None = None) -> list[dict]:
     """Humanise and annotate copies, retaining every finding and its severity.
 
     Absorption is recomputed each time; titles survive a second projection after
-    their bookkeeping sentence has already been removed. No scoring or decisions
-    belong here.
+    their bookkeeping sentence has already been removed. Every finding leaves with one
+    action kind (explicit, or the legacy fallback) and, given the snapshot, where to look.
+    No scoring or decisions belong here.
     """
     out = deepcopy(findings)
-    for finding in out:
+    places = locations(snapshot) if snapshot else []
+    screens = screen_labels(SurveySnapshot.model_validate(snapshot)) if snapshot else []
+    for index, finding in enumerate(out):
         text, covered = humanize(finding.get("explanation"), titles)
         finding["explanation"] = text
         finding["also_covers"] = list(dict.fromkeys([
@@ -73,6 +101,11 @@ def present_findings(findings: list[dict], titles: dict[str, str]) -> list[dict]
         ]))
         finding.pop("absorbed_by", None)
         finding.pop("also_affects", None)
+        out[index] = finding = with_action(finding)
+        if not finding.get("field_location"):
+            where = field_location(finding, locate(finding, places), screens) if snapshot else None
+            if where:
+                finding["field_location"] = where
     for blocker in (item for item in out if item["severity"] == "must_fix"):
         family = ABSORBS.get(blocker["criterion_id"], set())
         for other in out:
@@ -100,17 +133,22 @@ def enrich(data: dict, rubric) -> dict:
         encoded["reading_basis"] = reading_basis(page)
         encoded["stimulus_text"] = page.stimulus_text
     data["screens"] = screen_labels(snapshot)
-    data["quality"] = build_quality(data.get("review") or {}, rubric)
+    # Score and coverage are methodology: experts open them, the primary payload never leads with them.
+    data["methodology"] = {"quality": build_quality(data.get("review") or {}, rubric),
+                           "not_checked_automatically": []}
+    data.pop("quality", None)
     data["effort_method"] = asdict(TimingConstants())
     if data.get("review"):
         titles = {c.id: c.title for c in rubric.criteria} | {b.id: b.title for b in rubric.blockers}
         points = {c.id: c.points for c in rubric.criteria}
-        findings = present_findings(data["review"].get("findings", []), titles)
+        findings = present_findings(data["review"].get("findings", []), titles, data["snapshot"])
         data["review"]["findings"] = findings
         decisions = data.get("decisions", {})
         data["plan"] = build_plan(findings, decisions, points, data["screens"])
+        survey_type, source = display_type(data)
         data["overview"] = build_overview(
-            snapshot, data["review"], decisions, data["screens"], data["plan"], rubric)
-    from surveycoach.server.rounds import presentation
+            snapshot, data["review"], decisions, data["screens"], data["plan"], rubric,
+            survey_type=survey_type, type_source=source)
+        data["methodology"]["not_checked_automatically"] = data["overview"].pop("not_checked_automatically")
     data["presentation"] = presentation(data)
     return data

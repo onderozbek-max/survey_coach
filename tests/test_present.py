@@ -130,6 +130,7 @@ def test_projection_preserves_findings_and_does_not_mutate_nested_input():
     assert len(out) == len(original)
     assert out[0] == before[0] | {
         "explanation": "Add an answer.", "also_covers": [TITLES["4.1"]], "also_affects": ["r84"],
+        "action_kind": "paste", "action_fallback": True,   # options present: legacy fallback is paste
     }
     out[0]["options"][0]["text"] = "Changed by consumer"
     assert original == before
@@ -157,4 +158,6 @@ def test_empty_findings_and_missing_explanation():
     assert present_findings([], TITLES) == []
     finding = f("one", "4.1")
     del finding["explanation"]
-    assert present_findings([finding], TITLES) == [finding | {"explanation": "", "also_covers": []}]
+    assert present_findings([finding], TITLES) == [finding | {
+        "explanation": "", "also_covers": [], "action_kind": "steps", "action_fallback": True,
+        "steps": ["one"]}]   # no explanation: the headline stands in as the one step

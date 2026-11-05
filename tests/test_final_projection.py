@@ -26,16 +26,20 @@ def test_handled_headline_preserves_assessment_and_download(mode):
     before = deepcopy(detail)
     result = enrich(detail, load_rubric())
     headline = result['overview']['headline']
+    tiles = result['overview']['verdict']['tiles']
     if mode in ['stale', 'reopened']:
         assert result['plan']['counts']['open_must_fix'] > 0
-        assert 'must-fix' in headline
+        assert tiles['fix'] == result['plan']['counts']['open_must_fix']
+        assert headline.endswith('to fix before launch')
     else:
-        assert 'decisions handled' in headline
-        assert 'not verified fixes' in headline
+        assert tiles['fix'] == 0 and 'to fix before launch' not in headline   # handled blockers stop blocking
+        assert result['overview']['verdict']['kind'] == 'almost_ready'
     assert 'No must-fixes found' not in headline
     result.setdefault('version', 1)
     packet = summary_packet(result, download=True)
     assert headline in packet
+    # Completion is not correction: the disclaimer moved from the headline into the packet body.
+    assert 'not verified' in packet
     assert result['review']['scorecard']['open_blockers'] == before['review']['scorecard']['open_blockers']
     assert detail == before
 

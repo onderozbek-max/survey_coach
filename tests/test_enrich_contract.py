@@ -64,7 +64,7 @@ def test_enrich_is_detached_repeatable_and_uses_effective_type():
     assert enrich(first, load_rubric()) == first
     assert first["review"]["results"] == data["review"]["results"]
     assert first["review"]["scorecard"] == data["review"]["scorecard"]
-    assert "Community surveys aim for 5 minutes" in first["overview"]["signals"][0]["summary"]
+    assert "Community surveys usually take 5–8 minutes" in first["overview"]["signals"][0]["summary"]
     first["snapshot"]["pages"].clear()
     first["review"]["results"].clear()
     assert data == before
@@ -132,8 +132,8 @@ def test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry(t
         assert "child" not in {line["fingerprint"] for line in data["change_sheet"]}
         assert data["carried"]["root"]["reason"] == "Tracker"
         assert data["plan"]["counts"]["open_must_fix"] == 0
-        assert data["overview"]["headline"] == (
-            "All 1 must-fix decisions handled; chosen changes and kept risks are not verified fixes.")
+        assert data["overview"]["verdict"]["tiles"]["fix"] == 0   # the kept must-fix no longer blocks launch
+        assert data["overview"]["verdict"]["kind"] == "almost_ready"
         assert all("Also covers" not in line["instructions"] for line in data["change_sheet"])
         assert data == repo.detail(first["id"])
         assert list(repo.db.iterdump()) == before
@@ -141,7 +141,7 @@ def test_presentation_precedes_comparison_and_sheet_and_curation_follows_carry(t
         repo.save_decision(first["id"], 2, "root", {"action": "open"})
         reopened = repo.detail(first["id"])
         assert reopened["plan"]["counts"]["open_must_fix"] == 1
-        assert reopened["overview"]["headline"].startswith("1 must-fix")
+        assert reopened["overview"]["headline"] == "1 thing to fix before launch"
         # A keep without a reason is not a completed plan choice.
         repo.save_decision(first["id"], 2, "root", {"action": "keep", "reason": " "})
         assert repo.detail(first["id"])["plan"]["counts"]["open_must_fix"] == 1

@@ -227,6 +227,8 @@ def test_no_blockers_presentation_is_reachable_without_claiming_full_coverage(tm
     with TestClient(app, base_url="http://localhost") as client:
         created = client.post("/api/surveys", json={"snapshot": snapshot()}).json()
         result = client.get(f"/api/surveys/{created['id']}").json()
-        assert result["presentation"]["verdict"] == "No blockers found in what we checked"
+        verdict = result["presentation"]["verdict"]
+        assert verdict["tiles"]["fix"] == 0 and verdict["kind"] != "fix_before_launch"   # no blockers found...
+        assert result["methodology"]["not_checked_automatically"]                         # ...without claiming it all ran
         assert result["presentation"]["scope"]["unchecked_paths"]
         assert result["review"]["scorecard"]["readiness"] != "ready"

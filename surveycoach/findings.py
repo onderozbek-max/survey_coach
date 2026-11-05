@@ -8,6 +8,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_serializer
 
 Severity = Literal["must_fix", "worth_improving"]
+ActionKind = Literal["paste", "steps", "you_check"]
+# Optional contract fields (brief 6.3). Unset ones stay out of saved and served JSON.
+ACTION_FIELDS = ("action_kind", "steps", "you_check", "field_location")
 
 
 class RewriteOption(BaseModel):
@@ -41,6 +44,20 @@ class Finding(BaseModel):
     structural: bool = False   # the fix spans more than one text element (for example answer choices): copy it, do not preview it
     edit_kind: Literal['rewrite', 'add_answer'] = 'rewrite'
     source: Literal["auto", "ai"] = "auto"
+    # What the researcher does about it: paste (suggested_text/options), 1-3 steps, or one question to answer.
+    action_kind: ActionKind | None = None
+    steps: list[str] = Field(default_factory=list)
+    you_check: str | None = None
+    field_location: str | None = None   # e.g. "RedJade > Q1 > Question text"
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_action_fields(self, handler):
+        """Legacy findings keep their exact saved shape until a check fills these in."""
+        data = handler(self)
+        for key in ACTION_FIELDS:
+            if not data.get(key):
+                data.pop(key, None)
+        return data
 
     @property
     def root_identity(self) -> tuple[str, str, str]:

@@ -97,8 +97,8 @@ def test_enrichment_list_and_download_share_projection_without_mutating_evidence
         created = client.post('/api/samples/boxer-briefs', json={}).json()
         detail = client.get(f"/api/surveys/{created['id']}").json()
         expected = quality.build_quality(detail['review'], load_rubric())
-        assert detail.get('quality') == expected
-        assert client.get('/api/surveys').json()['surveys'][0]['quality'] == expected
+        assert detail['methodology']['quality'] == expected and 'quality' not in detail
+        assert client.get('/api/surveys').json()['surveys'][0]['methodology']['quality'] == expected
         for suffix in ['/summary', '/summary?download=1']:
             packet = client.get(f"/api/surveys/{created['id']}/versions/1{suffix}").text
             assert 'Survey Quality' in packet and 'Quality methodology' in packet
@@ -114,17 +114,17 @@ def test_pick_and_keep_reprojection_never_boosts_quality(tmp_path):
         created = client.post('/api/samples/boxer-briefs', json={}).json()
         path = f"/api/surveys/{created['id']}"
         detail = client.get(path).json()
-        before = detail['quality']
+        before = detail['methodology']['quality']
         f = next(f for f in detail['review']['findings'] if f.get('options') or f.get('suggested_text'))
         picked = f['options'][0]['text'] if f.get('options') else f['suggested_text']
         endpoint = path + f"/versions/1/decisions/{f['fingerprint']}"
         for payload in [dict(action='pick', picked_text=picked), dict(action='keep', reason='Synthetic accepted risk')]:
             assert client.put(endpoint, json=payload).status_code == 200
-            assert client.get(path).json()['quality'] == before
+            assert client.get(path).json()['methodology']['quality'] == before
 
 
 def test_download_rounding_matches_compact_browser_score_at_half_point():
     from surveycoach.server.report import quality_section
     q = quality.build_quality({}, load_rubric())
     q['score'] = 82.5
-    assert '83/100' in quality_section({'quality':q})
+    assert '83/100' in quality_section({'methodology': {'quality': q}})

@@ -172,8 +172,9 @@ def test_repository_list_and_detail_refresh_without_database_writes():
         detail = repo.detail(submitted["id"])
         listing = repo.list_surveys()[0]
         assert not any(f["fingerprint"] == "old-6.3" for f in detail["review"]["findings"])
-        assert listing["score_checked"] == [round(detail["review"]["scorecard"]["score"]),
-                                             detail["review"]["scorecard"]["checked_points"]]
+        assert "score_checked" not in listing   # the score is methodology, not the card
+        assert listing["methodology"]["score_checked"] == [round(detail["review"]["scorecard"]["score"]),
+                                                           detail["review"]["scorecard"]["checked_points"]]
         assert list(repo.db.iterdump()) == before
     finally:
         repo.close()

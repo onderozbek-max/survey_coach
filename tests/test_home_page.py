@@ -19,9 +19,12 @@ def test_survey_list_summarises_latest_review(tmp_path):
         detail = client.get(f"/api/surveys/{created['id']}").json()
         card = detail["review"]["scorecard"]
         listed = client.get("/api/surveys").json()["surveys"][0]
-        assert listed["readiness"] == card["readiness"]
-        assert listed["must_fix"] == sum(f["severity"] == "must_fix" for f in detail["review"]["findings"])
-        assert listed["score_checked"] == [round(card["score"]), card["checked_points"]]
+        assert listed["verdict"] == detail["overview"]["verdict"]       # one verdict, shown everywhere
+        assert listed["tiles"] == listed["verdict"]["tiles"]
+        assert listed["tiles"]["fix"] == detail["plan"]["counts"]["open_must_fix"]
+        assert not {"readiness", "must_fix", "score_checked", "quality"} & set(listed)   # numbers are expert-only
+        assert listed["methodology"]["readiness"] == card["readiness"]
+        assert listed["methodology"]["score_checked"] == [round(card["score"]), card["checked_points"]]
         assert listed['signals'] == detail['overview']['signals']
         assert listed['job']['status'] == 'completed'
         assert listed['ready_to_share'] is False
@@ -207,19 +210,23 @@ def test_list_does_not_promote_incomplete_evidence(tmp_path, monkeypatch):
     assert listed['job']['status'] == 'queued'
     assert listed['ready_to_share'] is False
     detail = repository.detail(created['id'])
-    detail.update(review={'scorecard': {'readiness': 'ready', 'score': 100, 'checked_points': 100},
-                          'findings': [], 'unchecked': []},
-                  overview={'signals': [{'state': 'strong'}] * 6}, job={'status': 'completed'})
-    monkeypatch.setattr(repository, 'detail', lambda *_: detail)
-    assert repository.list_surveys()[0]['ready_to_share'] is True
-    detail['coverage'] = {'full_branching_coverage': False}
-    assert repository.list_surveys()[0]['ready_to_share'] is False
-    detail['coverage'] = None
-    detail['overview']['signals'] = [{'state': 'strong'}] * 5 + [{'state': 'unknown'}]
-    assert repository.list_surveys()[0]['ready_to_share'] is False
-    detail['overview']['signals'] = [{'state': 'strong'}] * 6
-    detail['review']['unchecked'] = ['Unassessed evidence']
-    assert repository.list_surveys()[0]['ready_to_share'] is False
+
+    def listed_with(kind, job='completed', signals=()):
+        detail.update(overview={'verdict': {'kind': kind, 'tiles': {'fix': 0, 'improve': 0, 'you_check': 0}},
+                                'signals': list(signals)}, job={'status': job})
+        monkeypatch.setattr(repository, 'detail', lambda *_: detail)
+        return repository.list_surveys()[0]
+
+    # Ready is the verdict, and only the verdict: a green row of cards, or a score, cannot promote it.
+    assert listed_with('ready_for_signoff')['ready_to_share'] is True
+    assert listed_with('almost_ready')['ready_to_share'] is False
+    assert listed_with('fix_before_launch')['ready_to_share'] is False
+    assert listed_with('ready_for_signoff', job='running')['ready_to_share'] is False
+    assert listed_with('almost_ready', signals=[{'state': 'looks_good'}] * 6)['ready_to_share'] is False
+    # Checks the tool could not run are listed for the user but never block sign-off.
+    detail['review'] = {'scorecard': {'readiness': 'ready', 'score': 100, 'checked_points': 100},
+                        'findings': [], 'unchecked': ['Unassessed evidence']}
+    assert listed_with('ready_for_signoff')['ready_to_share'] is True
 
 
 def test_example_motion_is_single_short_css_animation(browser, studio):

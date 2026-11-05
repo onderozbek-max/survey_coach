@@ -1,17 +1,10 @@
 """Turn findings into a short plan without rewriting findings or decisions."""
 from __future__ import annotations
 
+from surveycoach.status import is_decided
 
 QUICK_WIN_LIMIT = 6
 NICE_TO_HAVE = {"9.1", "9.2"}
-
-
-def _decided(decision: dict | None) -> bool:
-    if not decision:
-        return False
-    return decision.get("action") in {"pick", "original"} or (
-        decision.get("action") == "keep" and bool(decision.get("reason", "").strip())
-    )
 
 
 def build_plan(findings: list[dict], decisions: dict,
@@ -49,7 +42,7 @@ def build_plan(findings: list[dict], decisions: dict,
             "fingerprints": [member["fingerprint"] for member in members],
             "criterion_id": lead["criterion_id"], "headline": lead["headline"],
             "count": len(members), "tier": tier, "screen": where(lead),
-            "decided": all(_decided(decisions.get(member["fingerprint"]))
+            "decided": all(is_decided(decisions.get(member["fingerprint"]))
                            for member in members),
         })
 

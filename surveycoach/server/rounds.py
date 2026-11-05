@@ -4,6 +4,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from surveycoach.labels import finding_label, screen_labels
 from surveycoach.reader.policy import UnsafeSurveyURL, validate_url
+from surveycoach.server.extras import extras_for
 from surveycoach.snapshot import SurveySnapshot
 
 
@@ -87,10 +88,12 @@ def allowed_texts(finding):
 
 
 def valid_decisions(detail):
-    findings = {f["fingerprint"]: f for f in (detail.get("review") or {}).get("findings", [])}
+    """Keep decisions that still point at a finding or a You check / duration item of this version."""
+    known = {f["fingerprint"]: f for f in (detail.get("review") or {}).get("findings", [])}
+    known.update({e["fingerprint"]: e for e in extras_for(detail)})
     output = {}
     for key, decision in detail.get("decisions", {}).items():
-        finding = findings.get(key)
+        finding = known.get(key)
         if not finding:
             continue
         if decision.get("action") == "pick" and decision.get("picked_text") not in allowed_texts(finding):
@@ -133,16 +136,8 @@ def scope(detail):
 
 
 def presentation(detail):
-    findings = (detail.get("review") or {}).get("findings", [])
-    decisions = detail.get("decisions", {})
-    blockers = [f for f in findings if f["severity"] == "must_fix"]
-    acknowledged = [f for f in blockers if decisions.get(f["fingerprint"], {}).get("action") == "keep"
-                    and decisions[f["fingerprint"]].get("reason", "").strip()]
-    count = len(blockers) - len(acknowledged)
-    return {"verdict": ("Review not available" if not detail.get("review") else
-                        f"{count} must-fix issues" if count else
-                        "No blockers found in what we checked"),
-            "open_blockers": count, "acknowledged_risks": len(acknowledged),
+    """The primary summary. Score and coverage stay in `methodology`; this leads with the verdict."""
+    return {"verdict": (detail.get("overview") or {}).get("verdict"),
             "scope": scope(detail), "launch_approval": False}
 
 

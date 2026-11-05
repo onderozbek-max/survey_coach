@@ -6,19 +6,20 @@ import re
 
 from surveycoach.server.rounds import change_sheet, presentation, valid_decisions
 from surveycoach.signals import SIGNALS
+from surveycoach.status import NOT_CHECKED_LABEL
 from surveycoach.quality import build_quality
 from surveycoach.rubric import load_rubric
 
 
 def quality_section(detail):
-    """Self-contained methodology stays available in offline downloads too."""
-    q = detail.get("quality") or build_quality(detail.get("review") or {}, load_rubric())
+    """Score and coverage for experts only: closed by default, never the headline."""
+    q = (detail.get("methodology") or {}).get("quality") or build_quality(detail.get("review") or {}, load_rubric())
     value = f"{floor(q['score'] + .5)}/100" if q['score'] is not None else "Not assessed"
     status = "Provisional" if q["provisional"] else "Assessed"
-    return (f"<section><h2>Survey Quality · {value}</h2>"
+    return (f"<details><summary>Quality methodology</summary>"
+            f"<h2>Survey Quality · {value}</h2>"
             f"<p>{status} · {floor(q['coverage_percent'] + .5)}% coverage of applicable rubric weight · "
             f"{q['blockers']['flagged']} must-fix risks · {q['blockers']['unchecked']} risk checks unverified.</p>"
-            "<details><summary>Quality methodology</summary>"
             "<p>Earned assessed applicable points / assessed applicable points × 100. "
             "Criterion weights come from the rubric. N/A weight is excluded; missing checks are unknown. "
             "Coverage is assessed weight / applicable weight, separate from quality. "
@@ -26,7 +27,21 @@ def quality_section(detail):
             "Display values are rounded, not extra precision. A high score is not readiness or launch approval. "
             "AI checks may be missing or fallible; unverified risk checks keep the score provisional. "
             "Choices and acknowledged risks cannot improve assessed quality before rechecking. "
-            "Member outcomes were not measured.</p></details></section>")
+            "Member outcomes were not measured.</p></details>")
+
+
+def verdict_lines(detail):
+    """Headline, one-sentence story and tile counts, escaped, from the one verdict."""
+    verdict = (detail.get("overview") or {}).get("verdict") if detail.get("review") else None
+    if not verdict:
+        return [f"<h2>{_text('Review not available')}</h2>"]
+    tiles = verdict["tiles"]
+    lines = [f"<h2>{_text(verdict['headline'])}</h2>"]
+    if verdict["story"]:
+        lines.append(f"<p>{_text(verdict['story'])}</p>")
+    lines.append(f"<p>Fix {tiles['fix']} · Improve {tiles['improve']} · You check {tiles['you_check']} · "
+                 f"{_text(verdict['time']['label'])}.</p>")
+    return lines
 
 
 def summary_packet(detail, *, download=False):
@@ -37,7 +52,6 @@ def summary_packet(detail, *, download=False):
         return escape(str(value if value is not None else ""), quote=True)
 
     summary = detail.get("presentation") or presentation(detail)
-    minutes = max(1, round(detail.get("total_seconds", 0) / 60))
     parts = ["<!doctype html><html lang='en'><meta charset='utf-8'>",
              "<meta name='viewport' content='width=device-width,initial-scale=1'>",
              "<title>SurveyCoach stakeholder summary</title><style>",
@@ -47,11 +61,10 @@ def summary_packet(detail, *, download=False):
              "@media print{body{font-size:11pt;margin:0}details{break-before:page}}",
              "</style><body><main><p>SurveyCoach · Share with stakeholders · not launch approval</p>",
              f"<h1>{text(detail['title'])}</h1><p>Version {detail['version']}</p>",
-             f"<h2>{text(summary['verdict'])}</h2>",
-             f"<p>About {minutes} minutes for members (estimate).</p>",
+             *verdict_lines(detail),
              f"<p><strong>What we checked:</strong> {text(summary['scope']['summary'])}</p>"]
-    parts.append(quality_section(detail))
     parts.extend(f"<p>{text(line)}</p>" for line in summary["scope"]["unchecked_paths"])
+    parts.append(quality_section(detail))
     parts.append("<p>Keep as is acknowledges a risk; it is not evidence that an issue was corrected. "
                  "SurveyCoach does not edit RedJade. Manual completion is not verified.</p>")
     lines = detail.get("change_sheet") or change_sheet(detail)
@@ -170,24 +183,21 @@ def stakeholder_packet(detail):
     scope = presentation(projected)["scope"]
     review = detail.get("review") or {}
     overview = detail.get("overview") or {}
-    headline = overview.get("headline") if review else None
     parts = ["<!doctype html><html lang='en'><head><meta charset='utf-8'>",
              "<meta name='viewport' content='width=device-width,initial-scale=1'>",
              "<title>SurveyCoach stakeholder summary</title>",
              f"<style>{_LIGHT_CSS}</style></head><body><main>",
              "<p class='meta'>SurveyCoach · Share with stakeholders · not launch approval</p>",
              f"<h1>{_text(detail['title'])}</h1><p>Version {_text(detail['version'])}</p>",
-             "<section><h2>Headline</h2>",
-             f"<p><strong>{_text(headline or 'Review not available')}</strong></p>",
-             f"<p>{_text(overview.get('subline', 'No readiness judgement has been made.'))}</p>",
+             "<section>", *verdict_lines(detail),
              "</section><section><h2>Member experience</h2><table>",
              "<thead><tr><th>Signal</th><th>State</th><th>What we know</th></tr></thead><tbody>"]
     signals = overview.get("signals") if review else None
-    for signal in signals or [{"name": name, "label": "Not checked yet", "summary": "Not checked yet."}
+    for signal in signals or [{"name": name, "label": NOT_CHECKED_LABEL, "summary": NOT_CHECKED_LABEL}
                               for _, name, _ in SIGNALS]:
         parts.append(f"<tr><td>{_text(signal['name'])}</td><td>{_text(signal['label'])}</td>"
                      f"<td>{_text(signal['summary'])}</td></tr>")
-    parts.append("</tbody></table></section>" + quality_section(detail) + "<section><h2>Changes chosen</h2>"
+    parts.append("</tbody></table></section><section><h2>Changes chosen</h2>"
                  "<p>Chosen changes are not verified source edits. SurveyCoach does not edit RedJade. "
                  "Manual completion is not verified.</p><ul>")
     lines = change_sheet(projected)
@@ -233,14 +243,16 @@ def stakeholder_packet(detail):
     parts.extend(f"<p>{_text(line)}</p>" for line in (detail.get("coverage") or {}).get("warnings", []))
     if review:
         card = review.get("scorecard", {})
+        parts.append(quality_section(detail))
+        parts.append("<details><summary>Not checked automatically</summary>")
         if card:
             earned = card["score"] if "checked_points" in card else card["score"] - card["unchecked_points"]
             checked = card.get("checked_points", 100 - card["unchecked_points"])
             parts.append(f"<p>{_text(earned)} of {_text(checked)} checked points earned; "
                          f"{_text(card['unchecked_points'])} points unchecked.</p>")
-        parts.append("<h3>Not checked</h3><ul>")
-        parts.extend(f"<li>{_text(item)}</li>" for item in review.get("unchecked", []))
-        parts.append("</ul>")
+        listed = (detail.get("methodology") or {}).get("not_checked_automatically")
+        titles = [entry["title"] for entry in listed] if listed is not None else review.get("unchecked", [])
+        parts.append("<ul>" + "".join(f"<li>{_text(item)}</li>" for item in titles) + "</ul></details>")
         if review.get("ai") is None:
             parts.append("<p>AI wording review was not requested.</p>")
         elif review["ai"].get("failed"):
