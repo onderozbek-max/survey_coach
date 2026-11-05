@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import asdict
 
 from surveycoach.quality import build_quality
-from surveycoach.timing import TimingConstants
+from surveycoach.timing import TimingConstants, reading_basis
 import re
 
 from surveycoach.labels import screen_labels
@@ -94,6 +94,10 @@ def enrich(data: dict, rubric) -> dict:
     snapshot = SurveySnapshot.model_validate(dict(
         data["snapshot"], survey_type=data.get("survey_type")
         or data["snapshot"].get("survey_type", "non_ihut_product")))
+    # Derived output only: never add preview metadata to snapshot models, stored
+    # captures or cache/hash inputs. Overwrite any stale serialized basis on read.
+    for encoded, page in zip(data["snapshot"]["pages"], snapshot.pages, strict=True):
+        encoded["reading_basis"] = reading_basis(page)
     data["screens"] = screen_labels(snapshot)
     data["quality"] = build_quality(data.get("review") or {}, rubric)
     data["effort_method"] = asdict(TimingConstants())

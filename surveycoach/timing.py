@@ -73,10 +73,9 @@ def _answer_labels(question: Question) -> list[str]:
     return labels + question.rows + [label for label in scale_labels if label not in labels]
 
 
-def _question_seconds(question: Question, c: TimingConstants) -> float:
+def _question_effort_seconds(question: Question, c: TimingConstants) -> float:
     media = len(question.media) + sum(1 for o in question.options if o.media)
-    reading = sum(_words(text) for text in [question.text, question.help_text, *_answer_labels(question)])
-    return reading * c.seconds_per_word + c.interaction(question) + media * c.image_seconds
+    return c.interaction(question) + media * c.image_seconds
 
 
 def _unrepresented_text(
@@ -103,7 +102,13 @@ def _unrepresented_text(
     return remaining, unmatched
 
 
-def _page_seconds(page: Page, c: TimingConstants) -> float:
+def reading_basis(page: Page, constants: TimingConstants = TimingConstants()) -> dict:
+    """Canonical reading fields for timing and serialized previews, never capture state.
+
+    Independent structured fields retain question scope; unmatched intro/raw prose
+    retains page scope. Exact overlap subtraction is shared, not reimplemented by
+    preview consumers. Recompute this projection rather than trusting saved basis.
+    """
     represented = [field for q in page.questions for field in (q.text, q.help_text)]
     options = [label for q in page.questions for label in _answer_labels(q)]
     intro, outside_intro = _unrepresented_text(page.intro_text, represented)
@@ -114,9 +119,18 @@ def _page_seconds(page: Page, c: TimingConstants) -> float:
     intro_removed = bool(page.intro_text.strip()) and not missing_intro
     raw, _ = _unrepresented_text(raw, outside_intro if intro_removed else represented)
     raw, _ = _unrepresented_text(raw, options_outside_intro if intro_removed else options, whole_lines=True)
-    text_words = _words(intro) + _words(raw)
-    questions = sum(_question_seconds(q, c) for q in page.questions)
-    return text_words * c.seconds_per_word + questions + c.page_overhead
+    fields = [{"text": text} for text in (intro, raw) if text.strip()]
+    fields.extend({"text": text, "question_id": q.id}
+                  for q in page.questions
+                  for text in (q.text, q.help_text, *_answer_labels(q)) if text.strip())
+    return {"seconds_per_word": constants.seconds_per_word, "fields": fields}
+
+
+def _page_seconds(page: Page, c: TimingConstants) -> float:
+    basis = reading_basis(page, c)
+    reading = sum(_words(field["text"]) for field in basis["fields"]) * basis["seconds_per_word"]
+    questions = sum(_question_effort_seconds(q, c) for q in page.questions)
+    return reading + questions + c.page_overhead
 
 
 def _zone(seconds: float, questions: int, c: TimingConstants) -> Fatigue:
