@@ -216,9 +216,10 @@ def test_about_missing_scope_is_unknown_not_all_checked(browser, base_url):
     context.close()
 
 
-@pytest.mark.parametrize('mode,checked', [('disabled', 22), ('wording_failure', 34)])
+@pytest.mark.parametrize('mode,checked', [('disabled', 21), ('wording_failure', 33)])
 def test_about_discloses_absent_ai_blockers(browser, base_url, mode, checked):
     from tests.test_enrich_contract import missing_wording_detail
+    from surveycoach.rubric import load_rubric
     from surveycoach.server.rounds import scope
 
     evidence = missing_wording_detail(mode)
@@ -232,7 +233,9 @@ def test_about_discloses_absent_ai_blockers(browser, base_url, mode, checked):
     dialog = page.get_by_role('dialog', name='About this review')
     assert f'{checked} of 48 checks' in dialog.inner_text()
     for title in ('Leading question on the main research topic',
-                  'Asks for personal details it does not need'):
+                  'Asks for personal details it does not need',
+                  next(b.title for b in load_rubric().blockers
+                       if b.id == 'B7')):
         assert title in dialog.inner_text()
     assert not writes and not errors
     context.close()

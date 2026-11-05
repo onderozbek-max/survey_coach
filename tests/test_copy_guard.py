@@ -36,6 +36,9 @@ def _find_claims(root):
         for path in _copy_sources(root)
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
         for match in FORBIDDEN_CLAIMS.finditer(line)
+        # Exact local negation only: never exempt a whole line or another claim.
+        if not (match.group().casefold() == 'guarantee'
+                and re.search(r'\bnot a\s+$', line[:match.start()], re.I))
     ]
 
 
@@ -71,6 +74,16 @@ def test_scan_covers_prescribed_sources_and_excludes_generated_data(tmp_path, so
         f"{source}:{line_number}: {phrase}"
         for line_number, phrase in enumerate(phrases, 1)
     ]
+
+
+def test_explicit_guarantee_disclaimer_does_not_hide_same_line_outcome_claims(tmp_path):
+    for relative in ('site/local.html', 'site/app.js', 'surveycoach/server/report.py', 'surveycoach/signals.py'):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('This is not a guarantee that the screen is issue-free.', encoding='utf-8')
+    assert _find_claims(tmp_path) == []
+    (tmp_path / 'site/app.js').write_text('Not a guarantee, but members will finish. We guarantee success.', encoding='utf-8')
+    assert _find_claims(tmp_path) == ['site/app.js:1: will finish', 'site/app.js:1: guarantee']
 
 
 def test_missing_site_sources_are_not_a_claim_failure(tmp_path):

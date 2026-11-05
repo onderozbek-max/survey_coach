@@ -208,7 +208,7 @@ def missing_wording_detail(mode):
     return {'snapshot': snapshot.model_dump(mode='json'), 'review': review.model_dump(mode='json')}
 
 
-@pytest.mark.parametrize('mode,checked', [('disabled', 22), ('wording_failure', 34)])
+@pytest.mark.parametrize('mode,checked', [('disabled', 21), ('wording_failure', 33)])
 @pytest.mark.parametrize('projected', [False, True])
 def test_scope_keeps_absent_ai_blockers_without_inventing_assessments(mode, checked, projected):
     from surveycoach.server.rounds import project_review, scope
@@ -221,6 +221,10 @@ def test_scope_keeps_absent_ai_blockers_without_inventing_assessments(mode, chec
     # Rubric v2 has 43 active criteria + 7 blockers; this fixture has 2 explicit N/A.
     assert actual['total_count'] == 48
     assert actual['checked_count'] == checked
+    # Reader-only image failure stays pending, never a completed launch check.
+    assert not detail['review']['results']['B7']['assessed']
+    assert 'B7' in detail['review']['scorecard']['pending_blockers']
+    assert next(b.title for b in load_rubric().blockers if b.id == 'B7') in actual['unchecked_checks']
     for cid, title in [('B1', 'Leading question on the main research topic'),
                        ('B6', 'Asks for personal details it does not need')]:
         assert cid not in detail['review']['results']  # Missing, not fabricated passes.

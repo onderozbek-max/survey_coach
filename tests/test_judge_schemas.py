@@ -30,7 +30,7 @@ def test_no_criterion_or_blocker_is_judged_twice():
 
 
 def test_the_batches_cover_everything_the_engine_says_is_waiting_on_ai():
-    """Every pending check has an owner; timing needs calibration, not an AI all-clear."""
+    """Pending checks have owners; timing and reader loading need non-AI verification."""
     rubric = load_rubric()
     title = {c.id: c.title for c in rubric.criteria}
     owned = {title[c] for b in BATCHES for c in b.criteria} | {title[c] for c in IMAGE_CRITERIA_WAITING_FOR_PLAN_5}
@@ -38,7 +38,12 @@ def test_the_batches_cover_everything_the_engine_says_is_waiting_on_ai():
         review = run_review(SurveySnapshot.model_validate_json(path.read_text()), rubric)
         assert set(review.unchecked) <= owned, (path.name, set(review.unchecked) - owned)
         ai_blockers = {x for b in BATCHES for x in b.blockers}
-        assert set(review.scorecard.pending_blockers) <= ai_blockers | {"B5"}, path.name
+        assert set(review.scorecard.pending_blockers) <= ai_blockers | {"B5", "B7"}, path.name
+        assert "B7" not in ai_blockers
+        if "B7" in review.scorecard.pending_blockers:
+            assert not review.results["B7"].assessed
+            assert review.results["B7"].findings
+            assert all(f.severity == "worth_improving" for f in review.results["B7"].findings)
         assert "B5" not in ai_blockers
         assert not review.timing.calibrated and not review.results["B5"].assessed
 

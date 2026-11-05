@@ -51,7 +51,8 @@ def test_without_a_provider_nothing_changes(flawed):
 
 def test_all_clear_judge_resolves_semantic_blockers_but_cannot_calibrate_timing(flawed):
     code_only, review = run_review(flawed), run_review(flawed, provider=clear_provider())
-    assert review.scorecard.pending_blockers == ["B5"] and set(review.unchecked) == IMAGES_STILL_WAITING
+    assert review.scorecard.pending_blockers == ["B5", "B7"] and set(review.unchecked) == IMAGES_STILL_WAITING
+    assert not review.results["B7"].assessed  # AI cannot resolve a reader-only image observation.
     # Checking more earns evidence-backed points; unknown checks never get free credit.
     assert review.scorecard.unchecked_points == 4 < code_only.scorecard.unchecked_points == 54
     assert review.scorecard.score > code_only.scorecard.score
@@ -67,7 +68,7 @@ def test_all_clear_judge_resolves_semantic_blockers_but_cannot_calibrate_timing(
 def test_a_judge_that_is_down_leaves_the_review_exactly_as_honest_as_before(flawed):
     code_only, review = run_review(flawed), run_review(flawed, provider=failing_provider(LlmUnavailable("no wibey")))
     assert review.scorecard == code_only.scorecard and review.unchecked == code_only.unchecked
-    assert review.scorecard.pending_blockers == ["B1", "B2", "B5", "B6"] and set(review.ai.failed) == {"wording", "story", "flow"}
+    assert review.scorecard.pending_blockers == ["B1", "B2", "B5", "B6", "B7"] and set(review.ai.failed) == {"wording", "story", "flow"}
 
 
 def test_a_triggered_ai_blocker_becomes_a_must_fix_finding_and_sorts_first(flawed):
@@ -76,7 +77,10 @@ def test_a_triggered_ai_blocker_becomes_a_must_fix_finding_and_sorts_first(flawe
     review = run_review(flawed, provider=clear_provider([leading], triggered=("B1",)))
     ai_blocker = next(f for f in review.findings if f.criterion_id == "B1")
     assert (ai_blocker.source, ai_blocker.severity, ai_blocker.question_id) == ("ai", "must_fix", "q4")
-    assert [f.severity for f in review.findings][:2] == ["must_fix", "must_fix"]          # B1 and the broken image, ahead of the rest
+    assert review.findings[0] == ai_blocker
+    assert [f.criterion_id for f in review.findings if f.severity == "must_fix"] == ["B1"]
+    assert "B7" in review.scorecard.pending_blockers and not review.results["B7"].assessed
+    assert all(f.severity == "worth_improving" for f in review.results["B7"].findings)
     assert "B1" in review.scorecard.open_blockers and review.scorecard.readiness == "needs_work"
 
 

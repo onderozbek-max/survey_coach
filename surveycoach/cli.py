@@ -37,8 +37,8 @@ def _ai_lines(review: Review) -> list[str]:
 
 def render(review: Review) -> str:
     card = review.scorecard
-    checked = 100 - card.unchecked_points
-    earned = card.score - card.unchecked_points
+    checked = card.checked_points
+    earned = card.score
     lines = [f"SurveyCoach review: {review.survey_title}", "", f"Readiness: {READINESS_LABEL[card.readiness]}"]
     lines.append(f"  Score on the {checked} points checked so far: {earned:.1f} of {checked} ({earned / checked:.0%})."
                  if checked else "  Nothing has been checked yet.")
@@ -47,7 +47,11 @@ def render(review: Review) -> str:
         lines.append(f"  {len(card.pending_blockers)} launch checks ({', '.join(card.pending_blockers)}) are still unchecked,"
                      " so this cannot be called Ready to launch yet.")
     promise = f" (the intro promises {review.promised_minutes:g})" if review.promised_minutes else ""
-    lines.append(f"Members will need about {review.est_minutes:g} minutes{promise}. This is an estimate.")
+    calibration = "Calibrated" if review.timing.calibrated else "Uncalibrated"
+    lines.append(f"{calibration} estimated member completion: {review.est_minutes:g} minutes{promise}; "
+                 "not crawl or load time. Verify with a timed pilot.")
+    if review.timing.path_uncertain:
+        lines.append("  Captured screens include alternative or conditional pages, not a verified member route.")
     for title, severity in (("MUST FIX", "must_fix"), ("WORTH IMPROVING", "worth_improving")):
         items = [f for f in review.findings if f.severity == severity]
         lines += ["", f"{title} ({len(items)})"]

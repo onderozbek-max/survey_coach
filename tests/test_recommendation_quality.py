@@ -122,10 +122,13 @@ def test_saved_reviews_are_guarded_on_read_without_rewriting_stored_history():
         assert detail["decisions"]["stable-id"]["picked_text"] is None
         saved = next(f for f in detail["review"]["findings"] if f["fingerprint"] == "stable-id")
         assert saved["suggested_text"] is None and saved["options"] == []
-        # Refreshed code may offer a grounded time estimate before the AI concern.
+        # Refreshed code must not turn an uncalibrated estimate into a member promise.
         suggestions = [f["suggested_text"] for f in detail["review"]["findings"] if f.get("suggested_text")]
-        assert suggestions and all("[" not in text and "{" not in text for text in suggestions)
-        assert any("minutes" in text for text in suggestions)
+        assert all("[" not in text and "{" not in text for text in suggestions)
+        assert not any("minutes" in text for text in suggestions)
+        time_advice = next(f for f in detail["review"]["findings"] if f["criterion_id"] == "1.4")
+        assert time_advice["suggested_text"] is None
+        assert "timed run" in time_advice["explanation"]
         assert saved["fingerprint"] == "stable-id" and saved["evidence"] == ORIGINAL
         assert "No ready-to-use rewrite" in saved["explanation"]
         assert repository.detail(submitted["id"])["review"] == detail["review"]

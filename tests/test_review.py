@@ -4,6 +4,7 @@ from pathlib import Path
 
 from builders import context, intro, page, question, survey, thank_you
 
+from surveycoach.cli import render
 from surveycoach.checks import run_all
 from surveycoach.checks.registry import REGISTRY
 from surveycoach.review import run_review
@@ -37,11 +38,14 @@ def test_no_check_crashes_on_an_empty_survey():
     assert set(results) == set(REGISTRY)
 
 
-def test_flawed_fixture_needs_work_with_a_blocker_and_citations():
+def test_flawed_fixture_needs_work_with_pending_image_verification_and_citations():
     review = run_review(load_fixture("boxer-briefs"))
     assert review.scorecard.readiness == "needs_work"
-    assert review.scorecard.open_blockers == ["B7"]
-    assert review.findings[0].severity == "must_fix"
+    assert review.scorecard.open_blockers == []
+    assert "B7" in review.scorecard.pending_blockers
+    assert not review.results["B7"].assessed
+    assert review.findings[0].criterion_id == "B7"
+    assert review.findings[0].severity == "worth_improving"
     cited = {f.criterion_id for f in review.findings}
     assert {"4.2", "6.3", "6.4", "7.2", "9.2"} <= cited
     assert review.scorecard.provisional
@@ -78,9 +82,21 @@ def test_review_is_deterministic():
     assert a.model_dump() == b.model_dump()
 
 
+def test_cli_reports_earned_points_without_subtracting_unknown_points():
+    review = run_review(load_fixture("boxer-briefs"))
+    card = review.scorecard
+    out = render(review)
+    assert f"Score on the {card.checked_points} points checked so far: {card.score:.1f} of {card.checked_points}" in out
+    assert "Uncalibrated estimated member completion" in out
+    assert "not crawl or load time" in out
+    assert "timed pilot" in out
+
+
 def test_cli_prints_a_readable_review():
     out = subprocess.run([sys.executable, "-m", "surveycoach", "review", "fixtures/boxer-briefs.json"],
                          cwd=ROOT, capture_output=True, text=True, check=True).stdout
     assert "Readiness: Needs work" in out
-    assert "MUST FIX (1)" in out and "B7" in out
+    assert "MUST FIX (0)" in out
+    assert "B1, B2, B5, B6, B7) are still unchecked" in out
+    assert "Reader could not verify image loading" in out
     assert "WHAT'S WORKING" in out
