@@ -3,7 +3,7 @@
   'use strict';
   const SC = window.SC, {h} = SC;
   SC.uncertainWalkthrough = 'Captured-screen walkthrough; route uncertain.';
-  const zones = {fresh:'Fresh', fatigue_builds:'Getting tiring', high:'Tiring'};
+  const zones = {fresh:'Low', fatigue_builds:'Building', high:'High'};
   SC.renderEnergy = (detail, navigate, {compact = false, selected = null} = {}) => {
     const energy = detail.overview.energy, screens = energy.screens;
     const max = Math.max(1, ...screens.map(screen => screen.seconds));
@@ -14,15 +14,21 @@
           const count = detail.plan.must_fix.filter(item => item.screen === screen.screen).length;
           return h('button', {type:'button', class:`energy-bar ${screen.zone}`, 'data-page':screen.page_id,
             'aria-current':selected === screen.page_id ? 'step' : null,
-            'aria-label':`${screen.name}, about ${Math.round(screen.seconds)} seconds, estimate, ${(zones[screen.zone] || 'Unknown').toLowerCase()}, ${count} must-fix${count === 1 ? '' : 'es'}`,
+            'aria-label':`${screen.name}, about ${Math.round(screen.seconds)} seconds, estimate, ${(zones[screen.zone] || 'Unknown').toLowerCase()} estimated load, ${count} must-fix${count === 1 ? '' : 'es'}`,
             onclick:() => navigate(screen.page_id)},
             h('span', {class:'energy-column'}, count > 0 && h('span', {class:'energy-must', 'aria-hidden':'true'}, SC.icon('dot')),
               h('span', {class:'energy-fill', style:`height:${screen.seconds / max * (compact ? 42 : 96)}px`})),
             h('span', {class:`energy-label${screens.length > 14 && i % 2 ? ' sparse' : ''}`, title:screen.name}, screen.name));
         })),
-      !compact && h('div', {class:'energy-legend'}, Object.entries(zones).map(([zone, label]) =>
-        h('span', null, h('i', {class:zone, 'aria-hidden':'true'}), label))),
-      !compact && h('p', {class:'energy-swipe'}, 'Swipe for more'),
+      compact && h('p', {class:'energy-quick-guide'}, 'Height = screen effort · Color = accumulated effort'),
+      h(compact ? 'details' : 'div', {class:'energy-guide'},
+        compact && h('summary', null, 'Effort guide'),
+        h('div', {class:'energy-legend'}, h('strong', null, 'Estimated load:'),
+          Object.entries(zones).map(([zone, label]) =>
+            h('span', null, h('i', {class:zone, 'aria-hidden':'true'}), label))),
+        h('p', {class:'energy-explanation'},
+          'Height: estimated effort per screen. Color: accumulated effort (heuristic), not severity or measured time or fatigue. Blue outline: selected screen. Tap a bar to navigate.')),
+      h('p', {class:'energy-swipe'}, 'Swipe for more'),
       h('p', {class:'energy-caption'}, heaviest && `Heaviest: ${heaviest.name} (about ${Math.round(heaviest.seconds)}s). `,
         energy.path_uncertain && `${SC.uncertainWalkthrough} `,
         'Reading and tapping estimate; real completion is not measured.'));

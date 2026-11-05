@@ -21,9 +21,9 @@
       values.set(key, choice?.value);
       const suggested = h('div', {class:'suggested'});
       const renderSuggestion = () => SC.mount(suggested,
-        h('h4', null, adding ? 'Add answer option' : 'Suggested change'),
+        h('h4', null, !choice ? 'Recommended action' : adding ? 'Add answer option' : 'Suggested change'),
         choice ? SC.renderSuggestion(f, ctx.originalOf(entry), choice.text, ctx.detail.snapshot)
-          : h('p', null, 'Make this change in RedJade using the details below.'));
+          : h('p', null, f.explanation));
       renderSuggestion();
       const output = h('p', {class:'issue-save-status',role:'status'});
       const reason = h('textarea', {rows:2,'aria-label':`Reason for keeping ${f.headline}`,hidden:true});
@@ -54,7 +54,7 @@
           }},c.label || ['Recommended','Shorter','Friendlier'][index] || `Alternative ${index + 1}`))),
         f.also_affects?.length && h('div', {class:'also-affects'}, h('strong', null, 'Also affects'),
           h('ul', null, f.also_affects.map(fp => h('li', null, ctx.detail.review.findings.find(other => other.fingerprint === fp)?.headline || 'Related finding')))),
-        h('details', {class:'more'}, h('summary', null, 'Details'), h('p', null, f.explanation),
+        h('details', {class:'more'}, h('summary', null, 'Details'), choice && h('p', null, f.explanation),
           f.current_text && h('div', {class:'issue-original'}, h('strong', null, adding ? 'Keep this question' : 'Original'),
             h('blockquote', null, ctx.originalOf(entry))),
           adding && h('p', null, 'Copy only the new answer label into a new answer option. Do not replace the question. Preview does not configure its behavior.'),

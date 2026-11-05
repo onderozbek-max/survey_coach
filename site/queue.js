@@ -14,12 +14,18 @@
       return d?.action === 'pick' && !d.stale_pick || d?.action === 'original'
         || d?.action === 'keep' && Boolean(d.reason?.trim());
     });
-    const allowed = item => {
-      const screen = detail.screens.find(s => s.page_id === filter.page_id);
-      return entries(item).some(({f}) =>
-        (!Object.hasOwn(filter, 'fingerprints') || filter.fingerprints.includes(f.fingerprint)) &&
-        (!filter.page_id || f.page_id === filter.page_id || screen?.questions?.some(q => q.id === f.question_id)));
+    // Absorbed findings retain their own location, but are handled by the owning item.
+    const related = item => {
+      const roots = new Set(item.fingerprints);
+      for (const {f} of entries(item)) for (const fp of f.also_affects || []) roots.add(fp);
+      return detail.review.findings.filter(f => roots.has(f.fingerprint) || roots.has(f.absorbed_by));
     };
+    const onPage = (f, pageId) => f.page_id === pageId || Boolean(f.question_id &&
+      detail.screens.find(s => s.page_id === pageId)?.questions?.some(q => q.id === f.question_id));
+    const allowed = item => related(item).some(f =>
+      (!Object.hasOwn(filter, 'fingerprints') || filter.fingerprints.includes(f.fingerprint)) &&
+      (!filter.page_id || onPage(f, filter.page_id)));
+    const allItems = () => tabs.flatMap(([name]) => detail.plan[name]);
     const items = () => detail.plan[tab].filter(allowed);
     function show(item, focus = false) {
       active = item?.id || null;
@@ -60,10 +66,8 @@
         else show(items().find(item => !decided(item)));
       },
       screen(pageId) {
-        filter = {};
-        const screen = detail.screens.find(s => s.page_id === pageId);
-        const matches = tabs.flatMap(([name]) => detail.plan[name].filter(item => entries(item).some(({f}) =>
-          f.page_id === pageId || screen?.questions?.some(q => q.id === f.question_id))).map(item => ({name,item})));
+        filter = {page_id:pageId};
+        const matches = tabs.flatMap(([name]) => detail.plan[name].filter(allowed).map(item => ({name,item})));
         const hit = matches.find(({item}) => !decided(item)) || matches[0];
         if (hit) { tab = hit.name; active = hit.item.id; } else active = null;
         redraw();
@@ -96,8 +100,41 @@
       },
       render(ctx) {
         if (api.item) return SC.renderImproveItem(api.item, {...ctx, detail, entries:entries(api.item), onAdvance:api.advance});
-        return h('section', {class:'screen-clear'}, h('h3', {id:'coach-h',tabindex:'-1'}, tab === 'must_fix' && detail.plan.must_fix.every(decided)
-          ? `All ${detail.plan.counts.must_fix} must-fixes handled` : 'Nothing more in this view'),
+        const scoped = filter.page_id || Object.hasOwn(filter, 'fingerprints');
+        const pageId = filter.page_id || ctx.pageId;
+        const pageFindings = detail.review.findings.filter(f => onPage(f, pageId));
+        const pageItems = allItems().filter(item => related(item).some(f => onPage(f, pageId)));
+        const filteredItems = allItems().filter(allowed);
+        let heading = 'Nothing more in this view';
+        let explanation = 'Other recommendations may be outside this category or already handled.';
+        if (scoped && pageFindings.length === 0) {
+          heading = 'No issues found for this screen in the checks run';
+          explanation = 'This is not a guarantee that the screen is issue-free; only the checks run are covered.';
+        } else if (scoped && pageItems.length && pageItems.every(decided) &&
+            pageFindings.every(f => pageItems.some(item => related(item).includes(f)))) {
+          heading = 'All recommendations for this screen handled';
+          explanation = 'These are saved decisions, not verified fixes. Recheck after making changes in RedJade.';
+        } else if (scoped) {
+          explanation = filteredItems.length
+            ? 'Recommendations remain outside this category or have been skipped in this view.'
+            : 'Recommendations may remain outside this filter. Show all recommendations to review them.';
+        } else if (detail.plan[tab].length && detail.plan[tab].every(decided)) {
+          heading = tab === 'must_fix' ? `All ${detail.plan.must_fix.length} must-fixes handled`
+            : 'All recommendations in this category handled';
+          explanation = 'These are saved decisions, not verified fixes. Recheck after making changes in RedJade.';
+        } else if (!detail.plan[tab].length) {
+          heading = tab === 'must_fix' ? 'No must-fixes in this review' : 'No recommendations in this category';
+          explanation = 'Other categories may still contain recommendations.';
+        }
+        return h('section', {class:'screen-clear'}, h('h3', {id:'coach-h',tabindex:'-1'}, heading),
+          h('p', null, explanation),
+          scoped && h('button', {type:'button',class:'btn',onclick:() => {
+            filter = {};
+            const hit = tabs.flatMap(([name]) => detail.plan[name].map(item => ({name,item})))
+              .find(({item}) => !decided(item));
+            if (hit) tab = hit.name;
+            show(hit?.item, true);
+          }}, 'Show all recommendations'),
           h('button', {type:'button',class:'btn btn-primary',onclick:() => chooseTab('quick_wins')}, 'Continue to quick wins'),
           h('button', {type:'button',class:'btn-text',onclick:() => SC.goChapter('share')}, 'Go to Share'));
       },

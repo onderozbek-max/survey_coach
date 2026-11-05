@@ -1,5 +1,5 @@
 /* Improve composition. Colour is owned exclusively by foundation tokens. */
-html { scroll-padding-top:150px; }
+html { scroll-padding-top:240px; }
 .app-bar { position:sticky; top:0; z-index:30; }
 .review-studio { background:var(--bg); }
 .review-studio .workspace-shell { padding:20px 28px 40px; }
@@ -8,14 +8,25 @@ html { scroll-padding-top:150px; }
 #title-tools { margin-top:8px; }
 #review-status,.decision-verdict { font-size:12px; color:var(--muted); }
 .review-studio #topbar { display:none; }
-.improve-bar { position:sticky; top:69px; z-index:20; display:grid; grid-template-columns:auto minmax(80px,1fr) auto; align-items:center; gap:20px; height:56px; background:var(--surface); border-block:1px solid var(--line-strong); margin:16px 0 24px; padding:0 12px; }
+.improve-bar { position:sticky; top:69px; z-index:20; display:grid; grid-template-columns:auto minmax(120px,1fr) auto; align-items:center; gap:8px 20px; height:auto; background:var(--surface); border-block:1px solid var(--line-strong); margin:16px 0 24px; padding:8px 12px; }
 .queue-navigation { min-width:0; }
 #queue-progress { margin:0; font-size:12px; line-height:1; }
 #queue-tabs { display:flex; gap:8px; }
 #queue-tabs button { min-height:44px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted); padding:6px 10px; font-size:14px; white-space:nowrap; }
 #queue-tabs [aria-selected=true] { border-color:var(--accent); color:var(--accent); font-weight:700; }
-.improve-bar .energy-map { min-width:0; margin:0; }
-.improve-bar .energy-bars { gap:2px; margin:0; padding:0; height:50px; }
+.improve-bar .energy-map { grid-column:2; grid-row:1; min-width:0; margin:0; padding:4px 8px; display:grid; grid-template-columns:minmax(120px,1fr) minmax(0,2fr); gap:0 16px; }
+.improve-bar .energy-bars { grid-row:1 / 3; }
+.energy-quick-guide { font-size:12px; line-height:1.4; margin:0; color:var(--muted); }
+.energy-guide { min-width:0; }
+.energy-guide summary { min-height:24px; cursor:pointer; font-size:12px; }
+.energy-guide summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.improve-bar .energy-guide { grid-column:2; }
+.improve-bar .energy-guide[open] { padding-bottom:4px; }
+.improve-bar .energy-legend { margin:0; gap:8px; align-items:center; }
+.energy-explanation { font-size:12px; line-height:1.5; color:var(--text); margin:4px 0 0; overflow-wrap:anywhere; }
+.improve-bar .energy-explanation { margin:0; }
+.improve-bar .energy-swipe { display:none; }
+.improve-bar .energy-bars { gap:2px; margin:0; padding:4px; height:56px; }
 .improve-bar .energy-bar { min-width:24px; min-height:44px; padding:0; flex:1; }
 .improve-bar .energy-column { height:44px; }
 .improve-bar .energy-fill { max-height:32px; }
@@ -25,7 +36,7 @@ html { scroll-padding-top:150px; }
 .queue-tools .seg { display:flex; padding:0; }
 .queue-tools .seg [aria-pressed=true] { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
 .review-studio .studio,.review-studio .studio:has(.comparing),body:not(.review-studio) #chapter-improve .studio { display:grid; grid-template-columns:minmax(340px,400px) minmax(0,560px); grid-template-areas:'stage coach'; justify-content:center; align-items:start; gap:48px; }
-.review-studio .stage { grid-area:stage; position:sticky; top:145px; padding:0; border:0; background:transparent; }
+.review-studio .stage { grid-area:stage; position:sticky; top:240px; padding:0; border:0; background:transparent; }
 .review-studio .coach { grid-area:coach; min-width:0; padding:0; }
 .preview-settings { font-size:12px; margin-bottom:8px; }
 .preview-settings summary { min-height:24px; cursor:pointer; }
@@ -86,14 +97,23 @@ html { scroll-padding-top:150px; }
 .reconstruction-note,#strip { font-size:12px; color:var(--muted); text-align:center; margin-top:16px; }
 @media(max-width:1000px) {
   .improve-bar { grid-template-columns:1fr auto; gap:8px; }
-  .improve-bar .energy-map { display:none; }
+  .improve-bar .energy-map { display:grid; grid-column:1 / -1; grid-row:2; }
   .review-studio .studio,.review-studio .studio:has(.comparing) { gap:24px; grid-template-columns:minmax(300px,400px) minmax(0,560px); }
 }
 @media(max-width:700px) {
   html { scroll-padding-top:220px; }
   .review-studio .workspace-shell { padding:12px; }
-  .improve-bar { top:120px; height:auto; min-height:56px; display:flex; flex-wrap:wrap; justify-content:center; padding:4px; }
+  .improve-bar { position:static; height:auto; min-height:56px; display:flex; flex-wrap:wrap; justify-content:center; padding:4px; }
   .queue-navigation { width:100%; text-align:center; }
+  .improve-bar .energy-map { width:100%; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 8px; }
+  .improve-bar .energy-bars { grid-row:1 / 3; grid-column:1; }
+  .improve-bar .energy-quick-guide { grid-column:2; font-size:11px; }
+  .improve-bar .energy-guide { grid-column:2; grid-row:2; }
+  .improve-bar .energy-guide[open] { grid-column:1 / -1; grid-row:3; }
+  .improve-bar:has(.energy-guide[open]) .energy-quick-guide { display:none; }
+  .improve-bar .energy-bar { flex:0 0 28px; }
+  .improve-bar .energy-legend { justify-content:center; }
+  .improve-bar .energy-swipe { display:none; }
   #queue-tabs { width:100%; justify-content:center; gap:0; }
   #queue-tabs button { padding:6px; font-size:12px; }
   .queue-tools { justify-content:center; }
@@ -105,6 +125,10 @@ html { scroll-padding-top:150px; }
   .review-studio .workspace-heading h1 { font-size:20px; overflow-wrap:anywhere; }
   #improve-h { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
   .review-studio .workspace-heading { margin-bottom:0; }
+  .review-studio .workspace-heading > div { display:flex; align-items:center; gap:8px; width:100%; }
+  .review-studio #title-tools { margin-top:0; flex-shrink:0; }
+  .review-studio .phone-controls { margin-bottom:0; }
+  .review-studio #phone-settings { min-height:24px; padding:2px 12px; }
   .review-studio #review-status { margin:0; }
   .review-studio .decision-verdict:empty { display:none; }
   .improve-bar { margin:8px 0 6px; }

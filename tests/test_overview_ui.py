@@ -134,7 +134,7 @@ def test_high_energy_uses_canonical_name_and_sparse_labels(browser, base_url):
         screens.extend([{**screens[0], 'page_id': f'extra-{i}', 'screen': 14 + i} for i in range(3)])
     context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
     first = page.locator('#energy-map .energy-bar').first
-    assert first.get_attribute('aria-label').startswith('Q8–Q18, about 188 seconds, estimate, tiring,')
+    assert first.get_attribute('aria-label').startswith('Q8–Q18, about 188 seconds, estimate, high estimated load,')
     assert page.locator('#energy-map .energy-label.sparse').count() == 8
     assert not errors
     context.close()
