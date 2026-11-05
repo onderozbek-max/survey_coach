@@ -98,6 +98,7 @@ def enrich(data: dict, rubric) -> dict:
     # captures or cache/hash inputs. Overwrite any stale serialized basis on read.
     for encoded, page in zip(data["snapshot"]["pages"], snapshot.pages, strict=True):
         encoded["reading_basis"] = reading_basis(page)
+        encoded["stimulus_text"] = page.stimulus_text
     data["screens"] = screen_labels(snapshot)
     data["quality"] = build_quality(data.get("review") or {}, rubric)
     data["effort_method"] = asdict(TimingConstants())

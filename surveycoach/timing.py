@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from surveycoach.snapshot import Page, Question, SurveySnapshot
+from surveycoach.snapshot import Page, Question, SurveySnapshot, clean_copy
 
 Fatigue = Literal["fresh", "fatigue_builds", "high"]
 _ZONE_ORDER: list[Fatigue] = ["fresh", "fatigue_builds", "high"]
@@ -102,13 +102,8 @@ def _unrepresented_text(
     return remaining, unmatched
 
 
-def reading_basis(page: Page, constants: TimingConstants = TimingConstants()) -> dict:
-    """Canonical reading fields for timing and serialized previews, never capture state.
-
-    Independent structured fields retain question scope; unmatched intro/raw prose
-    retains page scope. Exact overlap subtraction is shared, not reimplemented by
-    preview consumers. Recompute this projection rather than trusting saved basis.
-    """
+def _page_prose(page: Page) -> tuple[str, str]:
+    """Page-scope prose left after exact subtraction of structured question fields: (intro, raw)."""
     represented = [field for q in page.questions for field in (q.text, q.help_text)]
     options = [label for q in page.questions for label in _answer_labels(q)]
     intro, outside_intro = _unrepresented_text(page.intro_text, represented)
@@ -119,11 +114,41 @@ def reading_basis(page: Page, constants: TimingConstants = TimingConstants()) ->
     intro_removed = bool(page.intro_text.strip()) and not missing_intro
     raw, _ = _unrepresented_text(raw, outside_intro if intro_removed else represented)
     raw, _ = _unrepresented_text(raw, options_outside_intro if intro_removed else options, whole_lines=True)
-    fields = [{"text": text} for text in (intro, raw) if text.strip()]
+    return intro, raw
+
+
+def reading_basis(page: Page, constants: TimingConstants = TimingConstants()) -> dict:
+    """Canonical reading fields for timing and serialized previews, never capture state.
+
+    Independent structured fields retain question scope; unmatched intro/raw prose
+    retains page scope. Exact overlap subtraction is shared, not reimplemented by
+    preview consumers. Recompute this projection rather than trusting saved basis.
+    """
+    fields = [{"text": text} for text in _page_prose(page) if text.strip()]
     fields.extend({"text": text, "question_id": q.id}
                   for q in page.questions
                   for text in (q.text, q.help_text, *_answer_labels(q)) if text.strip())
     return {"seconds_per_word": constants.seconds_per_word, "fields": fields}
+
+
+_VENDOR_LABEL = re.compile(r"\(?optional\)?", re.I)
+
+
+def stimulus_text(page: Page) -> str:
+    """Copy a member reads on a question screen besides the questions themselves (a concept, an idea).
+
+    It is exactly the page-scope prose timing already counts, so splitting it out
+    neither double counts nor drops words. Only display noise is removed here: the
+    trailing navigation label and RedJade's own "Optional" label.
+    """
+    if not any(q.kind != "info" for q in page.questions):
+        return ""
+    parts = []
+    for prose in _page_prose(page):
+        lines = [line.strip() for line in prose.splitlines()]
+        kept = [line for line in lines if not _VENDOR_LABEL.fullmatch(line)]
+        parts.append(clean_copy("\n".join(kept)))
+    return "\n\n".join(part for part in parts if part)
 
 
 def _page_seconds(page: Page, c: TimingConstants) -> float:

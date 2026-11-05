@@ -91,6 +91,12 @@ class Page(BaseModel):
     visual_evidence: Literal["rendered", "definition_only"] = "rendered"
     declared_media: int = 0  # media tags seen in definition wording; no size or loading is implied
 
+    @property
+    def stimulus_text(self) -> str:
+        """Concept or idea copy on a question screen. Derived on read, never stored or hashed."""
+        from surveycoach.timing import stimulus_text  # timing imports this module
+        return stimulus_text(self)
+
 
 class SurveySnapshot(BaseModel):
     title: str
