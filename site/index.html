@@ -8,23 +8,16 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="workflow.css">
   <link rel="stylesheet" href="design-system.css">
+  <link rel="stylesheet" href="states.css"><link rel="stylesheet" href="header.css">
   <link rel="stylesheet" href="review-studio.css">
-<link rel="stylesheet" href="chapters.css"><link rel="stylesheet" href="overview.css"><link rel="stylesheet" href="quality.css"></head>
+<link rel="stylesheet" href="chapters.css"><link rel="stylesheet" href="overview.css"><link rel="stylesheet" href="verdict.css"><link rel="stylesheet" href="quality.css"></head>
 <body>
   <a class="skip" href="#workspace">Skip to review</a>
-  <header class="app-bar">
-    <a href="local.html" class="brand">SurveyCoach</a>
-    <nav id="chapter-nav" aria-label="Review steps">
-      <a href="#overview" data-chapter="overview"><span class="step-n">1</span> Overview</a>
-      <a href="#improve" data-chapter="improve"><span class="step-n">2</span> Improve</a>
-      <a href="#share" data-chapter="share"><span class="step-n">3</span> Share</a>
-    </nav>
-    <a href="local.html" class="btn-text">My surveys</a>
-  </header>
+  <header id="app-header" class="review-header"></header>
   <main id="workspace" class="sample-shell" tabindex="-1">
-    <section id="chapter-overview" aria-labelledby="overview-h"><h2 id="overview-h" tabindex="-1">Overview</h2><p>Sample review · fictional data</p></section>
+    <section id="chapter-overview" aria-labelledby="overview-h"><h2 id="overview-h" tabindex="-1">Verdict</h2><p>Sample review · fictional data</p></section>
     <section id="chapter-improve" aria-labelledby="improve-h" hidden>
-    <h2 id="improve-h" tabindex="-1">Improve</h2>
+    <h2 id="improve-h" tabindex="-1">Fix</h2>
     <header id="topbar" class="topbar"></header>
     <div id="improve-bar" class="improve-bar" aria-label="Improve queue"></div>
     <div class="studio">
@@ -32,15 +25,14 @@
     <aside id="coach" class="coach" aria-labelledby="coach-h"></aside>
     </div>
     </section>
-    <section id="chapter-share" aria-labelledby="share-h" hidden><h2 id="share-h" tabindex="-1">Share</h2></section>
-    <footer class="chapter-foot"><button type="button" id="about-review" class="btn-text" aria-haspopup="dialog" aria-controls="about-review-dialog">About this review</button></footer>
+    <section id="chapter-share" aria-labelledby="share-h" hidden><h2 id="share-h" tabindex="-1">Sign off</h2></section>
   </main>
 
   <p id="status" class="sr-only" role="status" aria-live="polite"></p>
   <script src="environment.js"></script>
   <script src="data.js"></script>
   <script src="dom.js"></script>
-  <script src="icons.js"></script><script src="quality.js"></script>
+  <script src="icons.js"></script><script src="states.js"></script><script src="menu.js"></script><script src="header.js"></script><script src="quality.js"></script>
   <script src="diff.js"></script>
   <script src="toast.js"></script>
   <script src="chapters.js"></script>
@@ -48,6 +40,7 @@
   <script src="issues.js"></script><script src="progress.js"></script><script src="issue-list.js"></script>
   <script src="phone.js"></script>
   <script src="energy.js"></script>
+  <script src="verdict-cards.js"></script>
   <script src="overview.js"></script>
   <script src="improve-actions.js"></script><script src="queue.js"></script><script src="suggestion.js"></script><script src="drafts.js"></script><script src="coach.js"></script>
   <script src="about.js"></script><script src="app.js"></script>

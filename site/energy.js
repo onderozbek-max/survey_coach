@@ -27,7 +27,7 @@
       h(compact ? 'details' : 'div', {class:'energy-guide'},
         compact && h('summary', null, 'Effort guide'),
         h('p', {class:'energy-explanation'},
-          'Height: estimated effort per screen. Color: accumulated effort (heuristic), not severity or measured time or fatigue. Blue outline: selected screen. Tap a bar to navigate.')),
+          'Height: estimated effort per screen. Color: accumulated effort (an estimate), not severity or measured time or fatigue. Blue outline: selected screen. Tap a bar to navigate.')),
       h('p', {class:'energy-swipe'}, 'Swipe for more'),
       h('p', {class:'energy-caption'}, heaviest && `Heaviest: ${heaviest.name} (about ${Math.round(heaviest.seconds)}s). `,
         energy.path_uncertain && `${SC.uncertainWalkthrough} `,

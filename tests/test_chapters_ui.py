@@ -4,6 +4,7 @@ import pytest
 from tests.test_enrich_contract import CHECKED_WITH_ABSENT_AI_BLOCKERS
 from tests.test_issue_loop_ui import open_review, open_overview, focus
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to, open_how_we_check, open_recheck
 
 
 def assert_chapter(page, name):
@@ -18,7 +19,7 @@ def test_default_overview_navigation_back_forward_and_focus(browser, base_url):
     assert_chapter(page, 'overview')
     assert page.locator('#stage .phone-screen').count() == 0  # Improve is lazy.
     assert page.locator('#overview-h').evaluate('(el) => el === document.activeElement')
-    page.locator('[data-chapter=improve]').click()
+    go_to(page, 'improve')
     assert page.url.endswith('#improve')
     assert_chapter(page, 'improve')
     assert page.locator('#improve-h').evaluate('(el) => el === document.activeElement')
@@ -98,14 +99,17 @@ def test_mobile_nav_help_and_reduced_motion(browser, base_url):
     page.emulate_media(reduced_motion='reduce')
     page.evaluate("window.scrolls=[]; window.scrollTo = options => scrolls.push(options)")
     for chapter in ('improve', 'share', 'overview'):
-        page.locator(f'[data-chapter={chapter}]').click()
+        go_to(page, chapter)
         assert_chapter(page, chapter)
-        assert page.locator('#about-review').is_visible()
+        assert page.locator('#header-menu-button').is_visible()      # How we check lives in the overflow menu
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert page.locator('#chapter-nav').evaluate('(el) => el.scrollWidth <= el.clientWidth')
     scrolls = page.evaluate('scrolls.filter(item => item && item.behavior)')
     assert len(scrolls) == 3
     assert all(item['behavior'] == 'instant' for item in scrolls)
+    for control in ('#steps-button', '#check-again', '#header-menu-button'):
+        box = page.locator(control).bounding_box()
+        assert box['height'] >= 44 and box['width'] >= 44, control
+    page.locator('#steps-button').click()
     assert page.locator('#chapter-nav a').first.evaluate('(el) => el.getBoundingClientRect().height') >= 44
     assert not writes and not errors
     context.close()
@@ -116,7 +120,7 @@ def test_static_sample_uses_shell_and_redirect_keeps_query_and_hash(browser, bas
     page = context.new_page()
     page.goto(base_url + 'index.html')
     assert_chapter(page, 'overview')
-    page.locator('[data-chapter=improve]').click()
+    go_to(page, 'improve')
     assert page.locator('#stage .phone-screen').is_visible()
     assert page.locator('#rail, .toolbar, .journey').count() == 0
     page.goto(base_url + 'index.html?id=synthetic&version=2#share')
@@ -132,13 +136,14 @@ def test_about_is_consistent_keyboard_modal_in_every_chapter(browser, base_url, 
     if shell == 'sample':
         page.goto(base_url + 'index.html#overview')
         page.wait_for_function('SC.reviewReady === true')
-    dialog = page.get_by_role('dialog', name='About this review', exact=True)
+    dialog = page.get_by_role('dialog', name='How we check', exact=True)
     assert dialog.count() == 0  # Closed dialogs stay out of the accessibility tree.
     for chapter in ('overview', 'improve', 'share'):
-        page.locator(f'[data-chapter={chapter}]').click()
-        trigger = page.get_by_role('button', name='About this review', exact=True)
+        go_to(page, chapter)
+        page.locator('#header-menu-button').click()
+        trigger = page.get_by_role('menuitem', name='How we check', exact=True)
         assert trigger.get_attribute('aria-haspopup') == 'dialog'
-        assert trigger.evaluate('(el) => el.closest(".chapter-foot").parentElement.id') == 'workspace'
+        assert trigger.evaluate('(el) => el.closest("header").id') == 'app-header'
         trigger.focus()
         page.keyboard.press('Enter')
         assert dialog.is_visible()
@@ -162,10 +167,10 @@ def test_about_is_consistent_keyboard_modal_in_every_chapter(browser, base_url, 
         assert dialog.evaluate('(el) => el.contains(document.activeElement)')
         page.keyboard.press('Escape')
         assert not dialog.is_visible()
-        assert trigger.evaluate('(el) => el === document.activeElement')
-        trigger.click()
+        page.wait_for_function("document.activeElement.id === 'header-menu-button'")   # the item left with its menu
+        open_how_we_check(page)
         close.click()
-        assert trigger.evaluate('(el) => el === document.activeElement')
+        page.wait_for_function("document.activeElement.id === 'header-menu-button'")
     assert not writes and not errors
     context.close()
 
@@ -179,8 +184,8 @@ def test_about_uses_scope_verbatim_not_score_or_findings_and_refreshes(browser, 
             'unchecked_checks': ['Synthetic unchecked wording check'],
         }}
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    page.locator('#about-review').click()
-    dialog = page.get_by_role('dialog', name='About this review')
+    open_how_we_check(page)
+    dialog = page.get_by_role('dialog', name='How we check')
     text = dialog.inner_text()
     assert '3 of 11 checks' in text
     for value in (detail['presentation']['scope']['summary'],
@@ -197,7 +202,7 @@ def test_about_uses_scope_verbatim_not_score_or_findings_and_refreshes(browser, 
         detail.presentation.scope.unchecked_checks = ['New unchecked check'];
         dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail}));
     }''')
-    page.locator('#about-review').click()
+    open_how_we_check(page)
     assert '0 of 11 checks' in dialog.inner_text()
     assert 'New unchecked check' in dialog.inner_text()
     assert 'Synthetic unchecked wording check' not in dialog.inner_text()
@@ -209,8 +214,8 @@ def test_about_missing_scope_is_unknown_not_all_checked(browser, base_url):
     def prepare(detail):
         detail.pop('presentation', None)
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    page.locator('#about-review').click()
-    dialog = page.get_by_role('dialog', name='About this review')
+    open_how_we_check(page)
+    dialog = page.get_by_role('dialog', name='How we check')
     assert 'Check coverage unavailable' in dialog.inner_text()
     assert 'Unvisited paths remain unverified' in dialog.inner_text()
     assert not writes and not errors
@@ -232,8 +237,8 @@ def test_about_discloses_absent_ai_blockers(browser, base_url, mode, checked):
         detail['review']['ai'] = evidence['review']['ai']
 
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
-    page.locator('#about-review').click()
-    dialog = page.get_by_role('dialog', name='About this review')
+    open_how_we_check(page)
+    dialog = page.get_by_role('dialog', name='How we check')
     assert f'{checked} of 48 checks' in dialog.inner_text()
     for title in ('Leading question on the main research topic',
                   'Asks for personal details it does not need',
@@ -248,13 +253,14 @@ def test_review_caveats_centralized_but_submission_notice_stays_visible(browser,
     context, page, detail, writes, errors = open_review(browser, base_url)
     assert page.locator('.reconstruction-note, #strip, .checked-summary, #share-details').count() == 0
     for chapter in ('overview', 'improve', 'share'):
-        page.locator(f'[data-chapter={chapter}]').click()
+        go_to(page, chapter)
         visible = page.locator('body').inner_text()
         for caveat in ('Unvisited paths', 'Reconstructed preview', 'AI advice needs', 'not launch approval'):
             assert caveat not in visible
+    open_recheck(page)
     notice = page.locator('#reader-mode')
     assert notice.is_visible()
-    assert 'test participant' in notice.inner_text() and 'Exclude test responses' in notice.inner_text()
+    assert 'test response' in notice.inner_text() and 'Exclude test responses' in notice.inner_text()
     assert page.locator('#survey-link').input_value() == detail['snapshot']['source_url']
     assert 'reader-mode' in page.locator('#survey-link').get_attribute('aria-describedby').split()
     assert not writes and not errors

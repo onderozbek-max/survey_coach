@@ -1,0 +1,38 @@
+/* The Verdict page: hero card, tiles, category cards. Tokens only; no gradients, no glass. */
+#chapter-overview { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-5); }
+#chapter-overview > h3 { margin:var(--s-3) 0 0; font-size:var(--fs-22); }
+.verdict-hero { display:grid; min-width:0; gap:var(--s-4); justify-items:start; padding:var(--s-6); border:1px solid var(--line-strong); border-radius:var(--r-lg); background:var(--surface); box-shadow:var(--shadow-1); }
+#overview-h { margin:0; max-width:24ch; font-size:clamp(var(--fs-28),4vw,var(--fs-40)); line-height:1.15; overflow-wrap:anywhere; }
+#overview-subline { margin:0; max-width:62ch; font-size:var(--fs-18); color:var(--text); }
+.verdict-time { display:flex; align-items:center; gap:var(--s-2); margin:0; color:var(--muted); font-size:var(--fs-16); }
+.verdict-tiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--s-3); width:100%; max-width:720px; }
+.verdict-tile { display:grid; gap:var(--s-2); justify-items:start; min-height:96px; padding:var(--s-4); border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface-2); color:var(--text); text-align:left; cursor:pointer; transition:border-color var(--dur-1) var(--ease); }
+.verdict-tile:hover:not(:disabled) { border-color:var(--accent); }
+.verdict-tile[data-state=fix_before_launch] { background:var(--critical-soft); }
+.verdict-tile[data-state=worth_improving] { background:var(--attention-soft); }
+.verdict-tile[data-state=you_check] { background:var(--you-check-soft); }
+.verdict-tile:disabled { background:var(--surface-2); }
+.tile-head { display:inline-flex; align-items:center; gap:var(--s-2); font-weight:700; font-size:var(--fs-14); }
+.tile-count { font-size:var(--fs-40); font-weight:800; line-height:1; }
+.overview-actions { display:flex; flex-wrap:wrap; gap:var(--s-3); }
+#signals { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--s-4); }
+#signals > li { display:flex; flex-direction:column; align-items:flex-start; gap:var(--s-3); min-width:0; padding:var(--s-5); border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); }
+.signal-name { display:flex; align-items:center; gap:var(--s-2); }
+.signal-name h4 { margin:0; font-size:var(--fs-16); font-weight:700; }
+.signal-summary { margin:0; max-width:70ch; font-size:var(--fs-14); line-height:1.5; color:var(--text); }
+.signal-items { list-style:none; margin:0; padding:0; display:grid; gap:var(--s-2); font-size:var(--fs-14); }
+.signal-items li { display:flex; align-items:flex-start; gap:var(--s-2); overflow-wrap:anywhere; }
+.signal-items li[data-open=false] { color:var(--muted); }
+.signal-items .state-icon { margin-top:2px; }
+.signal-more summary { min-height:44px; display:flex; align-items:center; cursor:pointer; color:var(--accent); font-size:var(--fs-14); }
+#signals > li > .signal-link { margin-top:auto; padding:0; min-height:44px; text-align:left; font-size:var(--fs-14); }
+.overview-strengths { display:grid; }
+@media (max-width:1023px) { #signals { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:759px) {
+  .verdict-hero { padding:var(--s-5) var(--s-4); }
+  .verdict-tiles { gap:var(--s-2); }
+  .verdict-tile { padding:var(--s-3); min-height:88px; }
+  .tile-count { font-size:var(--fs-28); }
+  #signals { grid-template-columns:1fr; }
+}
+.dialog-actions { display:flex; flex-wrap:wrap; gap:var(--s-3); margin-top:var(--s-4); }

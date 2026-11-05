@@ -171,54 +171,17 @@
     }
   }
 
-  /* ---------- header ---------- */
-  const stat = (value, label, tone) => h("div", { class: `stat ${tone}` }, h("dd", null, String(value)), h("dt", null, label));
-
-  function headline(review) {
-    const { readiness, open_blockers } = review.scorecard;
-    const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.length - must;
-    if (readiness === "needs_work") return `Needs work. Fix ${plural(must || open_blockers.length, "thing")} first.`;
-    if (readiness === "ready") return 'No blockers found in what we checked.';
-    if (worth) return `${plural(worth, "idea")} to consider.`;
-    return review.ai && !Object.keys(review.ai.failed).length ? "Nothing to fix." : "Nothing to fix yet. The AI step still has to run.";
-  }
-
+  /* ---------- verdict line ---------- */
+  /** The sample site's bar above the phone: the verdict in the four-state language. Review pages have the header instead. */
   function renderTop() {
-    const { review } = survey(), card = review.scorecard;
-    const must = review.findings.filter((f) => f.severity === "must_fix").length, worth = review.findings.filter(f=>f.severity !== 'must_fix' && SC.issueTier?.(f) !== 'polish').length;
-    const promised = review.promised_minutes ? `intro promises ${review.promised_minutes}` : "";
-    const ai = review.ai, failed = ai ? Object.keys(ai.failed) : [];
-    const waiting = !ai
-      ? `${card.unchecked_points} points${card.pending_blockers.length ? ` and ${plural(card.pending_blockers.length, "launch check")}` : ""} wait on the AI step`
-      : [`AI checked ${ai.checked.length} of ${ai.checked.length + failed.length} parts`,
-        failed.length && `could not check ${failed.map((id) => DATA.ai_batches[id]).join(", ")}`,
-        card.unchecked_points && `${card.unchecked_points} points still unchecked (${review.unchecked.join(", ")})`].filter(Boolean).join("; ");
-    if (localDetail) {
-      const kept = f => ['keep','original'].includes(localDetail.decisions[f.fingerprint]?.action) && !!localDetail.decisions[f.fingerprint]?.reason?.trim();
-      const remaining = review.findings.filter(f => f.severity === 'must_fix' && !kept(f)).length;
-      const acknowledged = review.findings.filter(f => f.severity === 'must_fix' && kept(f)).length;
-      const unknown = review.unchecked.length || card.pending_blockers.length;
-      mount($('topbar'),
-        h('div', {class:'verdict-line'}, h('span', {class:`readiness-dot ${remaining ? 'needs_work':'ready'}`, 'aria-hidden':'true'}),
-          h('strong', null, remaining ? `${remaining} must-fix ${remaining === 1 ? 'issue' : 'issues'}` : acknowledged ? 'Remaining risks acknowledged · not verified fixes' : unknown ? 'No blockers found · some checks incomplete' : 'No blockers found in what we checked'),
-          h('span', {class:'verdict-limit'}, `${plural(worth,'idea')}${SC.issueCounts ? ` · ${SC.issueCounts(localDetail).polish} nice to have` : ''}`)),
-        h('div', {class:'review-metrics'},
-          h('span', null, survey().overview.subline), SC.renderQualityCompact(survey().quality)));
-      return;
-    }
-    const aiBrief = !ai ? "AI check pending" : `${failed.length ? "AI partly checked" : "AI checked"}${card.unchecked_points ? `, ${card.unchecked_points} pts unchecked` : ""}`;
-    mount($("topbar"),
-      h("div", { class: "brand" }, "Survey", h("span", null, "Coach")),
-      SC.renderQualityCompact(survey().quality),
-      h("div", { class: "head-text" },
-        h(SC.workspaceDetail ? "h2" : "h1", null, headline(review)),
-        h("p", { class: "sub" }, `${survey().title} \u2022 ${waiting}`),
-        h("p", { class: "brief" }, `${must} must-fix \u2022 ${worth} ideas \u2022 ${review.est_minutes} min \u2022 ${aiBrief}`)),
-      h("dl", { class: "stats" }, stat(must, "must-fix", "red"), stat(worth, "ideas", "amber"),
-        stat(`${review.est_minutes} min`, promised ? `for members, ${promised}` : "for members", "plain")),
-      h("label", { class: "pick" }, h("span", null, localDetail ? "Your survey" : "Sample survey"),
-        h("select", { "data-fk": "survey-picker", onchange: (e) => chooseSurvey(Number(e.target.value)) },
-          DATA.surveys.map((s, i) => h("option", { value: i, selected: i === state.survey }, s.title)))));
+    const top = $('topbar');
+    if (!top) return;
+    const {verdict, headline} = survey().overview, {state, label} = SC.verdictState(verdict);
+    mount(top, SC.stateChip(state, {label}),
+      h('p', {class:'verdict-line'}, h('strong', null, headline), verdict && ` · ${verdict.time.label}`),
+      !localDetail && h('label', {class:'pick'}, h('span', null, 'Sample survey'),
+        h('select', {'data-fk':'survey-picker', onchange:e => chooseSurvey(Number(e.target.value))},
+          DATA.surveys.map((s, i) => h('option', {value:i, selected:i === state.survey}, s.title)))));
   }
 
   /* ---------- stage ---------- */
@@ -232,8 +195,8 @@
     const item = pageItem(), s = survey(), seconds = s.timeline[item.index]?.seconds || 0;
     const changes = SC.hitsOn(item.page, previewPlan(true)).size;
     const comparison = state.mode === 'fixes'
-      ? changes ? `${plural(changes, 'text change')} previewed · hypothetical, not accepted or saved.` : 'Hypothetical preview · not accepted or saved. No text replacements; suggested answers still need authoring and behavior checks in RedJade.'
-      : changes ? `${plural(changes, 'text change')} available to preview. RedJade is unchanged.` : 'No text changes to preview here. See the coach for other actions.';
+      ? changes ? `Showing your ${plural(changes, 'change')}. Edit RedJade to make them real.` : 'No wording changes on this screen. RedJade is only changed when you edit it there.'
+      : changes ? `${plural(changes, 'change')} to preview. RedJade is only changed when you edit it there.` : 'No wording changes to preview on this screen.';
     $('stage').classList.toggle('comparing', comparing);
     const originalCtx = {...context(),plan:null,applied:()=>false,blocked:()=>false};
     const rewrittenCtx = {...context(),plan:previewPlan(true),applied:e=>SC.hitsOn(item.page,previewPlan(true)).has(e.key)};
@@ -257,7 +220,7 @@
       comparing ? h('div', {class:'comparison-phones'},
         h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
         h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
-      localDetail && h('p', {class:'preview-effect',role:'status'}, comparison.replace('See the coach','See the issues')),
+      localDetail && h('p', {class:'preview-effect',role:'status'}, comparison),
       comparing && h('p', {class:'comparison-note'}, SC.previewReadingEvidence(item.page, previewPlan(true))),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
         current().entries.length ? `Review ${plural(current().entries.length, 'issue')} on this screen ↓` : 'Read the coach notes ↓'),
@@ -266,7 +229,7 @@
         h("button", { type: "button", "data-fk": "next", disabled: item.index === model.items.length - 1, onclick: () => goToPage(item.index + 1) }, "Next screen")),
       h("div", { class: "timing" },
         h("p", null, s.overview?.energy.path_uncertain ? SC.uncertainWalkthrough
-          : `Estimated time to this screen: ${clock(seconds)} of ${clock(s.total_seconds)} on the captured path.`),
+          : `~${clock(seconds)} in · ${Math.max(1, Math.round(s.total_seconds / 60))} min total`),
         !s.overview?.energy.path_uncertain && h("div", { class: "timebar", "aria-hidden": "true" }, h("i", { style: `left:${(seconds / s.total_seconds) * 100}%` }))));
     const screens = comparing ? [...document.querySelectorAll('.comparison-phones .phone-screen')] : [];
     for (const screen of screens) screen.addEventListener('scroll', () => {
@@ -339,7 +302,8 @@
     state.screen = model.order.indexOf(start);
     state.selected = start.entries.length ? start.entries[0].key : null;
     queue.start();
-    say(`Showing the sample survey: ${survey().title}. ${SC.READINESS[survey().review.scorecard.readiness]}.`);
+    if (!localDetail) SC.renderHeader(survey(), {recheck:false});
+    say(`Showing the sample survey: ${survey().title}. ${survey().overview.headline}.`);
   }
 
   if (!localDetail && window.SURVEYCOACH_LOCAL) {

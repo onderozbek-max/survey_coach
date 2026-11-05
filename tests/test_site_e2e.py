@@ -3,6 +3,7 @@ import functools
 import http.server
 import re
 import threading
+from tests.site_helpers import open_how_we_check, go_to
 from pathlib import Path
 
 import pytest
@@ -12,10 +13,36 @@ SITE = Path(__file__).parent.parent / "site"
 BAD_TEXT = ("false", "undefined", "null", "NaN", "[object Object]")
 
 
+@functools.lru_cache(maxsize=1)
+def fresh_demo_js() -> bytes:
+    """The demo data the current engine would export, built in memory.
+
+    Browser tests must see the live payload shape even while the committed site/data.js is stale;
+    test_demo_export is the one test that polices that file.
+    """
+    from surveycoach.demo_export import build_demo_data, render_data_js
+    return render_data_js(build_demo_data()).encode()
+
+
+class SiteHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        if self.path.split("?")[0].endswith("/data.js"):
+            body = fresh_demo_js()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        super().do_GET()
+
+
 @pytest.fixture(scope="module")
 def base_url():
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(SITE))
-    handler.log_message = lambda *args: None
+    handler = functools.partial(SiteHandler, directory=str(SITE))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_port}/"
@@ -289,8 +316,8 @@ def test_copy_puts_only_the_suggested_text_on_the_clipboard(browser, base_url):
 def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_url):
     from tests.test_issue_loop_ui import open_review
     context, page, detail, writes, errors = open_review(browser, base_url)
-    page.locator('#about-review').click()
-    summary = page.get_by_role('dialog', name='About this review')
+    open_how_we_check(page)
+    summary = page.get_by_role('dialog', name='How we check')
     text = summary.inner_text()
     assert 'Imported screens; capture completeness not independently verified.' in text
     assert 'AI advice needs your judgment' in text
@@ -299,7 +326,7 @@ def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_ur
     for unchecked in detail['review']['unchecked']:
         assert unchecked in summary.inner_text()
     page.keyboard.press('Escape')
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     assert page.locator('#download-summary').get_attribute('href').endswith('/versions/2/summary?download=1')
     assert not writes and not errors
     context.close()
@@ -308,12 +335,12 @@ def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_ur
 def test_unchecked_points_are_disclosed_as_unknown_not_earned(browser, base_url):
     from tests.test_issue_loop_ui import open_review
     context, page, detail, writes, errors = open_review(browser, base_url)
-    page.locator('#about-review').click()
+    open_how_we_check(page)
     page.get_by_text('Technical details & source evidence', exact=True).click()
     card = detail['review']['scorecard']
     checked = card.get('checked_points', 100 - card['unchecked_points'])
     earned = card['score'] if 'checked_points' in card else card['score'] - card['unchecked_points']
-    text = page.get_by_role('dialog', name='About this review').inner_text()
+    text = page.get_by_role('dialog', name='How we check').inner_text()
     assert f"{int(earned + .5)} of {checked} checked points earned" in text
     assert f"{card['unchecked_points']} points unchecked" in text
     assert not errors
@@ -344,7 +371,7 @@ def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base
     phone = page.locator("#stage .phone").bounding_box()
     assert phone["y"] < 844 / 2 and phone["y"] < page.locator(".coach").bounding_box()["y"]   # the phone starts in the top half
     assert page.get_by_role("group", name="Device").is_hidden()
-    assert page.locator('#queue-tabs [aria-selected=true]').inner_text().startswith('Must-fix')
+    assert page.locator('#queue-tabs [aria-selected=true]').inner_text().startswith('Fix before launch')
     pin, screen = page.locator('#stage .phone-marker.on').bounding_box(), page.locator("#stage .phone-screen").bounding_box()
     assert screen["y"] <= pin["y"] and pin["y"] + pin["height"] <= screen["y"] + screen["height"]   # pin 1 is in view
 

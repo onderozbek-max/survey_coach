@@ -1,0 +1,51 @@
+/* The review header. Tokens only. One row from 1200px, two rows below that, and at 390px just
+   logo + name + step menu + Check again + overflow. All targets are 44px. */
+.review-header { position:sticky; top:0; z-index:30; display:grid; align-items:center; gap:var(--s-1) var(--s-4); padding:var(--s-2) var(--s-5); background:var(--surface); border-bottom:1px solid var(--line);
+  grid-template-columns:auto auto minmax(0,1fr) auto auto; grid-template-areas:'brand mine title steps actions'; }
+.hdr-brand { grid-area:brand; display:inline-flex; align-items:center; gap:10px; min-height:44px; color:var(--text); text-decoration:none; font-size:19px; font-weight:800; }
+.hdr-brand .brand-word span { color:var(--accent); }
+.hdr-mysurveys { grid-area:mine; display:inline-flex; align-items:center; min-height:44px; padding:0 var(--s-3); font-weight:650; }
+.hdr-title { grid-area:title; min-width:0; display:flex; align-items:center; flex-wrap:wrap; gap:var(--s-1) var(--s-3); }
+.hdr-name { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s-2); min-width:0; max-width:100%; }
+#review-title { margin:0; min-width:0; max-width:100%; font-size:var(--fs-22); line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#review-title:not([hidden]) { cursor:text; }
+.version-chip { padding:2px var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-pill); color:var(--muted); font-size:var(--fs-14); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rename-status:empty { display:none; }
+.rename-status { font-size:var(--fs-14); color:var(--muted); }
+.rename-form { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); min-width:0; }
+.rename-form input { width:min(360px,100%); padding:0 var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); }
+.icon-btn { display:inline-grid; place-items:center; min-width:44px; min-height:44px; padding:0; border:1px solid transparent; border-radius:var(--r-md); background:transparent; color:var(--text); cursor:pointer; }
+.icon-btn:hover, .icon-btn[aria-expanded=true] { background:var(--surface-2); }
+.hdr-steps-wrap { grid-area:steps; position:relative; }
+#chapter-nav { display:flex; gap:var(--s-2); }
+#chapter-nav a { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:var(--s-2) var(--s-3); border-radius:var(--r-md); text-decoration:none; color:var(--muted); font-size:var(--fs-14); font-weight:600; white-space:nowrap; }
+#chapter-nav a[aria-current] { color:var(--accent); background:var(--accent-soft); font-weight:700; }
+.step-n { display:inline-flex; justify-content:center; align-items:center; width:24px; height:24px; border:1px solid currentColor; border-radius:50%; font-size:var(--fs-12); }
+.hdr-steps { display:none; gap:var(--s-2); }
+.hdr-actions { grid-area:actions; display:flex; align-items:center; gap:var(--s-2); }
+#check-again .btn-label { white-space:nowrap; }
+.hdr-more { position:relative; }
+.hdr-menu { position:absolute; right:0; top:calc(100% + var(--s-1)); z-index:40; min-width:220px; padding:var(--s-1); border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); box-shadow:var(--shadow-2); }
+.hdr-menu[data-open=false] { display:none; }
+.hdr-menu [role=menuitem] { display:flex; align-items:center; width:100%; min-height:44px; padding:0 var(--s-3); border:0; border-radius:var(--r-sm); background:transparent; color:var(--text); font-weight:600; text-align:left; text-decoration:none; cursor:pointer; }
+.hdr-menu [role=menuitem]:hover, .hdr-menu [role=menuitem]:focus-visible { background:var(--accent-soft); }
+.menu-mysurveys { display:none !important; }
+
+@media (max-width:1199px) {
+  .review-header { grid-template-columns:auto auto minmax(0,1fr) auto; grid-template-areas:'brand mine . actions' 'title title title steps'; }
+}
+@media (max-width:700px) {
+  .review-header { grid-template-columns:auto minmax(0,1fr) auto auto; grid-template-areas:'brand title steps actions'; padding:var(--s-1) var(--s-3); gap:var(--s-1) var(--s-2); }
+  .hdr-mysurveys { display:none; }
+  .menu-mysurveys { display:flex !important; }
+  .hdr-brand .brand-word { display:none; }
+  #review-title { font-size:var(--fs-16); }
+  .hdr-title { flex-direction:column; align-items:flex-start; gap:0; }
+  .version-chip { padding:0; border:0; font-size:var(--fs-12); }
+  .hdr-steps { display:inline-flex; padding:0 var(--s-3); }
+  #chapter-nav { position:absolute; right:0; top:calc(100% + var(--s-1)); z-index:40; flex-direction:column; min-width:200px; padding:var(--s-1); border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); box-shadow:var(--shadow-2); }
+  #chapter-nav[data-open=false] { display:none; }
+  #chapter-nav a { justify-content:flex-start; }
+  #check-again { min-width:44px; padding:0; }
+  #check-again .btn-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+}

@@ -1,4 +1,4 @@
-/* Server-calculated evidence, not a client-side score or a prediction. */
+/* Server-calculated methodology, shown only inside the "How we check" dialogs: never on Home, Verdict or Share. */
 (() => {
   'use strict';
   const SC = window.SC, {h, mount} = SC;
@@ -44,18 +44,6 @@
     const q = quality || {}, score = q.score == null ? 'Not assessed' : `${Math.round(q.score)}/100`;
     return `Survey Quality · ${score} · ${q.provisional !== false ? 'Provisional' : 'Assessed'} · ${Math.round(q.coverage_percent || 0)}% coverage`;
   };
-  SC.renderQualityCompact = quality => h('span', {class:'quality-compact'}, SC.qualityText(quality));
-  SC.renderQuality = quality => {
-    const q = quality || {}, id = `quality-heading-${++serial}`;
-    return h('section', {class:'quality-card', 'aria-labelledby':id},
-      h('h3', {id}, 'Survey Quality'),
-      h('p', {class:'quality-value'}, q.score == null ? 'Not assessed' : String(Math.round(q.score)),
-        q.score != null && h('span', null, ' / 100')),
-      h('p', {class:'quality-context'}, SC.qualityText(q)),
-      p(`${q.blockers?.flagged || 0} must-fix risks · ${q.blockers?.unchecked || 0} risk checks unverified`),
-      p('Assessed evidence, not launch readiness. Choices do not change this score.'),
-      SC.qualityMethodButton('How quality is calculated'));
-  };
   SC.energyInfoButton = detail => {
     const id = `energy-tip-${++serial}`;
     let hovered = false, focused = false, dismissed = false;
@@ -87,6 +75,4 @@
       onfocusin:() => { focused = true; refresh(); },
       onfocusout:() => { focused = false; refresh(); }}, button, tooltip);
   };
-  const footer = document.querySelector('.chapter-foot') || document.querySelector('main');
-  footer?.append(h('div', {class:'quality-footer'}, SC.qualityMethodButton()));
 })();

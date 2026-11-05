@@ -46,7 +46,7 @@
   function lockRead(locked) {
     if (!locked && uncertainSubmission) return;   // new submissions stay locked in this tab; reading is never blocked
     activeRead = locked;
-    for (const control of document.querySelectorAll('#import-form input, #import-form button[type=submit], #recheck-form input, #recheck-form button[type=submit], #sample-start, #check-again')) {
+    for (const control of document.querySelectorAll('#import-form input, #import-form button[type=submit], #recheck-form input, #recheck-form button[type=submit], #sample-start, #check-again, #recheck-cancel')) {
       if (locked) {
         control.dataset.readDisabled = String(control.disabled);
         if (control.matches('button[type=submit]')) {
@@ -61,6 +61,7 @@
       }
     }
   }
+  window.SC.isReading = () => activeRead;
   const endpoint = (version = detail.version) => `/api/surveys/${encodeURIComponent(surveyId)}/versions/${version}`;
   async function api(path, method = "GET", body) {
     const controller = new AbortController();
@@ -180,33 +181,10 @@
       return {path:'/api/reader/jobs', body:{url:value, approval:true, ai, survey_id:surveyId || null}};
     });
   }
-  const since = (stamp) => {
-    // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
-    const minutes = Math.round((new Date(stamp.replace(" ", "T") + "Z") - Date.now()) / 60000);
-    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-    if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
-    if (Math.abs(minutes) < 1440) return rtf.format(Math.round(minutes / 60), "hour");
-    return rtf.format(Math.round(minutes / 1440), "day");
-  };
-  const signalNames = ['Time', 'Clarity', 'Honest answers', 'Energy & flow', 'Tone & fun', 'Phone comfort'];
-  const signalIcons = {strong:'check', mixed:'minus', needs_work:'alert', unknown:'clock'};
-  function surveyCard(s) {
-    const signals = signalNames.map((name, index) => s.signals?.[index]
-      || {name, state:'unknown', label:'Not checked yet'});
-    const status = window.SC.surveyStatus(s);
-    return h('a', {class:'survey-card', href:`review.html?id=${encodeURIComponent(s.id)}#overview`},
-      h('h3', null, s.title?.trim() || 'Untitled survey'),
-      window.SC.renderQualityCompact(s.quality),
-      h('span', {class:'chip', 'data-state':status.state}, window.SC.icon(signalIcons[status.state]), status.label),
-      h('div', {class:'signals', role:'img', 'aria-label':signals.map(v => `${v.name}: ${v.label}`).join(', ')},
-        signals.map(v => h('span', {class:'signal-dot', 'data-state':v.state, title:`${v.name}: ${v.label}`, 'aria-hidden':'true'},
-          window.SC.icon(signalIcons[v.state] || 'clock')))),
-      h('p', {class:'meta'}, `Version ${s.version} · ${since(s.created_at)}`));
-  }
   async function home() {
     const data = await api("/api/surveys");
     message("survey-count", data.surveys.length ? plural(data.surveys.length, "survey") : "");
-    mount($("survey-list"), data.surveys.length ? data.surveys.map(surveyCard)
+    mount($("survey-list"), data.surveys.length ? data.surveys.map(window.SC.surveyCard)
       : h("p", { class: "empty" }, h("strong", null, "Nothing reviewed yet"), "Paste a link above, or try the sample survey to see what a review looks like."));
   }
   function refreshDecisions() {
@@ -216,32 +194,16 @@
     const kept = window.SC.issueCounts(detail).kept;
     message('decision-verdict', kept ? `${kept} kept on purpose · accepted risk, not verified fixes.` : '');
   }
-  function revealRecheck() {
-    window.SC.goChapter('share');
-    $('survey-link').value ||= window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
-    $('recheck-panel').scrollIntoView({block:'center', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+  /** Check again: the dialog opens prefilled with the last safe link. Submitting reuses the one read path (startRead). */
+  function openRecheck() {
+    const dialog = $('recheck-dialog');
+    $('survey-link').value ||= window.SC.recheckLink(detail.source_url || detail.snapshot?.source_url || '');
+    if (!dialog.open) dialog.showModal();
     $('survey-link').focus({preventScroll:true});
   }
-  function titleEditor() {
-    const title = $('review-title'), input = h('input', {type:'text', maxlength:200, 'aria-label':'Survey title'});
-    const edit = h('button', {type:'button', class:'title-edit', onclick:() => {
-      input.value = detail.title; form.hidden = false; edit.hidden = true; input.focus();
-    }}, 'Rename');
-    const status = h('span', {role:'status'});
-    const form = h('form', {class:'title-form', hidden:true, onsubmit:async event => {
-      event.preventDefault();
-      if (!input.value.trim()) { status.textContent = 'Enter a title.'; return; }
-      const button = form.querySelector('button[type=submit]'); button.disabled = true;
-      try {
-        await window.SC.updateSurvey({title:input.value.trim()});
-        title.textContent = detail.title;
-        form.hidden = true; edit.hidden = false; status.textContent = 'Title saved.';
-      } catch (error) { status.textContent = error.message; }
-      finally { button.disabled = false; }
-    }}, input, h('button', {type:'submit', class:'btn'}, 'Save title'),
-      h('button', {type:'button', class:'btn', onclick:() => { form.hidden = true; edit.hidden = false; }}, 'Cancel'));
-    mount($('title-tools'), !window.SC.readOnly && edit, form, status);
-  }
+  $('recheck-cancel')?.addEventListener('click', () => $('recheck-dialog').close());
+  // A check that is running owns the dialog: Escape must not hide its progress.
+  $('recheck-dialog')?.addEventListener('cancel', event => { if (activeRead) event.preventDefault(); });
   window.SC.refreshDetail = async version => {
     const updated = await api(endpoint(version));
     if (detail.version !== version) return;
@@ -263,8 +225,8 @@
     const updated = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
     detail = updated;
     detail.decisions ||= {};
-    message('review-title', detail.title);
-    titleEditor(); refreshDecisions();
+    window.SC.renderHeader(detail);
+    refreshDecisions();
     window.SC.renderOverview(detail);
     window.dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail}));
     return detail;
@@ -275,7 +237,8 @@
   async function review(carriedFailure = null) {
     detail = await api(params.get('version') ? endpoint(Number(params.get('version'))) : `/api/surveys/${encodeURIComponent(surveyId)}`);
     detail.decisions ||= {};
-    message('review-title', detail.title);
+    window.SC.renderHeader(detail);
+    $('check-again').onclick = openRecheck;
     if (detail.job && ['queued', 'running'].includes(detail.job.status)) {
       lockRead(true);
       const started = Date.now();
@@ -288,15 +251,14 @@
       return review(failure);
     }
     if (!detail.review) {
-      reviewStatus(carriedFailure || detail.job?.error || 'No completed review. Return to My surveys or open Share to start a new check.', 'error');
+      reviewStatus(carriedFailure || detail.job?.error || 'No completed review yet. Use Check again, or return to My surveys.', 'error');
       return;
     }
     const failure = carriedFailure || (detail.job?.status === 'failed' ? detail.job.error || 'Latest check failed.' : null);
     if (failure) reviewStatus(`${failure} Showing the previous completed review.`, 'error');
-    else reviewStatus(`Version ${detail.version} · ${params.has('unchanged') ? 'No changes found in the captured wording. ' : ''}You make changes in RedJade.`);
-    titleEditor(); refreshDecisions();
+    else reviewStatus(params.has('unchanged') ? 'We found no wording changes since the last version.' : '');
+    refreshDecisions();
     $('survey-link').value = window.SC.recheckLink(detail.source_url || detail.snapshot.source_url || '');
-    $('check-again').onclick = revealRecheck;
     window.SC.loadWorkspace(detail);
   }
   window.addEventListener('surveycoach-detail-updated', event => {

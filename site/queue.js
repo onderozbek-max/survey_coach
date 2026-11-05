@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const SC = window.SC, {h} = SC;
-  const tabs = [['must_fix','Must-fix'], ['quick_wins','Quick wins'], ['more','More ideas']];
+  const tabs = [['must_fix','Fix before launch'], ['quick_wins','Worth improving'], ['more','More ideas']];
   SC.createQueue = (detail, navigate, redraw) => {
     let tab = 'must_fix', active = null, filter = {};
     const entries = item => item.fingerprints.map(fp => {
@@ -100,8 +100,8 @@
         let heading = 'Nothing more in this view';
         let explanation = 'Other recommendations may be outside this category or already handled.';
         if (scoped && pageFindings.length === 0) {
-          heading = 'No issues found for this screen in the checks run';
-          explanation = 'This is not a guarantee that the screen is issue-free; only the checks run are covered.';
+          heading = 'Nothing to fix on this screen';
+          explanation = 'Our checks found nothing here. Use the buttons below to keep going.';
         } else if (scoped && pageItems.length && pageItems.every(decided) &&
             pageFindings.every(f => pageItems.some(item => related(item).includes(f)))) {
           heading = 'All recommendations for this screen handled';
@@ -128,7 +128,7 @@
             show(hit?.item, true);
           }}, 'Show all recommendations'),
           h('button', {type:'button',class:'btn btn-primary',onclick:() => chooseTab('quick_wins')}, 'Continue to quick wins'),
-          h('button', {type:'button',class:'btn-text',onclick:() => SC.goChapter('share')}, 'Go to Share'));
+          h('button', {type:'button',class:'btn-text',onclick:() => SC.goChapter('share')}, 'Go to Sign off'));
       },
     };
     return api;

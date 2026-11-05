@@ -6,7 +6,7 @@
   const content = h('div', {id:'about-content'});
   const close = h('button', {type:'button', class:'btn btn-secondary', autofocus:true}, 'Close');
   const reviewDialog = reviewTrigger && h('dialog', {id:'about-review-dialog', class:'about-sheet',
-    'aria-labelledby':'about-review-h'}, close, h('h2', {id:'about-review-h'}, 'About this review'), content);
+    'aria-labelledby':'about-review-h'}, close, h('h2', {id:'about-review-h'}, 'How we check'), content);
   if (reviewDialog) document.body.append(reviewDialog);
   const dialog = reviewDialog || $('data-handling-dialog');
   const trigger = reviewTrigger || $('data-handling');
@@ -46,6 +46,8 @@
         h('p', null, 'Use an approved test link, not a member invitation. Opening a link may create a test participant; exclude test responses from results.')),
       !new URLSearchParams(location.search).has('id') && h('p', null, 'Sample review · fictional data.'),
       h('details', null, h('summary', null, 'Technical details & source evidence'),
+        detail.methodology?.quality && h('p', null, SC.qualityText(detail.methodology.quality)),
+        SC.qualityMethodButton('Quality methodology'),
         review.scorecard && h('p', null, `${Math.round(SC.scoreDisplay(review.scorecard).earned)} of ${SC.scoreDisplay(review.scorecard).checked} checked points earned. ${review.scorecard.unchecked_points} points unchecked.`),
         coverage && h('p', null, `Reader stop code: ${coverage.stop_reason}`),
         list(coverage?.warnings || []),
@@ -61,7 +63,8 @@
   });
   (reviewDialog ? close : $('close-data-handling'))?.addEventListener('click', () => dialog.close());
   dialog?.addEventListener('close', () => {
-    if (!routeClosing) trigger.focus();
+    // The trigger lives in the header menu, which closes with it; return to the menu button instead.
+    if (!routeClosing) (trigger.getClientRects().length ? trigger : $('header-menu-button') || trigger).focus();
     routeClosing = false;
   });
   window.addEventListener('surveycoach-chapter', event => {

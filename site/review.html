@@ -1,37 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="review-studio.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="chapters.css"><link rel="stylesheet" href="overview.css"><link rel="stylesheet" href="quality.css"><link rel="stylesheet" href="read-progress.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SurveyCoach · Review workspace</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="design-system.css"><link rel="stylesheet" href="states.css"><link rel="stylesheet" href="header.css"><link rel="stylesheet" href="review-studio.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="chapters.css"><link rel="stylesheet" href="overview.css"><link rel="stylesheet" href="verdict.css"><link rel="stylesheet" href="quality.css"><link rel="stylesheet" href="read-progress.css"></head>
 <body class="review-studio">
 <a class="skip" href="#workspace">Skip to review</a>
-<header class="app-bar">
-  <a href="local.html" class="brand">SurveyCoach</a>
-  <nav id="chapter-nav" aria-label="Review steps">
-    <a href="#overview" data-chapter="overview"><span class="step-n">1</span> Overview</a>
-    <a href="#improve" data-chapter="improve"><span class="step-n">2</span> Improve</a>
-    <a href="#share" data-chapter="share"><span class="step-n">3</span> Share</a>
-  </nav>
-  <a href="local.html" class="btn-text">My surveys</a>
-</header>
+<header id="app-header" class="review-header"></header>
 <main id="workspace" class="workspace-shell" tabindex="-1">
   <p id="review-status" role="status" aria-live="polite">Opening your survey…</p>
-  <section id="chapter-overview" aria-labelledby="overview-h"><h2 id="overview-h" tabindex="-1">Overview</h2></section>
+  <section id="chapter-overview" aria-labelledby="overview-h"><h2 id="overview-h" tabindex="-1">Verdict</h2></section>
   <section id="chapter-improve" aria-labelledby="improve-h" hidden>
-  <h2 id="improve-h" tabindex="-1">Improve</h2>
-  <div class="workspace-heading"><div><h1 id="review-title">Opening your survey…</h1><div id="title-tools"></div></div></div>
-  <header id="topbar" class="topbar" aria-label="Review overview"><p>Loading review details…</p></header>
+  <h2 id="improve-h" tabindex="-1">Fix</h2>
   <p id="decision-verdict" class="decision-verdict" role="status"></p>
   <section id="survey-view" aria-label="Survey and contextual coach">
-    <div id="improve-bar" class="improve-bar" aria-label="Improve queue"></div>
+    <div id="improve-bar" class="improve-bar" aria-label="Fix queue"></div>
     <div class="studio">
       <section id="stage" class="stage" aria-labelledby="stage-h" tabindex="-1"><p>Preparing the phone preview…</p></section>
       <aside id="coach" class="coach" aria-labelledby="coach-h"><p>Opening your issues…</p></aside>
     </div>
   </section>
   <div id="fix-list" hidden></div>
-  <button id="check-again" class="btn btn-secondary" type="button">Check updated survey</button>
   </section>
   <section id="chapter-share" aria-labelledby="share-h" hidden>
-  <h2 id="share-h" tabindex="-1">Share</h2>
+  <h2 id="share-h" tabindex="-1">Sign off</h2>
   <p id="share-summary" role="status"></p>
   <div id="change-list"></div>
   <button id="copy-all" class="btn btn-primary" type="button" disabled hidden>Copy all changes</button>
@@ -39,20 +28,20 @@
   <a id="download-summary" class="btn btn-secondary">Download summary</a>
   <div id="kept-reasons"></div>
   <section id="version-changes" class="review-details" aria-label="Review versions"></section>
-    <section id="recheck-panel" aria-labelledby="recheck-h">
-      <h2 id="recheck-h">Check your updated survey</h2>
-
-      <form id="recheck-form">
-        <label for="survey-link">Updated RedJade preview link</label><input id="survey-link" type="url" placeholder="https://…" autocomplete="off" aria-describedby="reader-mode">
-        <p>The next check compares with the latest saved version, not necessarily the version displayed here.</p>
-        <details class="advanced-recheck"><summary>Advanced · local snapshot import</summary><label for="snapshot">Updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json"></details>
-        <p id="reader-mode">Opening a link may create a test participant. Exclude test responses from results.</p>
-        <button class="btn btn-secondary" type="submit">Start next version</button>
-      </form><p id="import-status" role="status" aria-live="polite"></p>
-    </section>
   </section>
-  <footer class="chapter-foot"><button type="button" id="about-review" class="btn-text" aria-haspopup="dialog" aria-controls="about-review-dialog">About this review</button></footer>
 </main>
+<dialog id="recheck-dialog" class="about-sheet" aria-labelledby="recheck-h">
+  <h2 id="recheck-h">Check again</h2>
+  <form id="recheck-form">
+    <label for="survey-link">Paste your updated RedJade link</label>
+    <input id="survey-link" type="url" placeholder="https://…" autocomplete="off" aria-describedby="reader-mode">
+    <p>The next check compares with the latest saved version, not necessarily the version displayed here.</p>
+    <details class="advanced-recheck"><summary>Advanced · local snapshot import</summary><label for="snapshot">Updated snapshot file (.json)</label><input id="snapshot" type="file" accept=".json,application/json"></details>
+    <p id="reader-mode">We open your test link like a member would. RedJade may record this as a test response. Exclude test responses before analysis.</p>
+    <div class="dialog-actions"><button class="btn btn-primary" type="submit">Check updated survey</button><button class="btn btn-secondary" type="button" id="recheck-cancel">Cancel</button></div>
+  </form>
+  <p id="import-status" role="status" aria-live="polite"></p>
+</dialog>
 <p id="status" class="sr-only" role="status" aria-live="polite"></p>
-<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="icons.js"></script><script src="quality.js"></script><script src="diff.js"></script><script src="toast.js"></script><script src="chapters.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="progress.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="share.js"></script><script src="phone.js"></script><script src="energy.js"></script><script src="overview.js"></script><script src="improve-actions.js"></script><script src="queue.js"></script><script src="suggestion.js"></script><script src="drafts.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="about.js"></script><script src="workflow.js"></script>
+<script src="environment.js"></script><script src="data.js"></script><script src="dom.js"></script><script src="icons.js"></script><script src="states.js"></script><script src="menu.js"></script><script src="header.js"></script><script src="quality.js"></script><script src="diff.js"></script><script src="toast.js"></script><script src="chapters.js"></script><script src="entry.js"></script><script src="model.js"></script><script src="issues.js"></script><script src="progress.js"></script><script src="issue-list.js"></script><script src="rounds.js"></script><script src="share.js"></script><script src="phone.js"></script><script src="energy.js"></script><script src="verdict-cards.js"></script><script src="overview.js"></script><script src="improve-actions.js"></script><script src="queue.js"></script><script src="suggestion.js"></script><script src="drafts.js"></script><script src="coach.js"></script><script src="workspace.js"></script><script src="about.js"></script><script src="workflow.js"></script>
 </body></html>
