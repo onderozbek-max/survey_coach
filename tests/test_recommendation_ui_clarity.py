@@ -144,7 +144,20 @@ def test_compact_energy_legend_navigation_and_mobile_layout(browser, base_url, w
     context, page, detail, writes, errors = open_review(browser, base_url, width=width)
     energy = page.locator('#improve-bar .energy-map')
     assert energy.is_visible()
+    caption = energy.locator('.energy-quick-guide')
+    assert caption.is_visible()
+    assert 'Height = screen effort' in caption.inner_text()
+    assert 'Color = accumulated effort' in caption.inner_text()
+    guide = energy.locator('details.energy-guide')
+    assert guide.get_attribute('open') is None
     legend = energy.locator('.energy-legend')
+    assert legend.is_visible()
+    assert legend.inner_text().splitlines() == ['Estimated load:', 'Low', 'Building', 'High']
+    assert not energy.locator('.energy-explanation').is_visible()
+    summary = guide.get_by_text('Effort guide', exact=True)
+    summary.focus()
+    page.keyboard.press('Enter')
+    assert guide.get_attribute('open') is not None
     assert legend.is_visible()
     assert legend.inner_text().splitlines() == ['Estimated load:', 'Low', 'Building', 'High']
     explanation = energy.locator('.energy-explanation')
@@ -153,6 +166,11 @@ def test_compact_energy_legend_navigation_and_mobile_layout(browser, base_url, w
     for phrase in ['Height: estimated effort per screen', 'Color: accumulated effort', 'heuristic',
                    'not severity', 'measured time or fatigue', 'Blue outline: selected screen']:
         assert phrase in text
+    summary.focus()
+    page.keyboard.press('Enter')
+    assert guide.get_attribute('open') is None
+    assert caption.is_visible()
+    assert legend.is_visible()
     bars = energy.locator('.energy-bar')
     target_id = bars.nth(1).get_attribute('data-page')
     assert 'estimated load' in bars.nth(1).get_attribute('aria-label')

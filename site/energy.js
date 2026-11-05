@@ -21,11 +21,11 @@
             h('span', {class:`energy-label${screens.length > 14 && i % 2 ? ' sparse' : ''}`, title:screen.name}, screen.name));
         })),
       compact && h('p', {class:'energy-quick-guide'}, 'Height = screen effort · Color = accumulated effort'),
+      h('div', {class:'energy-legend'}, h('strong', null, 'Estimated load:'),
+        Object.entries(zones).map(([zone, label]) =>
+          h('span', null, h('i', {class:zone, 'aria-hidden':'true'}), label))),
       h(compact ? 'details' : 'div', {class:'energy-guide'},
         compact && h('summary', null, 'Effort guide'),
-        h('div', {class:'energy-legend'}, h('strong', null, 'Estimated load:'),
-          Object.entries(zones).map(([zone, label]) =>
-            h('span', null, h('i', {class:zone, 'aria-hidden':'true'}), label))),
         h('p', {class:'energy-explanation'},
           'Height: estimated effort per screen. Color: accumulated effort (heuristic), not severity or measured time or fatigue. Blue outline: selected screen. Tap a bar to navigate.')),
       h('p', {class:'energy-swipe'}, 'Swipe for more'),
