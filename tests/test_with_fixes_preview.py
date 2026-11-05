@@ -18,7 +18,7 @@ def test_preview_changes_immediately_without_writes_and_can_restore_original(bro
     page.get_by_role('button', name='With changes', exact=True).click()
     assert page.locator('#stage .phone-screen').inner_text() != before
     assert 'Tap the one you like best.' in page.locator('#stage .phone-screen').inner_text()
-    assert 'Edit RedJade to make them real' in page.locator('.preview-effect').inner_text()
+    assert 'RedJade is only changed when you edit it there' in page.locator('.preview-effect').inner_text()
     assert not writes
     page.get_by_role('button', name='Original', exact=True).click()
     assert page.locator('#stage .phone-screen').inner_text() == before

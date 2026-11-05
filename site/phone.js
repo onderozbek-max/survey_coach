@@ -10,20 +10,26 @@
   const dimensions = (m) => m.rendered_w > 0 && m.rendered_h > 0
     ? [m.rendered_w, m.rendered_h] : [m.natural_w, m.natural_h];
 
-  /** An annotation in the block's right gutter, never in the member's sentence. */
+  /** An annotation in the block's right gutter, never in the member's sentence. The number is the card's number;
+   * severity is spoken in the name and drawn in the shape (filled = must-fix), never carried by colour alone. */
   function marker(entry, ctx) {
     const tier = entry.f.severity === 'must_fix' ? 'Must-fix' : 'Worth improving';
     return h("button", {
       type: "button", "data-fk": `pin-${entry.key}`, "data-pin": entry.key,
       class: `phone-marker ${entry.f.severity}${ctx.selected === entry.key ? " on" : ""}`,
-      "aria-label": `${tier}: ${entry.f.headline}`,
+      "aria-label": `${tier}: ${entry.f.headline}, pin ${entry.n}`,
       onclick: () => ctx.onPin(entry.key),
-    }, h('span', {'aria-hidden':'true'}, '!'));
+    }, h('span', {class:'pin-number', 'aria-hidden':'true'}, String(entry.n)));
   }
 
-  const flaggedBlock = (copy, entries, ctx) => h('div', {class:'phone-marked-block'},
-    h('div', {class:'phone-block-copy'}, copy),
-    h('div', {class:'phone-gutter'}, entries.map(entry => marker(entry, ctx))));
+  /** The affected field only: tinted and outlined when it carries a pin. The strongest severity sets the outline style. */
+  function flaggedBlock(copy, entries, ctx) {
+    const worst = entries.some(entry => entry.f.severity === 'must_fix') ? 'must_fix' : entries.length ? 'worth_improving' : null;
+    const focused = entries.some(entry => entry.key === ctx.selected);
+    return h('div', {class:`phone-marked-block${worst ? ` field-flagged${focused ? ' on' : ''}` : ''}`, 'data-severity':worst},
+      h('div', {class:'phone-block-copy'}, copy),
+      h('div', {class:'phone-gutter'}, entries.map(entry => marker(entry, ctx))));
+  }
 
   /** Highlight only the evidence; controls live outside the text flow. */
   function marked(text, entries, ctx) {
@@ -81,15 +87,20 @@
     return h("ul", { class: ["opts", ...kinds].join(" ") }, items);
   }
 
-  function suggestedAnswers(entries, ctx) {
-    return entries.filter(e => e.f.edit_kind === 'add_answer' && ctx.plan !== null
-      && ctx.choiceOf(e.key) !== 'original')
-      .flatMap(e => {
-        const choice = SC.chosenChoice(e.f, ctx.choiceOf(e.key) === 'open' ? undefined : ctx.choiceOf(e.key));
-        return choice ? [h('li', {class:'suggested-option'},
-          h('span', {class:'sr-only'}, 'Suggested answer: '), h('span', null, choice.text))] : [];
-      });
+  /** The ghost answers a screen would add (shown faded; RedJade must still be edited by hand). */
+  function ghostChoices(entries, ctx) {
+    return entries.filter(e => e.f.edit_kind === 'add_answer' && ctx.plan !== null && ctx.choiceOf(e.key) !== 'original')
+      .flatMap(e => SC.chosenChoice(e.f, ctx.choiceOf(e.key) === 'open' ? undefined : ctx.choiceOf(e.key)) || []);
   }
+
+  const suggestedAnswers = (entries, ctx) => ghostChoices(entries, ctx).map(choice => h('li', {class:'suggested-option'},
+    h('span', {class:'sr-only'}, 'Suggested answer: '), h('span', null, choice.text)));
+
+  const SHOWS_NO_ANSWER_LIST = ['text_short', 'text_long', 'rating', 'slider', 'grid_single', 'grid_multi'];
+  /** How many ghost answers this screen draws, for the preview line (same filter as the list that draws them). */
+  SC.ghostAnswerCount = (item, ctx) => (item.page.questions || [])
+    .filter(q => q.kind === 'dropdown' || !(SHOWS_NO_ANSWER_LIST.includes(q.kind) || (q.kind === 'unknown' && !(q.options || []).length)))
+    .reduce((sum, q) => sum + ghostChoices(item.entries.filter(e => e.f.question_id === q.id), { ...ctx, questionId: q.id }).length, 0);
 
   function scaleEnds(scale, ctx) {
     const [low, high] = fixedText(`${scale.low_label || "(no label)"}${SC.SPLIT}${scale.high_label || "(no label)"}`, ctx, 'scale').split(SC.SPLIT);
@@ -130,7 +141,25 @@
       flaggedBlock(h("p", { class: "q-text" }, marked(fixedText(q.text, ctx, 'stem'), by.text, ctx)), [...by.text, ...by.scale], ctx),
       q.help_text && h("p", { class: "help" }, fixedText(q.help_text, ctx, 'help')),
       questionBody(q, by, mine, ctx),
-      q.required === false && h("p", { class: "help" }, "Optional"));
+      showsOptional(q) && h("p", { class: "help q-optional" }, "Optional"));
+  }
+
+  /** RedJade's own label may already sit in the wording the member reads. */
+  const VENDOR_OPTIONAL = /(?:^|[\s(\[])optional\s*[)\]]?\s*[.:]?\s*$/i;
+  /** Only a verified `false` says Optional; null and unknown say nothing, and a visible vendor label is never doubled. */
+  const showsOptional = (q) => q.required === false
+    && ![q.text, q.help_text, ...q.options.map((o) => o.label)].some((text) => VENDOR_OPTIONAL.test((text || "").trim()));
+
+  const includesText = (text, phrase) => !!phrase && text.toLowerCase().includes(phrase.toLowerCase());
+  /** A page-level finding whose evidence sits in the concept copy belongs to that copy, not to a floating note. */
+  const inStimulus = (entry, page) => includesText(page.stimulus_text || "", entry.f.highlight || entry.f.current_text);
+
+  /** D1: the concept copy a member reads above the question, in body type (not the bold question style). No image is invented. */
+  function stimulusBlock(page, own, ctx) {
+    if (!page.stimulus_text) return null;
+    const mine = own.filter((e) => inStimulus(e, page));
+    return h("div", { class: "stimulus" }, flaggedBlock(
+      h("p", { class: "stimulus-copy" }, marked(fixedText(page.stimulus_text, ctx, "stimulus"), mine, ctx)), mine, ctx));
   }
 
   /** Page-level issues on a question screen: a suggested new question once fixed, otherwise a labeled pin. */
@@ -148,21 +177,19 @@
         h('p', null, 'The earlier reader captured an upload or answer-validation error here. This is not evidence of the next survey screen. Run a fresh review to retry with the updated reader; later screens remain unverified.'));
     }
     if (page.kind === "intro") {
-      return [h("h3", null, "Welcome"), flaggedBlock(h("p", { class: "intro" }, marked(fixedText(SC.cleanCopy(page.intro_text || page.text), ctx, 'page'), own, ctx)), own, ctx), h("div", { class: "next" }, "Start")];
+      return [h("h3", null, "Welcome"), flaggedBlock(h("p", { class: "intro" }, marked(fixedText(SC.cleanCopy(page.intro_text || page.text), ctx, 'page'), own, ctx)), own, ctx), SC.phoneNext("Start")];
     }
     if (page.kind !== "question") return [flaggedBlock(h("div", { class: "survey-copy" },
       h('p', null, marked(fixedText(SC.cleanCopy(page.text || page.intro_text), ctx, 'page'), own, ctx))), own, ctx),
-      page.kind === 'info' && h('div', {class:'next'}, 'Next')];
+      page.kind === 'info' && SC.phoneNext('Next')];
 
-    return [page.questions.map((q) => renderQuestion(q, entries, ctx)), pageNotes(own, ctx), h("div", { class: "next" }, "Next")];
+    return [stimulusBlock(page, own, ctx), page.questions.map((q) => renderQuestion(q, entries, ctx)),
+      pageNotes(own.filter((e) => !inStimulus(e, page)), ctx), SC.phoneNext("Next")];
   }
 
   SC.renderPhone = (item, ctx) => {
     ctx = ctx.plan ? { ...ctx, plan: SC.scopeFixes(ctx.plan, item.page) } : ctx;   // each rewrite gets its one field on this page
-    return h("div", { class: "phone-wrap" },
-      h("div", { class: `phone${ctx.large ? " large" : ""}`, style: `--w:${ctx.device}px` },
-        h("div", { class: "phone-bar" }, `${item.name} · Screen ${item.index + 1} of ${ctx.total}`),
-        h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" },
-          (item.page.media || []).map((m) => mediaBox(m, item.entries, ctx)), renderPage(item, ctx))));
+    return SC.phoneFrame({ title: `${item.name} · Screen ${item.index + 1} of ${ctx.total}`, device: ctx.device,
+      children: [(item.page.media || []).map((m) => mediaBox(m, item.entries, ctx)), renderPage(item, ctx)] });
   };
 })();

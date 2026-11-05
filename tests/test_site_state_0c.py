@@ -230,12 +230,10 @@ def test_alternative_choice_updates_phone_comparison_and_survives_unrelated_rend
     assert 'SYNTHETIC SECOND WORDING' in stage.inner_text() and 'SYNTHETIC FIRST WORDING' not in stage.inner_text()
     assert shorter.evaluate('e => e === document.activeElement')
     assert not writes
-    page.locator('#phone-settings').click()
-    page.get_by_role('button', name='Large text', exact=True).click()          # unrelated full render
-    page.locator('#phone-settings').click()
+    page.get_by_text('Preview tools').click()
+    page.get_by_role('button', name='Large', exact=True).click()          # unrelated full render
     assert page.get_by_role('button', name='Shorter', exact=True).get_attribute('aria-pressed') == 'true'
     assert 'SYNTHETIC SECOND WORDING' in stage.inner_text()
-    page.get_by_text('Preview tools').click()
     page.get_by_role('button', name='Compare wording', exact=True).click()
     assert 'SYNTHETIC SECOND WORDING' in page.locator('section[aria-label="Recommended wording"]').inner_text()
     page.locator('#use-change').click()

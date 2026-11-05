@@ -56,13 +56,14 @@
       return text ? [{ id: "page", text }] : [];
     }
     if (VALIDATION_SCREEN.test((page.text || "").trim())) return [];
-    return (page.questions || []).flatMap((q) => [
+    // The concept copy above the questions is its own page-level field (no question_id), so a rewrite never leaks into a stem.
+    return [{ id: "stimulus", text: page.stimulus_text }, ...(page.questions || []).flatMap((q) => [
       { id: "stem", question_id: q.id, text: q.text },
       { id: "help", question_id: q.id, text: q.help_text },
       ...(NO_OPTION_LABELS.includes(q.kind) ? [] : (q.options || []).map((o, i) => ({ id: `option:${i}`, question_id: q.id, text: o.label }))),
       ...(q.scale && SCALE_ENDS.includes(q.kind)
         ? [{ id: "scale", question_id: q.id, text: `${q.scale.low_label || "(no label)"}${SC.SPLIT}${q.scale.high_label || "(no label)"}` }] : []),
-    ]).filter((field) => field.text);
+    ])].filter((field) => field.text);
   };
 
   /** The one field a fix targets. An exact match beats a partial one; anything not unique (duplicate labels, a word

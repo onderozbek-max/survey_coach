@@ -1,6 +1,6 @@
 (async () => {
   "use strict";
-  const SC = window.SC, { h, mount, $, say, plural, clock } = SC;
+  const SC = window.SC, { h, mount, $, say, plural } = SC;
   let DATA = window.SURVEYCOACH_DEMO;
   const localParams = new URLSearchParams(location.search), localId = localParams.get("id");
   let localDetail = null;
@@ -28,7 +28,7 @@
   const state = { survey: 0, screen: 0, mode: "current", device: 390, large: false, selected: null, choices: {} };
   let model, queue, projectionRevision = 0;
   const improveOperation = {busy:false, recovery:null};
-  let comparing = false, playing = false, settingsOpen = false, toolsOpen = false;
+  let comparing = false, playing = false, toolsOpen = false;
   const playback = SC.createPlayback({
     seconds:() => survey().overview.energy.screens[pageItem().index]?.seconds || 1,
     advance:() => {
@@ -194,43 +194,24 @@
   function renderStage() {
     const item = pageItem(), s = survey(), seconds = s.timeline[item.index]?.seconds || 0;
     const changes = SC.hitsOn(item.page, previewPlan(true)).size;
-    const comparison = state.mode === 'fixes'
-      ? changes ? `Showing your ${plural(changes, 'change')}. Edit RedJade to make them real.` : 'No wording changes on this screen. RedJade is only changed when you edit it there.'
-      : changes ? `${plural(changes, 'change')} to preview. RedJade is only changed when you edit it there.` : 'No wording changes to preview on this screen.';
     $('stage').classList.toggle('comparing', comparing);
     const originalCtx = {...context(),plan:null,applied:()=>false,blocked:()=>false};
     const rewrittenCtx = {...context(),plan:previewPlan(true),applied:e=>SC.hitsOn(item.page,previewPlan(true)).has(e.key)};
     mount($("stage"),
       h("h2", { id: "stage-h", class: "sr-only" }, "Phone preview"),
-      h('div', {class:'phone-controls'}, h('div', {class:'phone-settings-wrap'},
-        h('button', {id:'phone-settings', type:'button', 'data-fk':'phone-settings',
-          'aria-label':'Phone preview settings', 'aria-controls':'phone-settings-panel', 'aria-expanded':String(settingsOpen),
-          onclick:() => { settingsOpen = !settingsOpen; renderAll(); }}, 'Aa'),
-        h('div', {id:'phone-settings-panel', class:'preview-settings', hidden:!settingsOpen,
-          role:'group', 'aria-label':'Phone preview settings', onkeydown:event => {
-            if (event.key === 'Escape') { settingsOpen = false; renderAll(); $('phone-settings').focus(); }
-          }},
-          h('button', {type:'button', 'aria-pressed':String(state.large), 'data-fk':'large', onclick:() => { state.large = !state.large; renderAll(); }}, 'Large text'),
-          h('label', null, 'Device size', h('select', {'aria-label':'Device size', 'data-fk':'device-size',
-            onchange:event => { state.device = Number(event.target.value); renderAll(); }},
-            [320,390,430].map(size => h('option', {value:size, selected:state.device === size}, `${size}px`)))))),
-      h('details', {class:'preview-tools', open:toolsOpen, ontoggle:event => { toolsOpen = event.currentTarget.open; }}, h('summary', null, 'Preview tools'),
-        h('button', {type:'button',disabled:!changes && !comparing,onclick:() => { comparing = !comparing; renderAll(); }}, comparing ? 'Close comparison' : 'Compare wording'),
-        h('button', {type:'button',onclick:() => playing ? playback.pause() : playback.play()}, playing ? 'Pause walkthrough' : 'Play as a member'))),
+      SC.phoneTools({open:toolsOpen, onToggle:open => { toolsOpen = open; }, device:state.device, onDevice:size => { state.device = size; renderAll(); },
+        changes, comparing, onCompare:() => { comparing = !comparing; renderAll(); }, playing, onPlay:() => playing ? playback.pause() : playback.play(), onRender:renderAll}),
       comparing ? h('div', {class:'comparison-phones'},
         h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
         h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
-      localDetail && h('p', {class:'preview-effect',role:'status'}, comparison),
+      localDetail && SC.previewLine({fixesMode:state.mode === 'fixes', changes, ghosts:SC.ghostAnswerCount(item, context())}),
       comparing && h('p', {class:'comparison-note'}, SC.previewReadingEvidence(item.page, previewPlan(true))),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
         current().entries.length ? `Review ${plural(current().entries.length, 'issue')} on this screen ↓` : 'Read the coach notes ↓'),
       h("div", { class: "pager" },
         h("button", { type: "button", "data-fk": "prev", disabled: item.index === 0, onclick: () => goToPage(item.index - 1) }, "Previous screen"),
         h("button", { type: "button", "data-fk": "next", disabled: item.index === model.items.length - 1, onclick: () => goToPage(item.index + 1) }, "Next screen")),
-      h("div", { class: "timing" },
-        h("p", null, s.overview?.energy.path_uncertain ? SC.uncertainWalkthrough
-          : `~${clock(seconds)} in · ${Math.max(1, Math.round(s.total_seconds / 60))} min total`),
-        !s.overview?.energy.path_uncertain && h("div", { class: "timebar", "aria-hidden": "true" }, h("i", { style: `left:${(seconds / s.total_seconds) * 100}%` }))));
+      SC.phoneTimeline({seconds, total:s.total_seconds, uncertain:!!s.overview?.energy.path_uncertain}));
     const screens = comparing ? [...document.querySelectorAll('.comparison-phones .phone-screen')] : [];
     for (const screen of screens) screen.addEventListener('scroll', () => {
       for (const other of screens) if (other !== screen && Math.abs(other.scrollTop - screen.scrollTop) > 2) other.scrollTop = screen.scrollTop;

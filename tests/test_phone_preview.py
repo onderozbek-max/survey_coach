@@ -1,5 +1,6 @@
 """Quiet phone contracts using shared cleanup fixtures and intercepted synthetic reviews."""
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -59,7 +60,7 @@ def test_markers_live_in_right_gutter_and_focus_the_same_card(browser, base_url)
     finding = next(f for f in detail['review']['findings'] if 'desktop word' in f['headline'])
     focus(page, finding)
     assert page.locator('#stage .phone-screen p.q-text .pin, .phone-screen p.q-text button').count() == 0
-    marker = page.get_by_role('button', name=f"Worth improving: {finding['headline']}", exact=True)
+    marker = page.get_by_role('button', name=re.compile(rf"^Worth improving: {re.escape(finding['headline'])}, pin \d+$"))
     assert 'phone-marker' in marker.get_attribute('class')
     assert marker.evaluate("e => e.closest('.phone-marked-block').getBoundingClientRect().right >= e.getBoundingClientRect().right")
     assert marker.evaluate("e => e.getBoundingClientRect().left >= e.closest('.phone-marked-block').querySelector('.phone-block-copy').getBoundingClientRect().right")
@@ -96,10 +97,9 @@ def test_answer_additions_are_ghosts_not_stem_rewrites_or_verified_fixes(browser
     assert ghost.evaluate('e => getComputedStyle(e).borderStyle') == 'dashed'
     assert 'Keep this entire stem' in page.locator('#stage .phone-screen .q-text').all_inner_texts()
     assert 'I did not shop this year' not in page.locator('#stage .phone-screen .q-text').all_inner_texts()
-    # 1B: the preview line says nothing was saved in plain words (the old "hypothetical, not accepted or saved"),
-    # and it never claims the suggested answer is applied or verified.
+    # 2C: with only a ghost answer on the screen, the line says exactly that, in plain words.
     effect = page.locator('.preview-effect').inner_text()
-    assert 'RedJade is only changed when you edit it there' in effect
+    assert effect == 'Suggested answers must be added in RedJade; shown faded here.'
     assert 'verified' not in effect.lower()
     assert page.evaluate('JSON.stringify(SC.workspaceDetail.snapshot)') == raw
     page.get_by_role('button', name='Original', exact=True).click()
@@ -130,8 +130,8 @@ def test_option_control_and_copy_share_a_row(browser, base_url, width, large, ki
     context, page, detail, writes, errors = open_review(browser, base_url, width=width, prepare=prepare)
     open_screen(page, detail['screens'][1]['name'])
     if large:
-        page.locator('#phone-settings').click()
-        page.get_by_role('button', name='Large text', exact=True).click()
+        open_preview_tools(page)
+        page.get_by_role('group', name='Text size').get_by_role('button', name='Large', exact=True).click()
         page.get_by_label('Device size', exact=True).select_option('320')
     rows = page.locator('#stage .opts li:not(.fold):not(.suggested-option)')
     assert rows.count() == 2
@@ -157,24 +157,19 @@ def test_option_control_and_copy_share_a_row(browser, base_url, width, large, ki
     context.close()
 
 
-def test_phone_settings_keyboard_large_text_and_device_size(browser, base_url):
+def open_preview_tools(page):
+    details = page.locator('#stage details.preview-tools')
+    if details.get_attribute('open') is None:
+        details.locator('summary').click()
+
+
+def test_device_size_keyboard_path_and_no_horizontal_scroll(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, width=390)
-    settings = page.locator('button#phone-settings')
-    assert settings.inner_text() == 'Aa'
-    assert settings.get_attribute('aria-expanded') == 'false'
-    settings.focus()
-    page.keyboard.press('Enter')
-    assert settings.get_attribute('aria-expanded') == 'true'
-    large = page.get_by_role('button', name='Large text', exact=True)
-    large.click()
-    assert large.get_attribute('aria-pressed') == 'true'
-    assert page.locator('.phone.large').count() == 1
-    assert large.evaluate('e => e === document.activeElement')
-    page.get_by_label('Device size', exact=True).select_option('320')
+    open_preview_tools(page)
+    device = page.get_by_label('Device size', exact=True)
+    device.focus()
+    device.select_option('320')
     assert page.locator('#stage .phone').evaluate("e => e.style.getPropertyValue('--w')") == '320px'
-    page.get_by_label('Device size', exact=True).press('Escape')
-    assert settings.get_attribute('aria-expanded') == 'false'
-    assert settings.evaluate('e => e === document.activeElement')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert not writes and not errors
     context.close()

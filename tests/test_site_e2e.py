@@ -104,8 +104,11 @@ def card_with(page, text: str):
 
 
 def settings(page):
-    if page.locator('#phone-settings').get_attribute('aria-expanded') == 'false':
-        page.locator('#phone-settings').click()
+    """Open Preview tools, where the Text size control lives."""
+    page.wait_for_selector('#stage .phone')
+    details = page.locator('#stage details.preview-tools')
+    if details.get_attribute('open') is None:
+        details.locator('summary').click()
 
 
 def demo_finding(page, question_id: str, criterion_id: str) -> dict:
@@ -161,9 +164,9 @@ def test_clicking_a_pin_selects_its_card_and_moves_focus_there(browser, base_url
 def test_focus_stays_on_the_control_the_user_used(browser, base_url):
     page, _ = open_page(browser, base_url)
     settings(page)
-    page.get_by_role("button", name="Large text").focus()
+    page.locator('[data-fk=text-size-large]').focus()
     page.keyboard.press("Enter")
-    assert page.evaluate("document.activeElement.dataset.fk") == "large"
+    assert page.evaluate("document.activeElement.dataset.fk") == "text-size-large"
     page.locator('#all-screens').click()
     page.get_by_role('searchbox').fill('Q2')
     page.locator('#screen-drawer .screen-row').first.click()

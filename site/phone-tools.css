@@ -1,0 +1,16 @@
+/* Preview tools (text size) and the neutral timeline under the phone (2C). Tokens only. */
+.preview-tools .tool-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0; }
+.preview-tools .tool-label { font-weight:700; }
+.preview-tools .tool-row > button, .text-size button, .preview-tools select {
+  min-height:44px; padding:6px 14px; border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:13px;
+}
+.preview-tools label { display:inline-flex; align-items:center; gap:8px; }
+.text-size { display:inline-flex; border-radius:var(--r-pill); overflow:hidden; }
+.text-size button { border-radius:0; border-width:0 1px 0 0; }
+.text-size button:last-child { border-right-width:0; }
+.text-size [aria-pressed="true"] { background:var(--accent); color:var(--on-accent); font-weight:700; }
+
+.timing .timebar { height:8px; background:var(--line); }
+.timing .timebar::before, .timing .timebar::after { content:none; display:none; background:none; }
+.timing .timebar b { position:absolute; top:0; bottom:0; left:0; border-radius:inherit; background:var(--line-strong); }
+.timing [title] { cursor:help; }
