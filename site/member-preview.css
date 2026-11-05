@@ -1,0 +1,17 @@
+/* "Play it as a member": a full-screen dialog. Tokens only. */
+#member-preview { position:fixed; inset:0; width:100%; height:100%; max-width:none; max-height:none; margin:0; padding:var(--s-5); border:0; background:var(--bg); color:var(--text); overflow:auto; }
+#member-preview::backdrop { background:var(--bg); }
+#member-preview > * { max-width:900px; margin-inline:auto; }
+#member-preview > header { display:flex; align-items:center; justify-content:space-between; gap:var(--s-4); margin-bottom:var(--s-3); }
+#member-preview h2 { margin:0; font-size:var(--fs-22); }
+.member-time { margin:0 auto var(--s-3); text-align:center; color:var(--muted); font-size:var(--fs-14); }
+.member-strip { min-width:0; }
+.member-phone { display:flex; justify-content:center; max-width:100%; margin-block:var(--s-4); overflow:hidden; }
+.member-phone .phone-screen { max-height:52vh; }
+.member-steps { display:flex; align-items:center; justify-content:center; gap:var(--s-4); padding-bottom:var(--s-4); }
+.member-steps .btn { min-width:96px; }
+.member-where { min-width:9ch; text-align:center; font-weight:700; }
+@media (max-width:759px) {
+  #member-preview { padding:var(--s-3); }
+  #member-preview .member-phone .phone { max-width:calc(100vw - 24px); }
+}

@@ -3,8 +3,6 @@
 (() => {
   'use strict';
   const SC = window.SC, {h, mount, $, icon} = SC;
-  const types = [['community_pulse', 'Community & fun'], ['non_ihut_product', 'Product test'],
-    ['ihut', 'Home-use test'], ['services_concept', 'Concept or services'], ['market_research', 'Market research']];
   const TAB_ORDER = ['must_fix', 'quick_wins', 'more'];
   let detail;
   // Wrapping and the device safe area both affect the fixed bar's real height.
@@ -19,17 +17,7 @@
     const rect = target.getBoundingClientRect(), top = bar.getBoundingClientRect().top;
     if (rect.bottom > top - 12) window.scrollBy({top:rect.bottom - top + 12, behavior:'instant'});
   });
-  SC.overviewPhoneContext = (survey, item) => ({data:window.SURVEYCOACH_DEMO, review:survey.review,
-    selected:item.entries.find(entry => entry.f.severity === 'must_fix')?.key, device:390, large:false,
-    total:survey.screens.length, pageId:item.page.id, plan:null, applied:() => false,
-    blocked:() => false, offscreen:() => false, onPin:() => {}});
   const route = options => SC.goChapter('improve', options);
-
-  async function update(payload, announcement) {
-    if (!SC.updateSurvey) return;
-    try { await SC.updateSurvey(payload); SC.say(announcement); }
-    catch (error) { SC.say(error.message); }
-  }
 
   /** A tile opens the Fix flow filtered to its state; the fix list now holds the curated You check items too. */
   const TILE_STATE = {fix:'fix_before_launch', improve:'worth_improving', you_check:'you_check'};
@@ -39,20 +27,6 @@
     return tab ? {tab} : {};
   };
   const openSignal = signal => route({signal:signal.id, page_id:signal.navigation.pages[0], fingerprints:signal.navigation.fingerprints});
-
-  function typeControl() {
-    return h('fieldset', {id:'survey-style', disabled:!SC.updateSurvey}, h('legend', null, 'Survey type'),
-      h('p', {class:'meta'}, 'The time target depends on it.'),
-      h('div', {class:'survey-style-options'}, types.map(([value, label]) => h('label', null,
-        h('input', {type:'radio', name:'survey-style', value, checked:(detail.survey_type || detail.snapshot.survey_type) === value,
-          onchange:async event => {
-            const fieldset = event.target.closest('fieldset'); fieldset.disabled = true;
-            await update({survey_type:value}, 'Survey type saved');
-            fieldset.disabled = false;
-            if (fieldset.isConnected) SC.renderOverview(detail);
-            document.querySelector(`#survey-style input[value="${value}"]`)?.focus({preventScroll:true});
-          }}), label))));
-  }
 
   function hero(overview, model) {
     const verdict = overview.verdict, ready = verdict?.kind === 'ready_for_signoff', {state, label} = SC.verdictState(verdict);
@@ -77,15 +51,18 @@
     if (!overview) return;
     const active = document.activeElement;
     const restoreHeading = SC.currentChapter() === 'overview' && (active === document.body || active?.id === 'overview-h');
-    const model = SC.buildModel(detail);
+    const model = SC.buildModel(detail), journey = SC.renderJourney(detail, {onSelect:page_id => route({page_id})});
     mount($('chapter-overview'),
       hero(overview, model),
+      SC.renderVersionDelta(detail),
+      SC.renderSetupCard(detail),
       h('h3', null, 'Member experience'),
       h('ul', {id:'signals'}, overview.signals.map(signal => SC.renderSignalCard(signal, openSignal))),
-      h('h3', null, 'Energy map', SC.energyInfoButton(detail)), h('div', {id:'energy-map'}, SC.renderEnergy(detail, page_id => route({page_id}))),
+      journey && h('h3', null, 'Member journey', SC.timeInfoButton(detail)),
+      journey && h('div', {id:'journey'}, journey),
       overview.strengths.length > 0 && h('section', {class:'overview-strengths'},
-        h('h3', null, 'What members will like'), h('ul', {id:'strengths'}, overview.strengths.slice(0, 3).map(text => h('li', null, icon('check'), text)))),
-      typeControl());
+        h('h3', null, 'What members will like'), h('ul', {id:'strengths'}, overview.strengths.slice(0, 3).map(text => h('li', null, icon('check'), text))))
+    );
     const bar = document.querySelector('.overview-actions');
     if (bar) actionSize.observe(bar);
     if (restoreHeading) $('overview-h').focus({preventScroll:true});

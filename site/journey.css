@@ -1,0 +1,39 @@
+/* The journey strip: width = estimated seconds, and nothing else is encoded. Tokens only. */
+.journey { position:relative; display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s-2); min-width:0; --journey-min:28px; }
+@media (pointer:coarse) { .journey { --journey-min:44px; } }
+.journey-scroll { overflow-x:auto; padding:var(--s-1) var(--s-1) var(--s-2); }
+.journey-track, .journey-segs { display:flex; list-style:none; margin:0; padding:0; }
+.journey-track { gap:var(--s-1); }
+/* Inline styles set these per element; the defaults keep a bare element valid. */
+.journey-section, .journey-seg { --sec:1; }
+.journey-section { --label:0; --count:1; }
+/* Every flex item starts from zero and grows by its seconds, so a segment's share of the strip is its share of the time.
+   Only the floors (readable number, tappable button, whole section label) can override that. */
+.journey-section { display:flex; flex:var(--sec) 1 0; flex-direction:column; gap:var(--s-1); min-width:max(calc(var(--label) * 1ch + var(--s-3)), calc(var(--journey-min) * var(--count, 1))); font-size:var(--fs-12); }
+.journey-label { display:block; padding-bottom:2px; border-bottom:2px solid var(--line-strong); color:var(--text); font-weight:600; line-height:1.3; white-space:nowrap; overflow:hidden; }
+.journey-segs { flex:1; }
+.journey-seg { flex:var(--sec) 1 0; min-width:var(--journey-min); }
+.journey-seg:not(:first-child) button { border-left-width:0; }
+.journey-seg button { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-1); width:100%; height:64px; min-height:44px; padding:0; border:1px solid var(--line-strong); background:var(--surface-2); color:var(--text); font-size:var(--fs-12); cursor:pointer; }
+.journey-seg:first-child button { border-radius:var(--r-sm) 0 0 var(--r-sm); }
+.journey-seg:last-child button { border-radius:0 var(--r-sm) var(--r-sm) 0; }
+.journey-seg:only-child button { border-radius:var(--r-sm); }
+.journey-seg button:hover { background:var(--accent-soft); }
+.journey-seg button[aria-current=step] { position:relative; z-index:1; background:var(--accent-soft); outline:3px solid var(--accent); outline-offset:2px; font-weight:800; }
+.journey-seg button[aria-current=step] .journey-num { text-decoration:underline; text-underline-offset:3px; }
+.journey-pin { display:inline-flex; line-height:0; }
+.journey-pin .state-icon { display:inline-flex; }
+.journey-pin svg { width:16px; height:16px; }
+.journey-more { margin:0; }
+.journey-tip { position:absolute; z-index:5; inset-block-start:calc(100% + var(--s-1)); transform:translateX(-50%); max-width:min(320px,90vw); padding:var(--s-2) var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); box-shadow:var(--shadow-2); font-size:var(--fs-14); pointer-events:none; white-space:normal; }
+.journey-list summary { display:flex; align-items:center; min-height:44px; color:var(--accent); font-size:var(--fs-14); cursor:pointer; }
+.journey-list ol { display:grid; gap:var(--s-2); margin:0; padding:0 0 0 var(--s-5); font-size:var(--fs-14); }
+.journey-list li span { overflow-wrap:anywhere; }
+.journey-list li .state-icon { display:inline-flex; vertical-align:middle; margin-right:var(--s-2); }
+/* Compact: the Fix header. No section labels (the tooltip and the list carry them); shorter segments. */
+.journey.compact .journey-seg button { height:44px; flex-direction:row; gap:2px; }
+.journey.compact { flex:1 1 100%; }
+/* On a phone the phone is the hero (it must start in the top half), so the Fix header's strip steps aside; the pager,
+   All screens and the bar under the phone carry navigation there. The Verdict's strip and the dialog's strip stay. */
+@media (max-width:759px) { #improve-bar .journey.compact { display:none; } }
+@media (prefers-reduced-motion:no-preference) { .journey-seg button { transition:background var(--dur-1) var(--ease); } }

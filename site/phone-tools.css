@@ -11,5 +11,11 @@
 .text-size [aria-pressed="true"] { background:var(--accent); color:var(--on-accent); font-weight:700; }
 
 .timing .timebar { position:relative; height:8px; max-width:390px; margin:6px auto 0; border-radius:var(--r-pill); background:var(--line); }
-.timing .timebar b { position:absolute; top:0; bottom:0; left:0; border-radius:inherit; background:var(--line-strong); }
+.timing .timebar b { position:absolute; top:0; bottom:0; left:0; border-radius:inherit; }
+.timing .timebar b.reached { background:var(--line-strong); }
+.timing .timebar.by-screen { display:flex; }
+.timing .timebar b { --sec:1; }
+.timing .timebar.by-screen b { position:static; flex:var(--sec) 1 0; border-radius:0; box-shadow:inset -1px 0 var(--surface); }
+.timing .timebar.by-screen b:first-of-type { border-radius:var(--r-pill) 0 0 var(--r-pill); }
+.timing .timebar.by-screen b:last-of-type { border-radius:0 var(--r-pill) var(--r-pill) 0; }
 .timing [title] { cursor:help; }

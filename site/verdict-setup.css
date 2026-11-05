@@ -1,0 +1,31 @@
+/* Verdict setup card and "Since last version" card. Tokens only. */
+.setup-card, .delta-card { display:grid; gap:var(--s-3); min-width:0; padding:var(--s-5); border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); }
+.setup-card h3, .delta-card h3 { margin:0; font-size:var(--fs-22); }
+.setup-card .meta, .delta-card .meta { margin:0; }
+.setup-card.collapsed { padding:var(--s-2) var(--s-4); background:var(--surface-2); }
+.setup-line { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); margin:0; font-size:var(--fs-14); }
+.setup-row { display:grid; gap:var(--s-2); min-width:0; margin:0; padding:var(--s-3) 0 0; border:0; border-top:1px solid var(--line); }
+.setup-question { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); margin:0; padding:0; font-size:var(--fs-16); }
+.setup-chip { padding:2px var(--s-2); border:1px solid var(--line-strong); border-radius:var(--r-pill); background:var(--surface-2); font-size:var(--fs-12); font-weight:600; }
+.setup-actions { display:flex; flex-wrap:wrap; gap:var(--s-2); }
+.setup-row #survey-style { margin:0; padding:var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-md); }
+.setup-reward-text { display:flex; flex-wrap:wrap; align-items:end; gap:var(--s-2); }
+.setup-reward-text label { flex:1 1 100%; font-size:var(--fs-14); }
+.setup-reward-text input { flex:1 1 240px; min-width:0; padding:0 var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); }
+.setup-error { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); margin:0; padding:var(--s-3); border:1px solid var(--critical); border-radius:var(--r-sm); background:var(--critical-soft); color:var(--critical); font-size:var(--fs-14); }
+.delta-summary { margin:0; font-size:var(--fs-18); }
+.delta-uncertain { display:grid; gap:var(--s-2); padding:var(--s-3); border:1px solid var(--you-check); border-radius:var(--r-sm); background:var(--you-check-soft); }
+.delta-uncertain p { display:flex; align-items:center; gap:var(--s-2); margin:0; color:var(--you-check); }
+.delta-card ul { display:grid; gap:var(--s-2); margin:0; padding-left:var(--s-5); font-size:var(--fs-14); }
+.delta-uncertain ul { color:var(--text); }
+.delta-where { color:var(--muted); font-size:var(--fs-14); }
+.delta-fixed { display:grid; gap:var(--s-2); }
+.delta-fixed h4 { margin:0; font-size:var(--fs-16); }
+.delta-fixed-item, .delta-more { padding:0 var(--s-3); border:1px solid var(--line); border-radius:var(--r-sm); font-size:var(--fs-14); }
+.delta-fixed-item summary, .delta-more summary { display:flex; align-items:center; min-height:44px; cursor:pointer; }
+.delta-head { display:inline-flex; flex-wrap:wrap; align-items:center; gap:var(--s-2); }
+.delta-head svg { color:var(--positive); flex:none; }
+.delta-snippet { display:grid; gap:var(--s-1); margin-bottom:var(--s-3); }
+.delta-tag { font-size:var(--fs-12); font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+.delta-snippet blockquote { margin:0; padding:var(--s-2) var(--s-3); border-left:3px solid var(--line-strong); background:var(--surface-2); overflow-wrap:anywhere; }
+@media (max-width:759px) { .setup-card, .delta-card { padding:var(--s-4); } .setup-actions .btn { flex:1 1 auto; } }

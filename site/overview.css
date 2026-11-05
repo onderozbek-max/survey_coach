@@ -1,23 +1,6 @@
-/* Overview chapter pieces that outlived the old layout (energy map, member preview, survey type). Colour comes from tokens. */
+/* Overview chapter pieces that outlived the old layout (member preview, survey type). Colour comes from tokens. */
 #chapter-overview { max-width:var(--content); margin:auto; padding:24px 0; }
 .sample-shell #chapter-overview { padding:24px; }
-.energy-map { min-width:0; padding:20px 12px; border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); }
-.energy-bars { display:flex; align-items:end; gap:6px; overflow-x:auto; padding:12px 4px 8px; scroll-snap-type:x mandatory; }
-.energy-bar { flex:1 0 0; min-width:0; padding:0; background:transparent; color:var(--text); border:0; border-radius:4px; scroll-snap-align:start; }
-.energy-bar[aria-current=step] { outline:2px solid var(--accent); outline-offset:2px; }
-.energy-column { height:120px; display:flex; flex-direction:column; justify-content:end; align-items:center; }
-.energy-fill { display:block; width:80%; min-height:2px; border:1px solid var(--line-strong); border-radius:4px 4px 0 0; background:var(--surface-2); }
-.fresh .energy-fill,.energy-legend .fresh { background:var(--zone-fresh); }
-.fatigue_builds .energy-fill,.energy-legend .fatigue_builds { background:var(--zone-builds); }
-.high .energy-fill,.energy-legend .high { background:var(--zone-high); }
-.energy-must { color:var(--critical); height:20px; }
-.energy-label { display:block; width:100%; padding-top:8px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.energy-label.sparse { visibility:hidden; }
-.energy-legend { display:flex; flex-wrap:wrap; gap:16px; font-size:12px; margin-top:12px; }
-.energy-legend > span { display:inline-flex; align-items:center; gap:6px; }
-.energy-legend i { width:12px; height:12px; border:1px solid var(--line-strong); border-radius:3px; }
-.energy-caption { font-size:12px; color:var(--muted); margin-top:12px; }
-.energy-swipe { display:none; font-size:12px; color:var(--muted); }
 #strengths { list-style:none; padding:0; }
 #strengths li { display:flex; align-items:center; gap:8px; margin:12px 0; font-size:16px; }
 #strengths svg { color:var(--positive); flex-shrink:0; }
@@ -29,16 +12,6 @@
 .survey-style-options input { accent-color:var(--accent); min-width:24px; min-height:24px; }
 #survey-style .meta { margin-top:12px; }
 .overview-title-form { display:flex; gap:8px; flex-wrap:wrap; }
-#member-preview { position:fixed; inset:0; width:100%; height:100%; max-width:none; max-height:none; margin:0; padding:24px; border:0; background:var(--bg); color:var(--text); overflow:auto; }
-#member-preview::backdrop { background:var(--bg); }
-#member-preview > header { display:flex; align-items:center; justify-content:space-between; gap:16px; max-width:900px; margin:0 auto 20px; }
-#member-preview h2 { font-size:22px; }
-.member-phone { max-width:100%; display:flex; justify-content:center; overflow:hidden; }
-.member-phone .phone-screen { max-height:48vh; }
-.member-playback { display:flex; justify-content:center; align-items:center; gap:16px; margin:16px 0; }
-.member-playback button { flex-shrink:0; }
-#member-preview .energy-map { max-width:900px; margin:auto; }
-.compact .energy-column { height:48px; }
 @media (max-width:759px) {
   :root { --overview-action-height:120px; }
   html:has(#chapter-overview:not([hidden])) { scroll-padding-bottom:var(--overview-action-height, 120px); }
@@ -46,10 +19,5 @@
   #chapter-overview :is(button, summary, input, a) { scroll-margin-bottom:var(--overview-action-height, 120px); }
   .overview-actions { position:fixed; bottom:0; left:0; right:0; z-index:12; background:var(--surface); padding:12px 12px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line-strong); justify-content:center; }
   .overview-actions button { font-size:14px; padding:0 12px; }
-  .energy-bar { flex:0 0 56px; }
-  .energy-swipe { display:block; }
-  .energy-label.sparse { visibility:visible; }
-  #member-preview { padding:12px; }
-  #member-preview .member-phone .phone { max-width:calc(100vw - 24px); }
   .sample-shell:has(#chapter-overview:not([hidden])) { padding-bottom:120px; }
 }

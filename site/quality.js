@@ -44,32 +44,31 @@
     const q = quality || {}, score = q.score == null ? 'Not assessed' : `${Math.round(q.score)}/100`;
     return `Survey Quality · ${score} · ${q.provisional !== false ? 'Provisional' : 'Assessed'} · ${Math.round(q.coverage_percent || 0)}% coverage`;
   };
-  SC.energyInfoButton = detail => {
-    const id = `energy-tip-${++serial}`;
+  SC.timeInfoButton = detail => {
+    const id = `time-tip-${++serial}`;
     let hovered = false, focused = false, dismissed = false;
-    const tooltip = h('span', {id, role:'tooltip', class:'energy-tooltip', hidden:true},
-      'Bar height estimates time per captured screen; colour shows cumulative effort. Uncalibrated, not measured fatigue. Activate for assumptions and route limits.');
+    const tooltip = h('span', {id, role:'tooltip', class:'time-tooltip', hidden:true},
+      'Segment width estimates time on each captured screen. Uncalibrated, not measured. Activate for assumptions and route limits.');
     const hide = () => { dismissed = true; tooltip.hidden = true; };
     const refresh = () => {
       if (!hovered && !focused && !dialog.open) dismissed = false;
       tooltip.hidden = dialog.open || dismissed || !(hovered || focused);
       if (!tooltip.hidden) dismissTooltip = hide;
     };
-    const button = h('button', {type:'button', class:'btn-text energy-info',
-    'aria-label':'About the energy map', 'aria-haspopup':'dialog', 'aria-describedby':id,
+    const button = h('button', {type:'button', class:'btn-text time-info',
+    'aria-label':'About the time estimate', 'aria-haspopup':'dialog', 'aria-describedby':id,
     onclick:event => {
       hide();
       const c = detail.effort_method;
       const formula = c ? `Reading: words × ${c.seconds_per_word}s. Each screen adds ${c.page_overhead}s; each question image and each answer option with media adds ${c.image_seconds}s and each grid row adds ${c.grid_row_seconds}s.` : 'Detailed timing assumptions are unavailable for this saved review.';
-      const zones = c ? `Colour uses cumulative effort: fresh below ${c.fatigue_builds_after_seconds}s and ${c.fatigue_builds_after_questions} questions; getting tiring at ${c.fatigue_builds_after_seconds}s or ${c.fatigue_builds_after_questions} questions; tiring at ${c.high_fatigue_after_seconds}s or ${c.high_fatigue_after_questions} questions.` : '';
-      open(event, 'Energy map estimates', [
-        p('Bar height estimates time on each captured screen, not measured respondent fatigue. Uncalibrated heuristics, not validated respondent benchmarks.'),
+      open(event, 'How the time estimate works', [
+        p('Segment width estimates time on each captured screen, not measured respondent behaviour. Uncalibrated heuristics, not validated respondent benchmarks.'),
         p(formula), p('Question interaction adds a base plus time per answer option; values depend on question type.'),
         c && h('ul', null, c.kind_base.map(([kind, base, option]) => h('li', null, `${kind.replaceAll('_', ' ')}: ${base}s + ${option}s per option`))),
-        zones && p(zones), p('Captured screens may include alternative or conditional pages. Branching can make this sequence different from an actual member route. Timing is an estimate, not observed behavior.')
+        p('Captured screens may include alternative or conditional pages. Branching can make this sequence different from an actual member route. Timing is an estimate, not observed behavior.')
       ].filter(Boolean));
     }}, 'ⓘ');
-    return h('span', {class:'energy-info-wrap',
+    return h('span', {class:'time-info-wrap',
       onpointerenter:event => { if (event.pointerType === 'touch') return; hovered = true; refresh(); },
       onpointerleave:() => { hovered = false; refresh(); },
       onfocusin:() => { focused = true; refresh(); },

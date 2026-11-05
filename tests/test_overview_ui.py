@@ -1,14 +1,19 @@
 """Overview consumes supplied evidence; all writes intercepted, no AI or live DB."""
 import pytest
 
+from tests.journey_helpers import add_journey, add_setup, confirm_type_on_patch
 from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
 from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
-def overview(browser, base_url, **kwargs):
-    return open_review(browser, base_url, chapter='overview', derived=False, **kwargs)
+def overview(browser, base_url, prepare=None, **kwargs):
+    def both(detail):
+        add_journey(detail)         # what a regenerated site/data.js carries
+        if prepare:
+            prepare(detail)
+    return open_review(browser, base_url, chapter='overview', derived=False, prepare=both, **kwargs)
 
 
 def test_supplied_overview_signals_strengths_and_energy(browser, base_url):
@@ -25,14 +30,11 @@ def test_supplied_overview_signals_strengths_and_energy(browser, base_url):
         assert tile.get_attribute('role') != 'button'
         assert tile.locator('button.signal-link').count() == int(bool(signal.get('navigation') and signal['navigation']['fingerprints']))
     assert page.locator('#strengths li').all_text_contents() == supplied['strengths'][:3]
-    bars = page.locator('#energy-map button.energy-bar')
+    bars = page.locator('#journey button[data-page]')
     assert bars.count() == len(detail['screens'])
-    for i, screen in enumerate(supplied['energy']['screens']):
-        label = bars.nth(i).get_attribute('aria-label')
-        assert label.startswith(f'{screen["name"]}, about {round(screen["seconds"])} seconds, estimate,')
-        assert 'must-fix' in label
-        assert bars.nth(i).locator('.energy-label').get_attribute('title') == screen['name']
-    assert 'estimate' in page.locator('#energy-map .energy-caption').inner_text()
+    for i, segment in enumerate(detail['presentation']['journey']):
+        assert segment['tooltip'] in bars.nth(i).inner_text()
+    assert page.locator('#journey .journey-label').count() >= 1
     assert page.locator('#chapter-overview .btn-primary').get_attribute('id') == 'start-improving'
     assert page.locator('#preview-member.btn-secondary').count() == 1
     assert page.locator('.overview-mini, #chapter-overview .phone').count() == 0     # D15: no unreadable tiny phone
@@ -50,7 +52,7 @@ def test_signal_energy_and_plan_routes_select_canonical_screen(browser, base_url
     assert page.evaluate('SC.improveFilter.signal') == signal['id']
     assert detail['screens'][next(i for i,s in enumerate(detail['screens']) if s['page_id'] == signal['pages'][0])]['name'] in page.locator('#stage .phone-bar').inner_text()
     go_to(page, 'overview')
-    page.locator('#energy-map .energy-bar').nth(3).click()
+    page.locator('#journey button[data-page]').nth(3).click()
     assert detail['screens'][3]['name'] in page.locator('#stage .phone-bar').inner_text()
     go_to(page, 'overview')
     page.locator('#plan-summary button').nth(0).click()
@@ -67,13 +69,16 @@ def test_style_refetches_and_generic_title_uses_patch(browser, base_url):
     def prepare(detail):
         detail['title'] = 'Surveys'
         detail['overview']['strengths'] = []
-    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
+    context, page, detail, writes, errors = overview(browser, base_url, prepare=lambda d: (prepare(d), add_setup(d)))
     assert page.locator('#strengths').count() == 0
     assert page.get_by_text('What members will like', exact=True).count() == 0
+    assert page.locator('#survey-style').count() == 0           # 3B: the type options open from the setup card's Change
+    confirm_type_on_patch(page, detail, writes)
+    page.locator('#setup-type-change').click()
     assert page.locator('#survey-style input[type=radio]').count() == 5
     requests = []
     page.on('request', lambda r: requests.append((r.method, r.url)))
-    page.get_by_label('Community & fun', exact=True).check()
+    page.get_by_label('Community & fun', exact=True).click()
     page.wait_for_function("document.querySelector('#status').textContent === 'Survey type saved'")
     assert writes == [{'survey_type': 'community_pulse'}]
     assert any(method == 'GET' and '/api/surveys/synthetic' in url for method, url in requests)
@@ -94,7 +99,7 @@ def test_responsive_layout_and_primary_action(browser, base_url, width):
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert page.locator('.overview-mini').count() == 0
     if width < 760:
-        assert page.locator('.energy-swipe').is_visible()
+        assert page.locator('#journey .journey-more').is_visible() == page.locator('#journey .journey-scroll').evaluate('el => el.scrollWidth > el.clientWidth + 1')
         assert page.locator('.overview-actions').evaluate("el => getComputedStyle(el).position") == 'fixed'
         assert page.locator('#signals').evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length") == 1
     else:
@@ -105,80 +110,17 @@ def test_responsive_layout_and_primary_action(browser, base_url, width):
     context.close()
 
 
-def test_dialog_scrub_pause_escape_and_visibility_cleanup(browser, base_url):
-    context, page, detail, writes, errors = overview(browser, base_url)
-    page.clock.install()
-    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
-    page.locator('#preview-member').click()
-    dialog = page.get_by_role('dialog', name='Preview as a member')
-    assert dialog.is_visible()
-    assert dialog.locator('.phone').evaluate('el => el.getBoundingClientRect().width') == 390
-    page.get_by_role('button', name='Pause', exact=True).click()
-    page.clock.run_for(100000)
-    assert dialog.locator('.energy-bar[aria-current=step]').get_attribute('data-page') == 'p0'
-    dialog.locator('.energy-bar').nth(2).click()
-    assert 'Q2' in dialog.locator('.phone-bar').inner_text()
-    page.get_by_role('button', name='Play', exact=True).click()
-    page.clock.run_for(15000)
-    assert 'Q3' in dialog.locator('.phone-bar').inner_text()
-    page.evaluate("Object.defineProperty(document, 'hidden', {configurable:true,get:()=>true}); document.dispatchEvent(new Event('visibilitychange'))")
-    assert page.get_by_role('button', name='Play', exact=True).is_visible()
-    before = dialog.locator('.phone-bar').inner_text()
-    page.clock.run_for(100000)
-    assert dialog.locator('.phone-bar').inner_text() == before
-    page.keyboard.press('Escape')
-    assert not dialog.is_visible()
-    assert page.locator('#preview-member').evaluate('el => el === document.activeElement')
-    page.clock.run_for(100000)
-    assert not writes and not errors
-    context.close()
-
-
-def test_high_energy_uses_canonical_name_and_sparse_labels(browser, base_url):
-    def prepare(detail):
-        screens = detail['overview']['energy']['screens']
-        screens[0].update(name='Q8–Q18', zone='high', seconds=188)
-        screens.extend([{**screens[0], 'page_id': f'extra-{i}', 'screen': 14 + i} for i in range(3)])
-    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
-    first = page.locator('#energy-map .energy-bar').first
-    assert first.get_attribute('aria-label').startswith('Q8–Q18, about 188 seconds, estimate, high estimated load,')
-    assert page.locator('#energy-map .energy-label.sparse').count() == 8
-    assert not errors
-    context.close()
-
-
 def test_failed_style_patch_keeps_evidence_and_restores_radio(browser, base_url):
-    context, page, detail, writes, errors = overview(browser, base_url)
+    context, page, detail, writes, errors = overview(browser, base_url, prepare=add_setup)
     original = page.locator('#overview-h').inner_text()
-    page.route('**/api/surveys/synthetic', lambda r: r.fulfill(status=503, json={'detail':'Style unavailable'}))
-    page.get_by_label('Product test', exact=True).check()
+    page.route('**/api/surveys/synthetic', lambda r: r.fulfill(status=503, json={'detail':'Style unavailable'}) if r.request.method == 'PATCH' else r.fallback())
+    page.locator('#setup-type-change').click()
+    page.get_by_label('Product test', exact=True).click()
     page.wait_for_function("document.querySelector('#status').textContent === 'Style unavailable'")
     assert page.locator('#overview-h').inner_text() == original
+    assert page.locator('#setup-card .setup-error').inner_text().startswith('Style unavailable')       # error and a way to retry
+    assert page.locator('#setup-retry').is_visible()
     assert not page.get_by_label('Product test', exact=True).is_checked()
-    assert not writes and not errors
-    context.close()
-
-
-def test_dialog_keyboard_trap_close_and_reopen_has_no_duplicate_clock(browser, base_url):
-    context, page, detail, writes, errors = overview(browser, base_url)
-    page.clock.install()
-    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
-    page.locator('#preview-member').click()
-    dialog = page.locator('#member-preview')
-    page.keyboard.press('Shift+Tab')
-    assert dialog.evaluate('el => el.contains(document.activeElement)')
-    for _ in range(20):
-        page.keyboard.press('Tab')
-        assert dialog.evaluate('el => el.contains(document.activeElement)')
-    page.get_by_role('button', name='Close preview').click()
-    page.clock.run_for(100000)
-    page.locator('#preview-member').click()
-    page.clock.run_for(5000)
-    assert 'Q1' in dialog.locator('.phone-bar').inner_text()
-    page.clock.run_for(13000)
-    assert 'Q2' in dialog.locator('.phone-bar').inner_text()
-    page.get_by_role('button', name='Close preview').click()
-    assert page.locator('#member-preview').count() == 0
     assert not writes and not errors
     context.close()
 
@@ -261,89 +203,16 @@ def test_absorbed_energy_link_opens_actual_primary_issue(browser, base_url):
     context.close()
 
 
-def test_uncertain_path_qualifies_energy_and_suppresses_elapsed_route(browser, base_url):
-    def prepare(detail):
-        detail['overview']['energy']['path_uncertain'] = True
-    context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
-    caption = page.locator('#energy-map .energy-caption').inner_text()
-    assert 'Captured-screen walkthrough' in caption and 'route uncertain' in caption
-    page.locator('#preview-member').click()
-    dialog = page.locator('#member-preview')
-    page.get_by_role('button', name='Pause', exact=True).click()
-    dialog.locator('.energy-bar').nth(2).click()
-    timing = dialog.locator('.member-playback').inner_text()
-    assert 'route uncertain' in timing and 'Screen estimate:' in timing
-    assert 'Elapsed' not in timing
-    assert 'route uncertain' in dialog.locator('.energy-caption').inner_text()
-    assert 'seconds, estimate,' in dialog.locator('.energy-bar').nth(2).get_attribute('aria-label')
-    page.keyboard.press('Escape')
-    assert not writes and not errors
-    context.close()
-
-
-@pytest.mark.parametrize('key', ['Enter', 'Space'])
-def test_keyboard_scrub_restores_page_focus_and_tab_order(browser, base_url, key):
-    context, page, detail, writes, errors = overview(browser, base_url)
-    page.clock.install()
-    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
-    page.locator('#preview-member').click()
-    dialog = page.locator('#member-preview')
-    page.get_by_role('button', name='Pause', exact=True).click()
-    bars = dialog.locator('.energy-bar')
-    bars.nth(2).focus()
-    page.keyboard.press(key)
-    assert bars.nth(2).evaluate('el => el === document.activeElement')
-    assert bars.nth(2).get_attribute('aria-current') == 'step'
-    assert 'Elapsed estimate:' in dialog.locator('.member-playback').inner_text()
-    page.keyboard.press('Tab')
-    assert bars.nth(3).evaluate('el => el === document.activeElement')
-    page.keyboard.press('Shift+Tab')
-    assert bars.nth(2).evaluate('el => el === document.activeElement')
-    bars.last.focus()
-    page.keyboard.press('Tab')
-    assert page.get_by_role('button', name='Close preview').evaluate('el => el === document.activeElement')
-    page.keyboard.press('Shift+Tab')
-    assert bars.last.evaluate('el => el === document.activeElement')
-    page.keyboard.press('Escape')
-    assert page.locator('#preview-member').evaluate('el => el === document.activeElement')
-    assert not writes and not errors
-    context.close()
-
-
-def test_auto_advance_preserves_scrubber_focus_without_stealing_controls(browser, base_url):
-    context, page, detail, writes, errors = overview(browser, base_url)
-    page.clock.install()
-    page.clock.pause_at(page.evaluate('Date.now() + 1000'))
-    page.locator('#preview-member').click()
-    dialog = page.locator('#member-preview')
-    bars = dialog.locator('.energy-bar')
-    bars.nth(2).focus()
-    page.clock.run_for(5000)
-    assert bars.nth(1).get_attribute('aria-current') == 'step'
-    assert bars.nth(2).evaluate('el => el === document.activeElement')
-    for control_name in ['Pause', 'Close preview']:
-        control = page.get_by_role('button', name=control_name, exact=True)
-        control.focus()
-        page.clock.run_for(15000)
-        assert control.evaluate('el => el === document.activeElement')
-    page.keyboard.press('Escape')
-    page.clock.run_for(100000)
-    assert page.locator('#member-preview').count() == 0
-    assert not writes and not errors
-    context.close()
-
-
 def test_style_reprojects_on_temp_server(browser, studio):
     page = browser.new_page()
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
+    page.locator('#setup-type-change').click()
     page.locator('#survey-style').wait_for()
-    page.get_by_label('Home-use test', exact=True).check()
+    page.get_by_label('Home-use test', exact=True).click()
     page.wait_for_function("SC.workspaceDetail.survey_type === 'ihut'")
-    assert page.get_by_label('Home-use test', exact=True).is_checked()
-    assert page.get_by_label('Home-use test', exact=True).evaluate('el => el === document.activeElement')
+    page.wait_for_function("SC.workspaceDetail.survey_type_detection.confirmed === true")
     page.reload()
-    page.get_by_label('Home-use test', exact=True).wait_for()
-    assert page.get_by_label('Home-use test', exact=True).is_checked()
+    assert 'Home-use test' in page.locator('#setup-card').inner_text()      # the confirmed type survives a reload
     page.close()

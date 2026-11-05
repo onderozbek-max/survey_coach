@@ -16,7 +16,7 @@ def open_methodology(page):
 
 
 @pytest.mark.parametrize('width', [390, 1280])
-def test_score_lives_only_in_methodology_and_energy_dialog_keyboard(browser, base_url, width):
+def test_score_lives_only_in_methodology_and_time_estimate_dialog_keyboard(browser, base_url, width):
     context, page, detail, writes, errors = open_review(browser, base_url, width=width, chapter='overview')
     assert page.locator('.quality-card, .quality-context, .quality-compact, #share-quality, .ring').count() == 0
     text = page.locator('#chapter-overview').inner_text()
@@ -30,12 +30,12 @@ def test_score_lives_only_in_methodology_and_energy_dialog_keyboard(browser, bas
     page.keyboard.press('Escape')
     page.wait_for_function("document.activeElement.textContent === 'Quality methodology'")
     page.keyboard.press('Escape')
-    page.get_by_role('button', name='About the energy map').click()
-    energy = page.get_by_role('dialog', name='Energy map estimates')
-    for text in ['0.3', '180', '420', '10 questions', '20 questions', 'Uncalibrated', 'captured']:
+    page.get_by_role('button', name='About the time estimate').click()
+    energy = page.get_by_role('dialog', name='How the time estimate works')
+    for text in ['0.3', 'Uncalibrated', 'captured']:
         assert text in energy.inner_text()
     page.keyboard.press('Escape')
-    page.wait_for_function("document.activeElement.getAttribute('aria-label') === 'About the energy map'")
+    page.wait_for_function("document.activeElement.getAttribute('aria-label') === 'About the time estimate'")
     go_to(page, 'improve')
     assert page.locator('#topbar .quality-compact').count() == 0
     go_to(page, 'share')
@@ -101,14 +101,15 @@ def test_methodology_reopen_route_closing_and_sample_header(browser, base_url):
 
 
 @pytest.mark.parametrize('width', [390, 1280])
-def test_energy_tooltip_hover_focus_escape_and_full_formula(browser, base_url, width):
+def test_time_estimate_tooltip_hover_focus_escape_and_full_formula(browser, base_url, width):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='overview', width=width)
-    trigger = page.get_by_role('button', name='About the energy map')
+    trigger = page.get_by_role('button', name='About the time estimate')
     tooltip = page.get_by_role('tooltip')
     trigger.hover()
     assert tooltip.is_visible()
     assert trigger.get_attribute('aria-describedby') == tooltip.get_attribute('id')
-    assert 'Bar height' in tooltip.inner_text() and 'cumulative' in tooltip.inner_text()
+    assert 'Segment width' in tooltip.inner_text() and 'estimates' in tooltip.inner_text()
+    assert 'cumulative' not in tooltip.inner_text()
     assert page.locator('dialog[open]').count() == 0
     tooltip.hover()
     assert tooltip.is_visible()  # pointer can move onto the explanation
@@ -123,7 +124,7 @@ def test_energy_tooltip_hover_focus_escape_and_full_formula(browser, base_url, w
     assert not tooltip.is_visible()
     assert trigger.evaluate('el => el === document.activeElement')
     page.keyboard.press('Enter')
-    dialog = page.get_by_role('dialog', name='Energy map estimates')
+    dialog = page.get_by_role('dialog', name='How the time estimate works')
     assert dialog.is_visible()
     assert 'each question image and each answer option with media adds 3s' in dialog.inner_text()
     assert not tooltip.is_visible()
@@ -139,15 +140,15 @@ def test_energy_tooltip_hover_focus_escape_and_full_formula(browser, base_url, w
     context.close()
 
 
-def test_energy_touch_opens_full_dialog_without_hover_dependency(browser, base_url):
+def test_time_estimate_touch_opens_full_dialog_without_hover_dependency(browser, base_url):
     context = browser.new_context(viewport={'width':390, 'height':844}, has_touch=True, is_mobile=True)
     page = context.new_page()
     page.goto(base_url + 'index.html#overview')
     page.wait_for_function('SC.reviewReady === true')
-    trigger = page.get_by_role('button', name='About the energy map')
+    trigger = page.get_by_role('button', name='About the time estimate')
     assert not page.get_by_role('tooltip').is_visible()
     trigger.tap()
-    dialog = page.get_by_role('dialog', name='Energy map estimates')
+    dialog = page.get_by_role('dialog', name='How the time estimate works')
     assert dialog.is_visible()
     assert 'answer option with media' in dialog.inner_text()
     assert not page.get_by_role('tooltip').is_visible()

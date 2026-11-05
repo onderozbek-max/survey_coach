@@ -49,13 +49,17 @@
     return drawer;
   };
 
-  /** Neutral progress, not a danger gauge: one colour, a marker at "now", and the plain line. The caveat is a tooltip. */
-  SC.phoneTimeline = ({ seconds, total, uncertain }) => {
+  /** Neutral progress, not a danger gauge: the journey strip's one encoding (width = time), a marker at "now", and the plain line.
+   *  Screens already reached are filled; the caveat is a tooltip. Without a journey it is a single fill. */
+  SC.phoneTimeline = ({ seconds, total, uncertain, journey = [], pageId = null }) => {
     if (uncertain) return h("div", { class: "timing" }, h("p", null, SC.uncertainWalkthrough));
     const share = total > 0 ? Math.min(100, Math.max(0, (seconds / total) * 100)) : 0;
+    const here = journey.findIndex((segment) => segment.page_id === pageId);
+    const parts = journey.length
+      ? journey.map((segment, i) => h("b", { class: i <= here ? "reached" : null, style: `--sec:${segment.seconds}` }))
+      : [h("b", { class: "reached", style: `width:${share}%` })];
     return h("div", { class: "timing" },
       h("p", { title: ESTIMATE_NOTE }, `~${SC.clock(seconds)} in · ${Math.max(1, Math.round(total / 60))} min total`),
-      h("div", { class: "timebar", "aria-hidden": "true" },
-        h("b", { style: `width:${share}%` }), h("i", { style: `left:${share}%` })));
+      h("div", { class: `timebar${journey.length ? " by-screen" : ""}`, "aria-hidden": "true" }, parts, h("i", { style: `left:${share}%` })));
   };
 })();

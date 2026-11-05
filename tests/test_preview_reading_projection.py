@@ -12,7 +12,7 @@ def delta(pages, plan, method="previewReadingDelta"):
     script = """
 const fs = require('node:fs');
 global.window = {SC: {h: () => {}}};
-for (const name of ['model.js', 'energy.js']) {
+for (const name of ['model.js', 'playback.js']) {
   eval(fs.readFileSync('site/' + name, 'utf8'));
 }
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));

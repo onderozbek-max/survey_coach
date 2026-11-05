@@ -194,7 +194,7 @@
       h("div", { class: "pager" },
         h("button", { type: "button", "data-fk": "prev", disabled: item.index === 0, onclick: () => goToPage(item.index - 1) }, "Previous screen"),
         h("button", { type: "button", "data-fk": "next", disabled: item.index === model.items.length - 1, onclick: () => goToPage(item.index + 1) }, "Next screen")),
-      SC.phoneTimeline({seconds, total:s.total_seconds, uncertain:!!s.overview?.energy.path_uncertain}));
+      SC.phoneTimeline({seconds, total:s.total_seconds, uncertain:!!s.overview?.energy.path_uncertain, journey:SC.journeyOf(s), pageId:item.page.id}));
     const screens = comparing ? [...document.querySelectorAll('.comparison-phones .phone-screen')] : [];
     for (const screen of screens) screen.addEventListener('scroll', () => {
       for (const other of screens) if (other !== screen && Math.abs(other.scrollTop - screen.scrollTop) > 2) other.scrollTop = screen.scrollTop;
@@ -217,13 +217,13 @@
     if (SC.currentChapter() !== 'improve') return;
     improveDirty = false;
     const active = document.activeElement, key = active && active.dataset ? active.dataset.fk : null;
-    const energyPage = active?.closest('#improve-bar .energy-bar')?.dataset.page;
     const before = document.querySelector("#stage .phone-screen"), keepTop = before ? before.scrollTop : 0;
     const pageKey = `${state.survey}:${pageItem().index}`, samePage = pageKey === lastPage;
     lastPage = pageKey;
     renderTop();
     if (state.mode === 'fixes' && SC.myChangesOf(survey()).count === 0) state.mode = 'current';   // nothing left to show
-    mount($('improve-bar'), queue.renderBar(state.mode, value => { state.mode = value; renderAll(); }));
+    mount($('improve-bar'), queue.renderBar(state.mode, value => { state.mode = value; renderAll(); }),
+      SC.renderJourney(survey(), {compact:true, selected:pageItem().page.id, onSelect:pageId => goToPage(model.items.findIndex(item => item.page.id === pageId))}));
     mount($('fix-queue'), h('h2', {class:'sr-only'}, 'Fix list'), queue.renderList());
     renderStage();
     mount($("coach"), queue.render(context()));
@@ -241,7 +241,6 @@
     if (samePage) document.querySelector("#stage .phone-screen").scrollTop = keepTop;
     else document.querySelector('#stage .phone-screen').scrollTop = 0;
     restoreFocus(key);
-    if (energyPage) [...document.querySelectorAll('#improve-bar .energy-bar')].find(b => b.dataset.page === energyPage)?.focus({preventScroll:true});
   }
 
   function chooseSurvey(i) {

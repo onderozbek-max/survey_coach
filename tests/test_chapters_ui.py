@@ -122,7 +122,7 @@ def test_static_sample_uses_shell_and_redirect_keeps_query_and_hash(browser, bas
     assert_chapter(page, 'overview')
     go_to(page, 'improve')
     assert page.locator('#stage .phone-screen').is_visible()
-    assert page.locator('#rail, .toolbar, .journey').count() == 0
+    assert page.locator('#rail, .toolbar, .energy-map').count() == 0
     page.goto(base_url + 'index.html?id=synthetic&version=2#share')
     page.wait_for_url('**/review.html?id=synthetic&version=2#share')
     assert_chapter(page, 'share')
