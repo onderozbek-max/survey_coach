@@ -64,19 +64,26 @@
     };
   };
 
+  // Timing owns capture deduplication and the reading rate. Never reconstruct
+  // that basis from raw + structured copies here: they overlap, not add up.
   SC.previewReadingDelta = (page, plan) => {
-    const count = text => (text || '').trim().split(/\s+/).filter(Boolean).length * .3;
-    let delta = 0;
-    const compare = (text, question_id) => {
-      const original = text || '';
-      delta += count(original) - count(SC.applyFixes(original, plan, null, {page_id:page.id, question_id}));
-    };
-    compare(page.intro_text); compare(page.text);
-    for (const q of page.questions || []) {
-      compare(q.text, q.id); compare(q.help_text, q.id);
-      if (!['dropdown','grid_single','grid_multi'].includes(q.kind)) for (const option of q.options || []) compare(option.label, q.id);
-    }
-    return Math.round(delta);
+    const basis = page.reading_basis;
+    if (!basis || !Number.isFinite(basis.seconds_per_word) || basis.seconds_per_word <= 0
+        || !Array.isArray(basis.fields)
+        || basis.fields.some(field => !field || typeof field.text !== 'string')) return null;
+    const words = text => text.trim().split(/\s+/).filter(Boolean).length;
+    const delta = basis.fields.reduce((sum, field) => {
+      const changed = SC.applyFixes(field.text, plan, null,
+        {page_id:page.id, question_id:field.question_id});
+      return sum + words(field.text) - words(changed);
+    }, 0);
+    return Math.round(delta * basis.seconds_per_word);
+  };
+
+  SC.previewReadingEvidence = (page, plan) => {
+    const delta = SC.previewReadingDelta(page, plan);
+    if (delta === null) return 'Reading-time change unavailable: this saved review has no canonical reading basis. Wording changes are shown below.';
+    return `Estimated reading-time change: ${Math.abs(delta)} seconds ${delta < 0 ? 'longer' : 'shorter'}. Layout, typing and unvisited paths are not reassessed.`;
   };
 
   SC.openMemberPreview = detail => {
