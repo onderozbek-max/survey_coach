@@ -5,7 +5,7 @@ import hashlib
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 Severity = Literal["must_fix", "worth_improving"]
 
@@ -70,3 +70,12 @@ class CheckResult(BaseModel):
     applies: bool = True
     assessed: bool = True
     findings: list[Finding] = Field(default_factory=list)
+    note: str | None = None   # why a check could not judge (unknown evidence); never a finding, never advice
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_note(self, handler):
+        """Most results have no note: keep their saved and served shape exactly as it was."""
+        data = handler(self)
+        if data.get("note") is None:
+            data.pop("note", None)
+        return data

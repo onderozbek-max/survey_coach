@@ -208,7 +208,13 @@ def missing_wording_detail(mode):
     return {'snapshot': snapshot.model_dump(mode='json'), 'review': review.model_dump(mode='json')}
 
 
-@pytest.mark.parametrize('mode,checked', [('disabled', 21), ('wording_failure', 33)])
+# boxer-briefs states no `required` flags and no image file sizes, so 2.4, 8.6 (unknown requiredness) and 7.6
+# (unmeasured bytes) are honestly unassessed on top of the AI-pending checks: 21 -> 18 and 33 -> 30.
+UNASSESSED_FROM_UNKNOWN_EVIDENCE = {'2.4', '7.6', '8.6'}
+CHECKED_WITH_ABSENT_AI_BLOCKERS = [('disabled', 18), ('wording_failure', 30)]
+
+
+@pytest.mark.parametrize('mode,checked', CHECKED_WITH_ABSENT_AI_BLOCKERS)
 @pytest.mark.parametrize('projected', [False, True])
 def test_scope_keeps_absent_ai_blockers_without_inventing_assessments(mode, checked, projected):
     from surveycoach.server.rounds import project_review, scope
@@ -221,6 +227,12 @@ def test_scope_keeps_absent_ai_blockers_without_inventing_assessments(mode, chec
     # Rubric v2 has 43 active criteria + 7 blockers; this fixture has 2 explicit N/A.
     assert actual['total_count'] == 48
     assert actual['checked_count'] == checked
+    # Independent of the number above: every applicable check is either checked or listed as unchecked.
+    assert actual['checked_count'] + len(actual['unchecked_checks']) == actual['total_count']
+    rubric_titles = {c.id: c.title for c in load_rubric().criteria}
+    for cid in UNASSESSED_FROM_UNKNOWN_EVIDENCE:
+        assert not detail['review']['results'][cid]['assessed']
+        assert rubric_titles[cid] in actual['unchecked_checks']
     # Reader-only image failure stays pending, never a completed launch check.
     assert not detail['review']['results']['B7']['assessed']
     assert 'B7' in detail['review']['scorecard']['pending_blockers']

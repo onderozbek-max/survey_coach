@@ -9,10 +9,25 @@ from pathlib import Path
 
 from surveycoach.review import run_review
 from surveycoach.rubric import load_rubric
+from surveycoach.checks.structure import OPEN_TEXT
 from surveycoach.snapshot import SurveySnapshot
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 IMAGE_CRITERIA_WAITING_FOR_PLAN_5 = {"7.1", "7.4"}
+# 7.6 is measured, not judged: it waits for reader-measured file sizes, never for an AI batch (0A).
+WAITING_FOR_MEASURED_BYTES = "7.6"
+# 2.4 and 8.6 are code checks that wait on `required`, which no AI batch can know (D8 tri-state).
+WAITING_FOR_REQUIRED_STATUS = {"2.4", "8.6"}
+
+
+def unmeasured_media(snapshot):
+    media = [m for p in snapshot.pages for m in [*p.media, *[m for q in p.questions for m in q.media],
+                                                 *[o.media for q in p.questions for o in q.options if o.media]]]
+    return [m for m in media if m.bytes is None]
+
+
+def unknown_required_open_text(snapshot):
+    return [q for q in snapshot.all_questions() if q.kind in OPEN_TEXT and q.required is None]
 
 
 def test_every_batch_names_real_active_criteria_and_blockers():
@@ -35,8 +50,17 @@ def test_the_batches_cover_everything_the_engine_says_is_waiting_on_ai():
     title = {c.id: c.title for c in rubric.criteria}
     owned = {title[c] for b in BATCHES for c in b.criteria} | {title[c] for c in IMAGE_CRITERIA_WAITING_FOR_PLAN_5}
     for path in sorted(FIXTURES.glob("*.json")):
-        review = run_review(SurveySnapshot.model_validate_json(path.read_text()), rubric)
-        assert set(review.unchecked) <= owned, (path.name, set(review.unchecked) - owned)
+        snapshot = SurveySnapshot.model_validate_json(path.read_text())
+        review = run_review(snapshot, rubric)
+        # 7.6 may wait only while some image really has no measured size; otherwise it is a missed check.
+        waiting_on_bytes = title[WAITING_FOR_MEASURED_BYTES] in review.unchecked
+        assert not waiting_on_bytes or unmeasured_media(snapshot), path.name
+        pending = set(review.unchecked) - ({title[WAITING_FOR_MEASURED_BYTES]} if waiting_on_bytes else set())
+        # 2.4/8.6 may wait only while some typing question really has unknown requiredness.
+        waiting_on_required = {title[c] for c in WAITING_FOR_REQUIRED_STATUS} & pending
+        assert not waiting_on_required or unknown_required_open_text(snapshot), path.name
+        pending -= waiting_on_required
+        assert pending <= owned, (path.name, pending - owned)
         ai_blockers = {x for b in BATCHES for x in b.blockers}
         assert set(review.scorecard.pending_blockers) <= ai_blockers | {"B5", "B7"}, path.name
         assert "B7" not in ai_blockers

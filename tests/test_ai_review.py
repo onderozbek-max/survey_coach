@@ -16,6 +16,10 @@ ROOT = Path(__file__).parent.parent
 IMAGES_STILL_WAITING = {"The right image is there", "The product is the hero", "Readable, light, and accessible"}
 # 7.6 joined the set: boxer-briefs has an image with no measured bytes, which used to earn full
 # credit (audit 5). Unmeasured weight is unknown, so the criterion waits for evidence.
+# 2.4 and 8.6 are code-only checks that wait on the reader/author for `required`, which this fixture
+# never states. The old default (required=True) manufactured their results; no AI batch can supply it.
+REQUIRED_STATUS_STILL_WAITING = {"Light typing load", "Room to speak freely"}
+REQUIRED_STATUS_POINTS = 2 + 1   # rubric points of 2.4 and 8.6
 
 
 @pytest.fixture(scope="module")
@@ -53,12 +57,13 @@ def test_without_a_provider_nothing_changes(flawed):
 
 def test_all_clear_judge_resolves_semantic_blockers_but_cannot_calibrate_timing(flawed):
     code_only, review = run_review(flawed), run_review(flawed, provider=clear_provider())
-    assert review.scorecard.pending_blockers == ["B5", "B7"] and set(review.unchecked) == IMAGES_STILL_WAITING
+    assert review.scorecard.pending_blockers == ["B5", "B7"]
+    assert set(review.unchecked) == IMAGES_STILL_WAITING | REQUIRED_STATUS_STILL_WAITING
     assert not review.results["B7"].assessed  # AI cannot resolve a reader-only image observation.
     # Checking more earns evidence-backed points; unknown checks never get free credit.
-    assert review.scorecard.unchecked_points == 6 < code_only.scorecard.unchecked_points == 56
+    assert review.scorecard.unchecked_points == 6 + REQUIRED_STATUS_POINTS < code_only.scorecard.unchecked_points == 56 + REQUIRED_STATUS_POINTS
     assert review.scorecard.score > code_only.scorecard.score
-    assert review.scorecard.checked_points == 89
+    assert review.scorecard.checked_points == 89 - REQUIRED_STATUS_POINTS
     assert review.scorecard.not_applicable_points == 5
     assert sum((review.scorecard.checked_points, review.scorecard.unchecked_points,
                 review.scorecard.not_applicable_points)) == 100

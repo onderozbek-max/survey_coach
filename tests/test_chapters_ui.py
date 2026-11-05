@@ -1,6 +1,7 @@
 """Chapter routing on intercepted synthetic reviews only; no saved data touched."""
 import pytest
 
+from tests.test_enrich_contract import CHECKED_WITH_ABSENT_AI_BLOCKERS
 from tests.test_issue_loop_ui import open_review, open_overview, focus
 from tests.test_site_e2e import base_url, browser
 
@@ -216,7 +217,9 @@ def test_about_missing_scope_is_unknown_not_all_checked(browser, base_url):
     context.close()
 
 
-@pytest.mark.parametrize('mode,checked', [('disabled', 21), ('wording_failure', 33)])
+
+
+@pytest.mark.parametrize('mode,checked', CHECKED_WITH_ABSENT_AI_BLOCKERS)
 def test_about_discloses_absent_ai_blockers(browser, base_url, mode, checked):
     from tests.test_enrich_contract import missing_wording_detail
     from surveycoach.rubric import load_rubric

@@ -6,8 +6,8 @@ import re
 from surveycoach.checks.registry import (ReviewContext, blocker_ok, check, clip, finding, not_applicable, passed,
                                          result)
 from surveycoach.checks.text import plural
-from surveycoach.findings import CheckResult
-from surveycoach.snapshot import Page
+from surveycoach.findings import CheckResult, Finding
+from surveycoach.snapshot import Page, Question
 
 SCREEN_OUT_EFFORT_SECONDS = 120
 OPEN_TEXT = {"text_short", "text_long"}
@@ -201,16 +201,30 @@ def screeners_first(ctx: ReviewContext) -> CheckResult:
     return result("2.2", 0.0 if late else 1.0, *late)
 
 
+def _typing_fraction(required_count: int) -> float:
+    return 1.0 if required_count <= 2 else 0.5 if required_count == 3 else 0.0
+
+
 @check("2.4")
 def typing_load(ctx: ReviewContext) -> CheckResult:
-    required = [q for q in ctx.snapshot.all_questions() if q.kind in OPEN_TEXT and q.required]
-    fraction = 1.0 if len(required) <= 2 else 0.5 if len(required) == 3 else 0.0
-    findings = [finding("2.4", "worth_improving", "Required typing question; make it optional", clip(q.text),
-                        "Make this answer optional, or replace it with answer choices.",
-                        "Typing on a phone is work, and required typing makes members quit.",
-                        question_id=q.id, current_text=q.text)
-                for q in required[2:]]
-    return result("2.4", fraction, *findings)
+    """Only verified-required typing counts. Unknown requiredness is not optional, so it cannot earn a pass."""
+    open_text = [q for q in ctx.snapshot.all_questions() if q.kind in OPEN_TEXT]
+    required = [q for q in open_text if q.required is True]
+    unknown = sum(q.required is None for q in open_text)
+    fraction = _typing_fraction(len(required))
+    if _typing_fraction(len(required) + unknown) != fraction:
+        return CheckResult(criterion_id="2.4", assessed=False, findings=_make_optional_findings(required),
+                           note=f"{plural(unknown, 'typing question')} with unknown required status could change "
+                                "this result; confirm which are required.")
+    return result("2.4", fraction, *_make_optional_findings(required))
+
+
+def _make_optional_findings(required: list[Question]) -> list[Finding]:
+    return [finding("2.4", "worth_improving", "Required typing question; make it optional", clip(q.text),
+                    "Make this answer optional, or replace it with answer choices.",
+                    "Typing on a phone is work, and required typing makes members quit.",
+                    question_id=q.id, current_text=q.text)
+            for q in required[2:]]
 
 
 @check("8.2")
@@ -234,8 +248,13 @@ def format_variety(ctx: ReviewContext) -> CheckResult:
 @check("8.6")
 def room_to_speak(ctx: ReviewContext) -> CheckResult:
     tail = [q for p in _question_pages(ctx)[-2:] for q in p.questions]
-    if any(q.kind in OPEN_TEXT and not q.required for q in tail):
+    open_text = [q for q in tail if q.kind in OPEN_TEXT]
+    if any(q.required is False for q in open_text):      # verified optional
         return passed("8.6")
+    if any(q.required is None for q in open_text):       # unknown is neither optional nor required
+        return CheckResult(criterion_id="8.6", assessed=False,
+                           note="A comment box near the end has unknown required status, so we cannot say "
+                                "whether members can skip it. Check it in RedJade.")
     existing = next((q for q in reversed(tail) if q.kind in OPEN_TEXT), None)
     if existing:
         return result("8.6", 0.0, finding(

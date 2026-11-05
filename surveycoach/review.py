@@ -58,8 +58,9 @@ def _with_ai(code: dict[str, CheckResult], ai: dict[str, CheckResult]) -> dict[s
             fraction = min(fractions) if fractions else None
             if findings and fraction is not None:
                 fraction = min(fraction, CREDIT_CAP_WITH_FINDING)
-            merged[cid] = CheckResult(criterion_id=cid, fraction=fraction, applies=mine.applies,
-                                      assessed=mine.assessed or theirs.assessed, findings=findings)
+            assessed = mine.assessed or theirs.assessed
+            merged[cid] = CheckResult(criterion_id=cid, fraction=fraction, applies=mine.applies, assessed=assessed,
+                                      findings=findings, note=None if assessed else mine.note)
     return merged
 
 

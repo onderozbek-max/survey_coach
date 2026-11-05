@@ -20,7 +20,9 @@ def halloween_snapshot():
         {"id": "p0", "position": 0, "kind": "info",
          "text": "Welcome! Let us know how you celebrated. It takes 10 minutes.\n\n\n\nNext"},
         {"id": "p1", "position": 1, "kind": "question", "questions": [
-            {"id": "q", "text": "Pick", "kind": "single_choice",
+            # Stated, as every capture saved before tri-state `required` did: the pinned hashes below
+            # prove those versions keep their identity. Unstated would now be None (unknown), a different input.
+            {"id": "q", "text": "Pick", "kind": "single_choice", "required": True,
              "options": [{"id": "a", "label": "A"}]}]},
     ]})
 

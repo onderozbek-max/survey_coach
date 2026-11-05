@@ -21,16 +21,24 @@ def test_invalid_links_are_explained_before_any_reader_request(browser, studio, 
 
 def test_link_start_to_saved_review_preserves_partial_coverage(browser, studio, monkeypatch, tmp_path):
     from pathlib import Path
-    from surveycoach.reader.models import Coverage, ReadResult
+    from surveycoach.reader.models import Capture, Coverage, ReadResult
     from surveycoach.snapshot import SurveySnapshot
     import surveycoach.server.reader as reader_api
     calls = []
+
+    def rendered_capture(page_id):
+        # Captured screens are the persisted rendered captures (0B); a bare counter proves nothing.
+        image, observation = tmp_path / f'{page_id}.png', tmp_path / f'{page_id}.json'
+        image.write_bytes(b'synthetic-png-test')
+        observation.write_text('{}')
+        return Capture(page_id=page_id, viewport_png=image, observation_json=observation)
 
     def controlled(url, **kwargs):
         calls.append(kwargs)
         return ReadResult(
             snapshot=SurveySnapshot.model_validate_json((Path(__file__).parents[1] / 'fixtures/boxer-briefs.json').read_text()),
-            coverage=Coverage(pages_captured=3, stop_reason='path_end'), capture_dir=tmp_path)
+            coverage=Coverage(pages_captured=3, stop_reason='path_end'), capture_dir=tmp_path,
+            captures=[rendered_capture(page_id) for page_id in ('p0', 'p1', 'p2')])
 
     monkeypatch.setenv('SURVEYCOACH_PARTICIPANT_MODE', '1')
     monkeypatch.setattr(reader_api, 'read_survey', controlled)
