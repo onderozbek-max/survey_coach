@@ -6,6 +6,7 @@ from dataclasses import asdict
 
 import re
 
+from surveycoach.fix_queue import build_queue
 from surveycoach.labels import screen_labels
 from surveycoach.quality import build_quality
 from surveycoach.recommendations import with_action
@@ -150,5 +151,6 @@ def enrich(data: dict, rubric) -> dict:
             snapshot, data["review"], decisions, data["screens"], data["plan"], rubric,
             survey_type=survey_type, type_source=source, coverage=data.get("coverage"))
         data["methodology"]["not_checked_automatically"] = data["overview"].pop("not_checked_automatically")
+    data["queue"] = build_queue(data.get("overview", {}).get("items", []))
     data["presentation"] = presentation(data)
     return data

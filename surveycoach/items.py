@@ -10,7 +10,8 @@ from __future__ import annotations
 import hashlib
 
 from surveycoach.labels import QUESTION_LABEL, finding_label, group_label, join_names
-from surveycoach.status import IMPROVE, YOU_CHECK, finding_state, is_decided, worst_state
+from surveycoach.recommendations import action_kind_of
+from surveycoach.status import (DONE, IMPROVE, KEEP, USE, YOU_CHECK, finding_state, handled_kind, worst_state)
 from surveycoach.you_check import build_you_checks
 
 TIERS = ("must_fix", "quick_wins", "more")
@@ -69,6 +70,22 @@ def _group_instruction(members: list[dict], screens: list[dict]) -> dict:
     return {"instruction": QUESTION_LABEL.sub(join_names(names), lead["you_check"], count=1)}
 
 
+def _handling(decisions: list[dict | None]) -> dict:
+    """How the author closed a card. Open until every member is handled; a mix reports the weakest evidence:
+    `done` (their word, unverified until Check again), then `keep`, then `use` (our change accepted)."""
+    kinds = [handled_kind(d) for d in decisions]
+    if not kinds or None in kinds:
+        return {"open": True, "decided": False, "handled_kind": None, "unverified": False, "keep_reason": None}
+    kind = next(k for k in (DONE, KEEP, USE) if k in kinds)
+    chip = next((d.get("keep_reason") for d, k in zip(decisions, kinds) if k == KEEP and d.get("keep_reason")), None)
+    return {"open": False, "decided": True, "handled_kind": kind, "unverified": kind == DONE, "keep_reason": chip}
+
+
+def _where(pages: list[str], screens: list[int]) -> dict:
+    return {"pages": pages, "screens": screens, "page_id": pages[0] if pages else None,
+            "screen": screens[0] if screens else None}
+
+
 def build_items(findings: list[dict], plan: dict, decisions: dict, extras: list[dict], screens: list[dict],
                 signal_of: dict) -> list[dict]:
     """Plan groups first (in plan order), then curated extras. Absorbed findings stay evidence only."""
@@ -84,21 +101,25 @@ def build_items(findings: list[dict], plan: dict, decisions: dict, extras: list[
                 continue
             pages = list(dict.fromkeys(p for m in members if (p := _page_of(m, question_pages, page_ids))))
             pages.sort(key=number.get)
-            decided = all(is_decided(decisions.get(m["fingerprint"])) for m in members)
+            lead = members[0]
+            kind = action_kind_of(lead)
             items.append({"id": group["id"], "kind": "finding",
                           "state": worst_state(finding_state(m) for m in members),
-                          "open": not decided, "decided": decided, "headline": members[0]["headline"],
+                          **_handling([decisions.get(m["fingerprint"]) for m in members]),
+                          "action_kind": kind,
+                          "has_paste": kind == "paste" and bool(lead.get("suggested_text") or lead.get("options")),
+                          "headline": members[0]["headline"],
                           "location": group_label(members, screens),
                           "signal": signal_of.get(members[0]["criterion_id"]),
                           "criterion_id": members[0]["criterion_id"],
                           "fingerprints": [m["fingerprint"] for m in members], "count": len(members),
-                          "pages": pages, "screens": [number[p] for p in pages],
+                          **_where(pages, [number[p] for p in pages]),
                           **_group_instruction(members, screens)})
     for extra in extras:
-        decided = is_decided(decisions.get(extra["fingerprint"]))
         items.append({"id": extra["fingerprint"], "kind": extra["kind"], "state": extra["state"],
-                      "open": not decided, "decided": decided, "headline": extra["title"],
+                      **_handling([decisions.get(extra["fingerprint"])]), "action_kind": "you_check",
+                      "has_paste": False, "headline": extra["title"],
                       "location": extra["where"], "signal": extra["signal"], "criterion_id": None,
                       "instruction": extra["instruction"], "fingerprints": [extra["fingerprint"]],
-                      "count": 1, "pages": list(extra["pages"]), "screens": list(extra["screens"])})
+                      "count": 1, **_where(list(extra["pages"]), list(extra["screens"]))})
     return items
