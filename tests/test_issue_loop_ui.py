@@ -1,6 +1,8 @@
 """Isolated browser contracts. Synthetic intercepted detail; no saved/live reviews touched."""
 from pathlib import Path
 
+from surveycoach.rubric import load_rubric
+from surveycoach.server.present import enrich
 from tests.test_site_e2e import base_url, browser
 from tests.site_helpers import go_to
 
@@ -38,6 +40,12 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
     metadata = page.evaluate('({criteria:SURVEYCOACH_DEMO.criteria, dimensions:SURVEYCOACH_DEMO.dimensions, ai_batches:SURVEYCOACH_DEMO.ai_batches})')
     if prepare:
         prepare(detail)
+    rubric = load_rubric()
+
+    def derive():
+        """The server rebuilds queue, plan and My changes from the decisions on every read; so does this stand-in."""
+        detail.update(enrich(detail, rubric))
+    derive()
     writes = []
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
@@ -51,6 +59,7 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
             writes.append(payload)
             fingerprint = url.rsplit('/', 1)[-1]
             detail['decisions'][fingerprint] = payload
+            derive()
             route.fulfill(json=payload)
         elif route.request.method == 'PATCH':
             payload = route.request.post_data_json

@@ -30,7 +30,7 @@
     return {question:stem, answers};
   };
 
-  SC.renderSuggestion = (finding, before, text, snapshot) => {
+  const asBundle = (finding, text, snapshot) => {
     if (finding.edit_kind === 'add_answer') return h('div', {class:'suggestion-answer'},
       h('h5', null, 'Answer choice'), h('blockquote', null, text));
     const parts = SC.bundleParts(finding, text, snapshot);
@@ -40,8 +40,16 @@
       h('ul', {'aria-label':'Answer choices'}, parts.answers.map(answer => h('li', null, answer))));
     // A structural bundle is not one replaceable sentence. Avoid interleaving
     // deleted answers with new answers; Details retains the complete original.
-    if (finding.structural && /[\r\n]/.test(text)) return h('blockquote', null, text);
+    return finding.structural && /[\r\n]/.test(text) ? h('blockquote', null, text) : null;
+  };
+
+  /** The paste-ready After text, first and plain. Answers and bundles keep their own shape. */
+  SC.renderAfter = (finding, text, snapshot) => asBundle(finding, text, snapshot) || h('p', {class:'after-text'}, text);
+
+  /** The word-level diff behind "Show changes"; null when there is nothing meaningful to compare (a bundle, a new answer). */
+  SC.renderChanges = (finding, before, text, snapshot) => {
+    if (asBundle(finding, text, snapshot)) return null;
     const original = finding.structural ? capturedQuestion(finding, snapshot)?.text || finding.current_text || before : before;
-    return SC.renderDiff(original, text);
+    return original ? SC.renderDiff(original, text) : null;
   };
 })();

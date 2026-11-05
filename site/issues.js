@@ -12,25 +12,16 @@
       for (const question of page.questions || []) {
         questionNumber += 1;
         if (question.id === f.question_id) return {screen: index + 1, question: questionNumber,
-          label: `Q${questionNumber} · Screen ${index + 1}`, target: SC.issueTarget(f, question)};
+          label: `Q${questionNumber} · Screen ${index + 1}`};
       }
-      if (!f.question_id && page.id === f.page_id) return {screen: index + 1, label: `Screen ${index + 1}`, target: 'Screen text'};
+      if (!f.question_id && page.id === f.page_id) return {screen: index + 1, label: `Screen ${index + 1}`};
     }
-    return {screen: Infinity, label: 'Whole survey', target: 'Survey wording or structure'};
-  };
-  SC.issueTarget = (f, question) => {
-    if (f.edit_kind === 'add_answer') return 'New answer option';
-    if (f.structural) return 'Question and answer choices';
-    const index = (question.options || []).findIndex(o => o.label === f.current_text);
-    if (index >= 0) return `Answer ${index + 1}`;
-    if (question.help_text === f.current_text) return 'Help text';
-    if (question.scale && f.current_text !== question.text) return 'Scale labels';
-    return 'Question text';
-  };
+    return {screen: Infinity, label: 'Whole survey'};
+  };   // Where a change goes in RedJade is the finding's own field_location (and detail.my_changes), never computed here.
   SC.issueDecision = (f, detail = SC.workspaceDetail) => detail?.decisions?.[f.fingerprint];
   SC.acceptedRisk = (f, detail) => {
     const d = SC.issueDecision(f, detail);
-    return ['keep', 'original'].includes(d?.action) && Boolean(d.reason?.trim());
+    return ['keep', 'original'].includes(d?.action) && Boolean(d.reason?.trim() || d.keep_reason);
   };
   SC.issueCounts = detail => {
     const counts = {blocker: 0, worth: 0, polish: 0, kept: 0, chosen: 0};

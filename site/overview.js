@@ -31,21 +31,9 @@
     catch (error) { SC.say(error.message); }
   }
 
-  /** Findings of one state that are still open. Curated checks have no Fix card yet (phase 2), so they are not here. */
-  const openFindings = state => detail.overview.items
-    .filter(item => item.kind === 'finding' && item.state === state && item.open).flatMap(item => item.fingerprints);
-  /** Fix opens its tab; Improve and You check open the Fix flow on just their findings. */
-  function openTile(key) {
-    if (key === 'fix') return route({tab:'must_fix'});
-    const state = key === 'improve' ? 'worth_improving' : 'you_check', fingerprints = openFindings(state);
-    if (fingerprints.length) return route({fingerprints});
-    // Nothing the Fix flow can show: point at the card that lists them.
-    const card = detail.overview.signals.find(signal => signal.items.some(item => item.open && item.state === state));
-    const node = card && document.querySelector(`#signals [data-signal=${card.id}]`);
-    node?.scrollIntoView({block:'center', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
-    node?.focus({preventScroll:true});
-    SC.say(node ? `Showing ${SC.STATES[state].label.toLowerCase()} in ${card.name}.` : 'Nothing to open.');
-  }
+  /** A tile opens the Fix flow filtered to its state; the fix list now holds the curated You check items too. */
+  const TILE_STATE = {fix:'fix_before_launch', improve:'worth_improving', you_check:'you_check'};
+  const openTile = key => route({state:TILE_STATE[key]});
   const startOptions = () => {
     const tab = TAB_ORDER.find(name => { const p = SC.progressOf(detail, name); return p.done < p.total; });
     return tab ? {tab} : {};

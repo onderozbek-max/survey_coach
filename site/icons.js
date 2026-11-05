@@ -4,6 +4,7 @@
   const SC = window.SC;
   const shapes = {
     check: [['path', {d:'M5 12l4 4L19 6'}]],
+    close: [['path', {d:'M6 6l12 12M18 6L6 18'}]],
     alert: [['path', {d:'M12 3L2 21h20L12 3zM12 9v5M12 17v.5'}]],
     clock: [['circle', {cx:12, cy:12, r:9}], ['path', {d:'M12 7v5l3 2'}]],
     sparkle: [['path', {d:'M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z'}]],

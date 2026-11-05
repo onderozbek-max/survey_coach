@@ -1,134 +1,141 @@
-/* Server-curated membership and order. Decisions update progress, never regroup findings. */
+/* The fix queue. Membership, order, counts and "next item" come from detail.queue (one list, built on the server).
+   The browser only remembers where the user is, which state chip is pressed and what they just decided (the overlay)
+   until the server confirms it. Decisions never regroup or reorder anything. */
 (() => {
   'use strict';
   const SC = window.SC, {h} = SC;
-  const tabs = [['must_fix','Fix before launch'], ['quick_wins','Worth improving'], ['more','More ideas']];
-  SC.createQueue = (detail, navigate, redraw) => {
-    let tab = 'must_fix', active = null, filter = {};
-    const entries = item => item.fingerprints.map(fp => {
-      const key = detail.review.findings.findIndex(f => f.fingerprint === fp);
-      return key < 0 ? null : {f:detail.review.findings[key], key};
-    }).filter(Boolean);
-    // Done, related findings and page membership are shared with the tabs, toolbar and drawer (progress.js).
-    const decided = item => SC.itemDecided(detail, item);
-    const related = item => SC.itemRelated(detail, item);
-    const onPage = (f, pageId) => SC.findingOnPage(detail, f, pageId);
-    const allowed = item => related(item).some(f =>
-      (!Object.hasOwn(filter, 'fingerprints') || filter.fingerprints.includes(f.fingerprint)) &&
-      (!filter.page_id || onPage(f, filter.page_id)));
-    const allItems = () => tabs.flatMap(([name]) => detail.plan[name]);
-    const items = () => detail.plan[tab].filter(allowed);
-    function show(item, focus = false) {
-      active = item?.id || null;
-      if (item) navigate(entries(item).find(e => !SC.issueDecision(e.f)?.action || SC.issueDecision(e.f)?.action === 'open') || entries(item)[0]);
+  const EMPTY = {items:[], first_open_id:null, counts:{done:0, total:0, open:0, unverified:0, by_kind:{use:0, done:0, keep:0}}};
+  const TAB_STATE = {must_fix:'fix_before_launch', quick_wins:'worth_improving', more:'you_check'};
+  const ALIAS = {fix:'fix_before_launch', improve:'worth_improving'};
+  const stateOf = options => {
+    const raw = options.state ?? TAB_STATE[options.tab];
+    return SC.FIX_STATES.includes(raw) ? raw : ALIAS[raw] || null;
+  };
+
+  /** `persist` is true on the static sample, which has no server to confirm a decision: the overlay then is the truth. */
+  SC.createQueue = (detail, navigate, redraw, {persist = false} = {}) => {
+    let active = null, view = 'card', filter = null, place = null, failure = null;
+    const overlay = new Map();               // entry id -> handled kind, or 'open' after an undo
+    const queueOf = () => detail.queue || EMPTY;
+    const all = () => queueOf().items;
+    const byId = id => all().find(entry => entry.id === id) || null;
+    const isOpen = entry => (overlay.has(entry.id) ? overlay.get(entry.id) === 'open' : entry.open);
+    const handledKind = entry => (overlay.has(entry.id) ? (overlay.get(entry.id) === 'open' ? null : overlay.get(entry.id)) : entry.handled_kind);
+    const visible = () => all().filter(entry => !filter || entry.state === filter);
+    const firstOpen = list => list.find(isOpen) || null;
+    /** The next open item after this one in list order (the server's next_open_id, kept honest by the overlay). */
+    const nextOpen = entry => {
+      const served = entry && byId(entry.next_open_id);
+      if (served && isOpen(served)) return served;
+      const rest = entry ? all().slice(all().indexOf(entry) + 1) : all();
+      return firstOpen(rest);
+    };
+    const resolve = entry => ({entry,
+      rows:entry.fingerprints.map(fp => {
+        const key = detail.review.findings.findIndex(f => f.fingerprint === fp);
+        return key < 0 ? null : {f:detail.review.findings[key], key};
+      }).filter(Boolean),
+      item:(detail.overview?.items || []).find(item => item.id === entry.id) || null});
+    const progress = () => {
+      let done = queueOf().counts.done;
+      for (const [id, value] of overlay) {
+        const entry = byId(id);
+        if (entry) done += (entry.open && value !== 'open' ? 1 : 0) - (!entry.open && value === 'open' ? 1 : 0);
+      }
+      return {done, total:queueOf().counts.total};
+    };
+    const completeNow = () => { active = null; view = progress().total && progress().done >= progress().total ? 'complete' : 'screen-empty'; };
+
+    function show(entry, focus = false) {
+      failure = null;
+      if (entry) { active = entry.id; place = entry; view = 'card'; navigate({key:resolve(entry).rows[0]?.key ?? null, page_id:entry.page_id}); }
+      else completeNow();
       redraw();
       if (focus) {
-        const heading = document.querySelector('#coach h3'); heading?.focus({preventScroll:true});
-        SC.say(item ? `Next: ${item.headline}` : document.querySelector('#coach h3')?.textContent || 'Section complete');
+        document.querySelector('#coach h3')?.focus({preventScroll:true});
+        SC.say(entry ? `Next: ${entry.title}` : document.querySelector('#coach h3')?.textContent || 'Section complete');
       }
     }
-    function chooseTab(value) {
-      tab = value; filter = {};
-      show(items().find(item => !decided(item)));
-    }
+
     const api = {
       update(updated) {
         detail = updated;
-        if (!items().some(item => item.id === active)) active = items().find(item => !decided(item))?.id || null;
+        if (active && !byId(active)) { active = null; show(firstOpen(visible())); }
       },
-      entries, decided,
-      get item() { return items().find(item => item.id === active) || null; },
-      start() { show(items().find(item => !decided(item))); },
+      all, byId, isOpen, handledKind, resolve, progress, nextOpen,
+      get filter() { return filter; },
+      get view() { return view; },
+      get active() { return active ? byId(active) : null; },
+      get failure() { return failure; },
+      setFilter(state) { filter = state; redraw(); },
+      select: entry => show(entry, true),
+      start() {
+        if (!all().length) { view = 'screen-empty'; redraw(); return; }
+        const first = firstOpen(visible());
+        if (first) show(first); else { completeNow(); redraw(); }
+      },
       focus(fp) {
-        for (const [name] of tabs) {
-          const item = detail.plan[name].find(item => item.fingerprints.includes(fp));
-          if (item) { tab = name; filter = {}; show(item); return true; }
-        }
-        return false;
+        const entry = all().find(item => item.fingerprints.includes(fp));
+        if (!entry) return false;
+        if (filter && entry.state !== filter) filter = null;
+        show(entry);
+        return true;
       },
+      /** Where the Verdict (or the energy map) sends the user: a state (tile), some findings, or a screen. */
       options(options) {
-        filter = options;
-        if (tabs.some(([name]) => name === options.tab)) tab = options.tab;
-        const constrainedTabs = options.tab ? tabs.filter(([name]) => name === tab) : tabs;
-        const all = constrainedTabs.flatMap(([name]) => detail.plan[name].filter(allowed).map(item => ({name,item})));
-        const inspection = options.page_id || Object.hasOwn(options, 'fingerprints');
-        const hit = all.find(({item}) => !decided(item)) || (inspection ? all[0] : null);
-        if (hit) { tab = hit.name; show(hit.item); }
-        else show(items().find(item => !decided(item)));
+        if ('state' in options || 'tab' in options) filter = stateOf(options);
+        const pool = visible(), onPage = e => e.pages.includes(options.page_id);
+        const wanted = options.fingerprints ? pool.find(e => e.fingerprints.some(fp => options.fingerprints.includes(fp))) : null;
+        const hit = wanted || (options.page_id ? pool.find(e => onPage(e) && isOpen(e)) || pool.find(onPage) : null) || firstOpen(pool) || pool[0];
+        if (hit) show(hit); else { completeNow(); redraw(); }
       },
+      /** The phone moved to another screen: show that screen's first open item, or the compact "nothing here" row. */
       screen(pageId) {
-        filter = {page_id:pageId};
-        const matches = tabs.flatMap(([name]) => detail.plan[name].filter(allowed).map(item => ({name,item})));
-        const hit = matches.find(({item}) => !decided(item)) || matches[0];
-        if (hit) { tab = hit.name; active = hit.item.id; } else active = null;
+        const here = all().filter(e => e.pages.includes(pageId)), hit = firstOpen(here) || here[0];
+        failure = null;
+        if (hit) { active = hit.id; place = hit; view = 'card'; } else { active = null; view = 'screen-empty'; }
         redraw();
       },
+      /** After a save: move on, but only if the user is still on the item that started it. */
       advance(origin) {
-        // A late save/copy passes the item that started it; anything else may have moved on since.
         if (origin !== undefined && !api.isActive(origin)) return false;
-        const list = items(), index = list.findIndex(item => item.id === active);
-        const rest = [...list.slice(index + 1), ...list.slice(0,index)];
-        show(rest.find(item => !decided(item)), true);
+        const next = nextOpen(active ? byId(active) : place) || firstOpen(all());
+        if (next && filter && next.state !== filter) filter = null;
+        show(next, true);
         return true;
       },
       isActive: origin => origin === active && SC.currentChapter() === 'improve',
-      renderBar(mode, changeMode, screenId) {
-        const nav = h('div', {id:'queue-tabs',role:'tablist','aria-label':'Improvement queue'}, tabs.map(([name,label], i) => {
-          const progress = SC.progressOf(detail, name);
-          return h('button', {type:'button', role:'tab', tabindex:name === tab ? '0' : '-1',
-            'aria-selected':String(name === tab), 'aria-controls':'coach', 'data-fk':`queue-${name}`, onclick:() => chooseTab(name),
-            onkeydown:event => {
-              const offset = {ArrowRight:1, ArrowLeft:-1, Home:-i, End:2-i}[event.key];
-              if (offset == null) return;
-              event.preventDefault(); const next = tabs[(i + offset + 3) % 3][0]; chooseTab(next);
-              document.querySelectorAll('#queue-tabs [role=tab]')[(i + offset + 3) % 3]?.focus();
-            }}, label, ' ', h('span', {class:'tab-progress'}, progress.total ? SC.progressText(progress) : 'none'));
-        }));
-        const progress = h('p', {id:'queue-progress', class:'meta', 'aria-live':'polite'}, SC.progressText(SC.progressAll(detail)));
-        return [h('div', {class:'queue-navigation'}, nav, progress), SC.renderEnergy(detail, pageId => window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:pageId})), {compact:true,selected:screenId}),
-          h('div', {class:'queue-tools'}, h('button', {type:'button',id:'all-screens',onclick:() => SC.openScreens(detail)}, 'All screens'),
-            h('div', {class:'seg',role:'group','aria-label':'Preview wording'}, [['current','Original'],['fixes','With changes']].map(([value,label]) =>
-              h('button', {type:'button','aria-pressed':String(mode === value),'data-fk':`queue-mode-${value}`,onclick:() => changeMode(value)},label))))];
+      mark(id, kind) { overlay.set(id, kind); },
+      /** The server has spoken (or the save failed): the overlay steps aside, except on the sample, where it is the record. */
+      settle(id, {force = false} = {}) { if (!persist || force) overlay.delete(id); },
+      /** An undo: open again. Server pages just drop the overlay; the sample keeps it as the record. */
+      reopen(id) { if (persist) overlay.set(id, 'open'); else overlay.delete(id); },
+      fail(id, message, retry) { failure = {id, message, retry}; redraw(); },
+      clearFailure() { failure = null; },
+      renderBar(mode, changeMode) {
+        const {done, total} = progress(), counts = Object.fromEntries(SC.FIX_STATES.map(state =>
+          [state, all().filter(entry => entry.state === state && isOpen(entry)).length]));
+        const changes = SC.myChangesOf(detail).count;
+        return [h('div', {class:'fix-progress'}, SC.progressRing(done, total),
+            h('p', {id:'queue-progress', 'aria-live':'polite'}, SC.progressText({done, total}))),
+          SC.fixFilters({counts, selected:filter, onPick:api.setFilter}),
+          h('div', {class:'queue-tools'},
+            h('button', {type:'button', id:'fix-list-open', class:'btn-pill', onclick:() => SC.openFixDrawer(api)}, SC.icon('list', {size:16}), 'Fix list'),
+            h('button', {type:'button', id:'all-screens', class:'btn-pill', onclick:() => SC.openScreens(detail, api)}, 'All screens'),
+            h('div', {class:'seg', role:'group', 'aria-label':'Preview wording'},
+              h('button', {type:'button', 'aria-pressed':String(mode === 'current'), 'data-fk':'queue-mode-current', onclick:() => changeMode('current')}, 'Original'),
+              h('button', {type:'button', 'aria-pressed':String(mode === 'fixes'), 'data-fk':'queue-mode-fixes', disabled:changes === 0,
+                'aria-describedby':changes === 0 ? 'mode-why' : null, title:changes === 0 ? 'Add a change to see it on the phone.' : null,
+                onclick:() => changeMode('fixes')}, `With my changes (${changes})`),
+              changes === 0 && h('span', {id:'mode-why', class:'sr-only'}, 'Add a change to see it on the phone.')))];
+      },
+      renderList(onPicked = () => {}) {
+        return SC.fixList({entries:visible(), active, isOpen, handledKind, onSelect:entry => { api.select(entry); onPicked(); }});
       },
       render(ctx) {
-        if (api.item) return SC.renderImproveItem(api.item, {...ctx, detail, entries:entries(api.item), onAdvance:api.advance, isActive:api.isActive});
-        const scoped = filter.page_id || Object.hasOwn(filter, 'fingerprints');
-        const pageId = filter.page_id || ctx.pageId;
-        const pageFindings = detail.review.findings.filter(f => onPage(f, pageId));
-        const pageItems = allItems().filter(item => related(item).some(f => onPage(f, pageId)));
-        const filteredItems = allItems().filter(allowed);
-        let heading = 'Nothing more in this view';
-        let explanation = 'Other recommendations may be outside this category or already handled.';
-        if (scoped && pageFindings.length === 0) {
-          heading = 'Nothing to fix on this screen';
-          explanation = 'Our checks found nothing here. Use the buttons below to keep going.';
-        } else if (scoped && pageItems.length && pageItems.every(decided) &&
-            pageFindings.every(f => pageItems.some(item => related(item).includes(f)))) {
-          heading = 'All recommendations for this screen handled';
-          explanation = 'These are saved decisions, not verified fixes. Recheck after making changes in RedJade.';
-        } else if (scoped) {
-          explanation = filteredItems.length
-            ? 'Recommendations remain outside this category or have been skipped in this view.'
-            : 'Recommendations may remain outside this filter. Show all recommendations to review them.';
-        } else if (detail.plan[tab].length && detail.plan[tab].every(decided)) {
-          heading = tab === 'must_fix' ? `All ${detail.plan.must_fix.length} must-fixes handled`
-            : 'All recommendations in this category handled';
-          explanation = 'These are saved decisions, not verified fixes. Recheck after making changes in RedJade.';
-        } else if (!detail.plan[tab].length) {
-          heading = tab === 'must_fix' ? 'No must-fixes in this review' : 'No recommendations in this category';
-          explanation = 'Other categories may still contain recommendations.';
-        }
-        return h('section', {class:'screen-clear'}, h('h3', {id:'coach-h',tabindex:'-1'}, heading),
-          h('p', null, explanation),
-          scoped && h('button', {type:'button',class:'btn',onclick:() => {
-            filter = {};
-            const hit = tabs.flatMap(([name]) => detail.plan[name].map(item => ({name,item})))
-              .find(({item}) => !decided(item));
-            if (hit) tab = hit.name;
-            show(hit?.item, true);
-          }}, 'Show all recommendations'),
-          h('button', {type:'button',class:'btn btn-primary',onclick:() => chooseTab('quick_wins')}, 'Continue to quick wins'),
-          h('button', {type:'button',class:'btn-text',onclick:() => SC.goChapter('share')}, 'Go to Sign off'));
+        if (view === 'card' && api.active) return SC.renderImproveItem(resolve(api.active), {...ctx, queue:api, detail, onAdvance:api.advance, isActive:api.isActive});
+        const target = view === 'screen-empty' ? nextOpen(place) || firstOpen(all()) : null;
+        return view === 'complete' ? SC.renderCompletion(api, ctx) : SC.renderNothingHere(api, target);
       },
     };
     return api;

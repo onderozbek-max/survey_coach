@@ -25,25 +25,11 @@
               (item.new_wording || item.after_text) && h('blockquote', null, `Now: ${item.new_wording || item.after_text}`))))) : null))
         : h('p', {class:'note'}, detail.version > 1 ? 'Detailed version comparison is not available for this review. Nothing is claimed fixed.' : 'First version: choose changes, apply them in RedJade, then choose Check updated survey.')];
   };
-  SC.changeSheetText = detail => {
-    const entries = detail.review.findings.filter(f => {
-      const d = SC.issueDecision(f, detail);
-      return (d?.action === 'pick' && d.picked_text) || SC.acceptedRisk(f, detail);
-    }).sort((a,b) => {
-      const x = SC.issueLocation(a, detail.snapshot), y = SC.issueLocation(b, detail.snapshot);
-      return x.screen - y.screen || (x.question || 0) - (y.question || 0);
-    });
-    return entries.map(f => {
-      const d = SC.issueDecision(f, detail), place = SC.issueLocation(f, detail.snapshot);
-      return `${place.label} · ${place.target}\n${f.headline}\n${d.action === 'pick'
-        ? f.edit_kind === 'add_answer' ? `Keep question: ${f.current_text}\nAdd answer option: ${d.picked_text}\n${f.explanation}` : `Find: ${f.current_text || 'No exact source text; locate using the guidance above'}\nReplace with: ${d.picked_text}`
-        : `Keep as is: ${d.reason}\nAccepted risk, not a verified fix.`}`;
-    }).join('\n\n');
-  };
+  /** The change sheet is the server's My changes text: one writer, so the tray, Copy all and this sheet cannot disagree. */
   SC.renderChangeSheet = detail => {
-    const text = SC.changeSheetText(detail);
-    return h('details', {class:'change-sheet review-details'}, h('summary', null, 'Change sheet · chosen rewrites & kept reasons'),
-      h('p', {class:'note'}, 'Apply these in RedJade. Chosen does not mean fixed; the next version provides fresh evidence.'),
-      text ? h('pre', {tabindex:'0'}, text) : h('p', null, 'No explicit choices yet. Recommended previews are not included.'));
+    const text = SC.myChangesOf(detail).copy_all_text;
+    return h('details', {class:'change-sheet review-details'}, h('summary', null, 'Change sheet · changes to make in RedJade'),
+      h('p', {class:'note'}, 'Apply these in RedJade. Adding a change does not fix it; the next version provides fresh evidence.'),
+      text ? h('pre', {tabindex:'0'}, text) : h('p', null, 'Nothing added yet.'));
   };
 })();

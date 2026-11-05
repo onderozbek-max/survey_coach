@@ -1,29 +1,52 @@
-/* The All screens drawer navigates canonical labels, never edits decisions. */
+/* The two drawers: All screens (jump to a screen) and Fix list (the list, below 1024px). Native modal dialogs give both
+   a focus trap and Escape. Flags come from the same queue items as the list, the tiles and the progress ring. */
 (() => {
   'use strict';
   const SC = window.SC, {h} = SC;
-  SC.renderIssueList = () => []; // Workflow refreshes decisions; drawer reads current detail on open.
-  SC.openScreens = detail => {
-    document.getElementById('screen-drawer')?.remove();
+  SC.renderIssueList = () => []; // Workflow refreshes decisions; the drawers read the queue when they open.
+
+  /** A modal drawer with a real icon Close button. `build(close)` returns the body; call close(false) to skip returning focus. */
+  const drawer = (id, title, build) => {
+    document.getElementById(id)?.remove();
     const opener = document.activeElement;
-    const search = h('input', {type:'search','aria-label':'Search screens',placeholder:'Q label or topic words'});
-    const list = h('ul', {class:'screen-list'});
-    const dialog = h('dialog', {id:'screen-drawer','aria-labelledby':'screens-heading'},
-      h('header', null, h('h2', {id:'screens-heading'}, 'All screens'),
-        h('button', {type:'button','aria-label':'Close all screens',onclick:() => dialog.close()},'Close')), search, list);
-    const render = () => SC.mount(list, detail.screens.filter(screen =>
-      `${screen.name} ${screen.topic}`.toLowerCase().includes(search.value.trim().toLowerCase())).map(screen => {
-      const progress = SC.progressOnScreen(detail, screen.page_id), open = progress.done < progress.total;
-      const summary = progress.total ? SC.progressText(progress) : 'No items';
-      return h('li', null, h('button', {type:'button',class:'screen-row',onclick:() => {
-        dialog.close(); window.dispatchEvent(new CustomEvent('surveycoach-screen',{detail:screen.page_id}));
-        document.querySelector('#coach h3')?.focus({preventScroll:true});
-      }}, h('span', {class:`screen-dot ${progress.openMust ? 'must' : ''}`,'aria-hidden':'true'},SC.icon(open ? 'alert' : 'check')),
-        h('strong', null,screen.name), h('span', null,screen.topic),
-        h('span', {class:'sr-only'}, `${summary}${progress.openMust ? ', includes must-fix' : ''}`)));
-    }));
-    search.addEventListener('input', render);
-    dialog.addEventListener('close', () => opener?.focus({preventScroll:true}));
-    document.body.append(dialog); render(); dialog.showModal(); search.focus();
+    let restore = true;
+    const dialog = h('dialog', {id, class:'side-drawer', 'aria-labelledby':`${id}-h`});
+    const close = (returnFocus = true) => { restore = returnFocus; dialog.close(); };
+    SC.mount(dialog, h('header', null, h('h2', {id:`${id}-h`}, title),
+      h('button', {type:'button', class:'icon-btn', 'aria-label':`Close ${title.toLowerCase()}`, onclick:() => close()}, SC.icon('close', {size:20}))), build(close));
+    dialog.addEventListener('close', () => { if (restore) opener?.focus({preventScroll:true}); });
+    document.body.append(dialog);
+    dialog.showModal();
+    return dialog;
   };
+
+  /** Icon and words for one screen, from the queue items that touch it. Never colour alone. */
+  const flag = (queue, pageId) => {
+    const here = queue.all().filter(entry => entry.pages.includes(pageId)), open = here.filter(queue.isOpen);
+    if (open.length) {
+      const worst = SC.FIX_STATES.find(state => open.some(entry => entry.state === state));
+      return SC.stateChip(worst, {label:`${SC.STATES[worst].label}${open.length > 1 ? ` · ${open.length}` : ''}`});
+    }
+    return SC.stateChip('looks_good', {label:here.length ? 'Done' : 'Nothing to fix'});
+  };
+
+  SC.openScreens = (detail, queue) => {
+    const search = h('input', {type:'search', id:'screen-search', autocomplete:'off'});
+    const list = h('ul', {class:'screen-list'});
+    const dialog = drawer('screen-drawer', 'All screens', close => {
+      const render = () => SC.mount(list, detail.screens.filter(screen =>
+        `${screen.name} ${screen.topic}`.toLowerCase().includes(search.value.trim().toLowerCase())).map(screen =>
+        h('li', null, h('button', {type:'button', class:'screen-row', onclick:() => {
+          close(false); window.dispatchEvent(new CustomEvent('surveycoach-screen', {detail:screen.page_id}));
+          document.querySelector('#coach h3')?.focus({preventScroll:true});
+        }}, h('strong', null, screen.name), h('span', {class:'screen-topic'}, screen.topic), flag(queue, screen.page_id)))));
+      search.addEventListener('input', render);
+      render();
+      return [h('label', {for:'screen-search', class:'drawer-label'}, 'Search screens'), search, list];
+    });
+    search.focus();
+    return dialog;
+  };
+
+  SC.openFixDrawer = queue => drawer('fix-drawer', 'Fix list', close => queue.renderList(() => close(false)));
 })();

@@ -25,5 +25,4 @@ body:not(.review-studio) #strip { grid-column:1 / -1; }
   .sample-shell .pick { grid-row:1; }
   .sample-shell .ring-block, .sample-shell .head-text { grid-row:2; }
   .sample-shell .topbar { padding:4px 12px; }
-  .review-studio .studio, .review-studio .studio:has(.comparing), body:not(.review-studio) #chapter-improve .studio { grid-template-columns:minmax(0,1fr); grid-template-areas:'stage' 'coach'; }
 }
