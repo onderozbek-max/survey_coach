@@ -1,5 +1,6 @@
 """Local Studio API. Start with create_app(db_path, provider=None)."""
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Request
@@ -87,8 +88,13 @@ class StudioStaticFiles(StaticFiles):
         return response
 
 
-def create_app(db_path, provider=None) -> FastAPI:
+def create_app(db_path, provider=None, *, developer: bool | None = None) -> FastAPI:
+    """`developer` shows the raw snapshot import in the page; it defaults to SURVEYCOACH_DEVELOPER=1.
+
+    The import API itself stays (tests and tools use it); the flag only tells the page whether to offer it.
+    """
     repository = Repository(db_path)
+    developer = os.environ.get("SURVEYCOACH_DEVELOPER") == "1" if developer is None else developer
 
     @asynccontextmanager
     async def lifespan(app):
@@ -111,11 +117,12 @@ def create_app(db_path, provider=None) -> FastAPI:
 
     @app.get("/environment.js")
     def environment():
-        return Response("window.SURVEYCOACH_LOCAL = true;", media_type="text/javascript", headers={"Cache-Control": "no-store"})
+        flags = "window.SURVEYCOACH_LOCAL = true;" + (" window.SURVEYCOACH_DEVELOPER = true;" if developer else "")
+        return Response(flags, media_type="text/javascript", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/metadata")
     def get_metadata():
-        return metadata()
+        return {**metadata(), "developer": developer}
 
     @app.get("/api/surveys")
     def list_surveys():

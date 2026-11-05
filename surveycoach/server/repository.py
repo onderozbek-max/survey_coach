@@ -23,6 +23,7 @@ from surveycoach.snapshot import SurveySnapshot, SurveyType
 from surveycoach.server.rounds import (canonical_source_url, change_sheet, compare_rounds,
                                        presentation, project_review, valid_decisions)
 from surveycoach.server.signoff import build_record, clean_name, now_iso, signoff_state, utc_iso
+from surveycoach.server.slack import share_payload
 from surveycoach.server.version_delta import build_version_delta
 
 SCHEMA = """
@@ -334,6 +335,7 @@ class Repository:
         data["change_sheet"] = change_sheet(data)
         data["version_delta"] = build_version_delta(data["round_changes"], version)
         data["signoff"] = signoff_state(data, self._signoff_rows(survey_id))
+        data["share"] = share_payload(data)
         return data
 
     @staticmethod
