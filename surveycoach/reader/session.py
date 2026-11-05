@@ -15,6 +15,7 @@ from .definition import apply_definition
 from .extract import extract_page, fingerprint
 from .models import Capture, Coverage, ReadResult
 from .naming import resolve_title
+from .survey_type import apply_detection
 from .observe import OBSERVE
 from .progression import advance
 from .requirements import UnmetRequirement
@@ -252,6 +253,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     definition_title = result.snapshot.title if transport.definition is not None else ""
     result.snapshot.title = resolve_title(result.snapshot, definition_title=definition_title,
                                           document_title=document_title)
+    apply_detection(result.snapshot)
     coverage.visual_media_verified = result.snapshot.all_pages_rendered
     coverage.warnings.append(f"Read stopped: {coverage.stop_reason}. " + (
         "Definition wording is available; only captures have rendered evidence."

@@ -11,6 +11,7 @@ from uuid import uuid4
 from pydantic import TypeAdapter
 
 from surveycoach.reader.naming import is_generic_title, presentable_title
+from surveycoach.reader.survey_type import detect_survey_type
 from surveycoach.rubric import load_rubric
 from surveycoach.server.present import enrich, present_findings
 from surveycoach.recommendations import guard_recommendation
@@ -180,7 +181,8 @@ class Repository:
             detail = self.detail(item["id"], item["version"])
             signals = detail.get("overview", {}).get("signals", [])
             item.update({key: detail[key] for key in ("title", "title_confirmed", "title_generic",
-                                                      "survey_type", "survey_type_chosen")})
+                                                      "survey_type", "survey_type_chosen",
+                                                      "survey_type_detection")})
             item.update(signals=signals, quality=detail["quality"], job=detail.get("job"),
                         readiness=None, must_fix=None, score_checked=None)
             review = detail.get("review") or {}
@@ -230,6 +232,8 @@ class Repository:
             data["title_generic"] = is_generic_title(data["title"])
             data["survey_type"] = metadata["survey_type"] or data["snapshot"]["survey_type"]
             data["survey_type_chosen"] = bool(metadata["survey_type"])
+            # A suggestion for the UI to confirm; it never counts as the user's choice.
+            data["survey_type_detection"] = detect_survey_type(stored).model_dump(mode="json")
             data["snapshot_title"] = row["title"]
             data["coverage"] = self._coverage(db, survey_id, version)
             return data
