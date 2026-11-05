@@ -61,9 +61,21 @@ def _words(text: str) -> int:
     return len(text.split())
 
 
+def _answer_labels(question: Question) -> list[str]:
+    """Rendered answer/row copy; scale endpoints may repeat full scale metadata."""
+    labels = [o.label for o in question.options]
+    scale_labels = []
+    if question.scale:
+        scale_labels = list(question.scale.labels)
+        for endpoint in (question.scale.low_label, question.scale.high_label):
+            if endpoint and endpoint not in scale_labels:
+                scale_labels.append(endpoint)
+    return labels + question.rows + [label for label in scale_labels if label not in labels]
+
+
 def _question_seconds(question: Question, c: TimingConstants) -> float:
     media = len(question.media) + sum(1 for o in question.options if o.media)
-    reading = _words(question.text) + _words(question.help_text) + sum(_words(o.label) for o in question.options)
+    reading = sum(_words(text) for text in [question.text, question.help_text, *_answer_labels(question)])
     return reading * c.seconds_per_word + c.interaction(question) + media * c.image_seconds
 
 
@@ -93,7 +105,7 @@ def _unrepresented_text(
 
 def _page_seconds(page: Page, c: TimingConstants) -> float:
     represented = [field for q in page.questions for field in (q.text, q.help_text)]
-    options = [o.label for q in page.questions for o in q.options]
+    options = [label for q in page.questions for label in _answer_labels(q)]
     intro, outside_intro = _unrepresented_text(page.intro_text, represented)
     intro, options_outside_intro = _unrepresented_text(intro, options, whole_lines=True)
     raw, missing_intro = _unrepresented_text(page.text, [page.intro_text])

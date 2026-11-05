@@ -133,10 +133,13 @@ def fair_image_choices(ctx: ReviewContext) -> CheckResult:
         if any(not o.label.strip() for o in pictured):
             problems.append(Problem("Image option has no label", "Some options have no label.", "Give every image a short label."))
         if len(pictured) > MAX_IMAGE_CHOICES:
-            problems.append(Problem(f"{len(pictured)} image options; use {MAX_IMAGE_CHOICES}", f"{len(pictured)} image options.",
-                                    f"Use {MAX_IMAGE_CHOICES} or fewer."))
+            problems.append(Problem(f"{len(pictured)} image options; review the phone layout", f"{len(pictured)} image options.",
+                                    f"The configured {MAX_IMAGE_CHOICES}-image threshold is a layout-review cue, not a research maximum. "
+                                    "Preview the actual question on a phone; check that every image is readable and every answer reachable. "
+                                    "Keep distinct answers and preserve intended order, randomization, exclusivity and routing. "
+                                    "Ask the study owner before changing the layout; do not delete answers merely to meet the threshold."))
         failing += bool(problems)
-        findings += [problem_finding("7.5", pr, "Unequal images bias the result: the prettiest photo wins.",
+        findings += [problem_finding("7.5", pr, "Unequal or crowded image presentation can influence comparisons; check the actual phone layout before changing research content.",
                                      question_id=q.id) for pr in problems]
     return result("7.5", share_fraction(failing, len(questions)), *findings)
 

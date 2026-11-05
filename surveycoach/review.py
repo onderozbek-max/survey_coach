@@ -70,7 +70,7 @@ def run_review(snapshot: SurveySnapshot, rubric: Rubric | None = None, kept_bloc
         ai_results, ai = run_judge(snapshot, rubric, provider, cache, known=known)
         results = _with_ai(results, ai_results)
     unchecked = [c.title for c in rubric.criteria if c.active
-                 and ((r := results.get(c.id)) is None or (r.applies and r.fraction is None))]
+                 and ((r := results.get(c.id)) is None or not r.assessed or (r.applies and r.fraction is None))]
     return Review(
         survey_title=snapshot.title, content_hash=snapshot.content_hash, rubric_version=rubric.version,
         scorecard=score(rubric, results, kept_blockers), findings=_merge(results, rubric), unchecked=unchecked,

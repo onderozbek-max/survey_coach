@@ -106,9 +106,9 @@ def scope(detail):
     coverage = detail.get("coverage")
     results = review.get("results")
     applicable = {cid: result for cid, result in (results or {}).items()
-                  if result.get("applies", True)}
+                  if not (result.get("assessed") is True and result.get("applies") is False)}
     checked = {cid for cid, result in applicable.items()
-               if result.get("assessed", True)
+               if result.get("assessed") is True and result.get("applies") is True
                and (result.get("fraction") is not None or cid.startswith("B"))}
     from surveycoach.rubric import load_rubric
     rubric = load_rubric()
@@ -328,7 +328,7 @@ def project_review(snapshot, review):
     projected["results"] = {cid: result.model_dump(mode="json") for cid, result in results.items()}
     projected["unchecked"] = [c.title for c in rubric.criteria if c.active
                               and ((r := results.get(c.id)) is None
-                                   or (r.applies and (not r.assessed or r.fraction is None)))]
+                                   or not r.assessed or (r.applies and r.fraction is None))]
     projected["checked_criteria"] = sorted(
         cid for cid, result in results.items()
         if result.applies and result.assessed and (result.fraction is not None or cid.startswith("B")))

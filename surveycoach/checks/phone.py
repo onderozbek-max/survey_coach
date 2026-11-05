@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 
 from surveycoach.checks.answers import standard_scale
-from surveycoach.checks.images import all_media
 from surveycoach.checks.registry import (Problem, ReviewContext, check, clip, problem_finding, result,
                                          share_fraction)
 from surveycoach.checks.text import plural, swap_word
@@ -192,8 +191,7 @@ def stays_put(ctx: ReviewContext) -> CheckResult:
             failing += 1
             cut = Problem("Question text is cut off", q.text[-60:], "Show the full question text.", current=q.text)
             findings.append(_on_question("6.5", q, cut, "Cut-off text leaves members guessing what is being asked."))
-    # A picture that did not load is missing content. The must-fix (B7) already reports it, so it only costs credit here.
-    media = all_media(ctx)
-    failing += sum(not ref.media.loaded for ref in media)
-    total = len(ctx.snapshot.pages) + len(_questions(ctx)) + len(media)
+    # Reader-only image failures are unverified capture evidence, owned by B7.
+    # They neither deduct layout credit nor dilute observed layout problems.
+    total = len(ctx.snapshot.pages) + len(_questions(ctx))
     return result("6.5", share_fraction(failing, total), *findings)

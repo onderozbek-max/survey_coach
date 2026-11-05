@@ -160,7 +160,7 @@ def test_scope_counts_assessed_checks_not_points_or_findings_without_mutation():
     # All other rubric checks are explicitly non-applicable in this tiny case.
     rubric = load_rubric()
     for check in [*(c for c in rubric.criteria if c.active), *rubric.blockers]:
-        data['review']['results'].setdefault(check.id, {'applies': False})
+        data['review']['results'].setdefault(check.id, {'applies': False, 'assessed': True})
     before = deepcopy(data)
     actual = scope(data)
     assert actual['checked_count'] == 2  # Failed assessed checks still count as checked.

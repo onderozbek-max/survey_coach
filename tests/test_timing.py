@@ -24,7 +24,9 @@ def test_grid_costs_per_row():
     grid = lambda rows: Question(id="g", text="Rate", kind="grid_single", rows=[f"r{i}" for i in range(rows)])
     four = estimate(snapshot_of(grid(4))).total_seconds
     eight = estimate(snapshot_of(grid(8))).total_seconds
-    assert round(eight - four, 1) == round(4 * TimingConstants().grid_row_seconds, 1)
+    constants = TimingConstants()
+    # Each extra row needs both label reading and an answer interaction.
+    assert round(eight - four, 1) == round(4 * (constants.grid_row_seconds + constants.seconds_per_word), 1)
 
 
 def test_open_text_costs_more_than_a_choice():

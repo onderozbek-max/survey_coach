@@ -45,7 +45,7 @@ def score(rubric: Rubric, results: dict[str, CheckResult], kept_blockers: frozen
         if not criterion.active:
             continue
         result = results.get(criterion.id)
-        if result is not None and not result.applies:
+        if result is not None and result.assessed and not result.applies:
             earned[criterion.id] = 0.0
             not_applicable += criterion.points
         elif result is None or result.fraction is None or not result.assessed:
@@ -68,7 +68,7 @@ def score(rubric: Rubric, results: dict[str, CheckResult], kept_blockers: frozen
     # Missing wording/story/flow judgments are incomplete evidence, not a passing score.
     incomplete = any(
         c.active and c.id not in {"7.1", "7.4"}
-        and ((r := results.get(c.id)) is None or (r.applies and r.fraction is None))
+        and ((r := results.get(c.id)) is None or not r.assessed or (r.applies and r.fraction is None))
         for c in rubric.criteria
     )
     flagged = [b.id for b in rubric.blockers if _is_failed(results.get(b.id))]

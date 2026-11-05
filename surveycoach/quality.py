@@ -21,11 +21,11 @@ def build_quality(review: dict, rubric: Rubric) -> dict:
             if not criterion.active or criterion.dimension != dimension.id:
                 continue
             result = results.get(criterion.id) or {}
-            if result.get("applies", True) is False:
+            if result.get("assessed") is True and result.get("applies") is False:
                 continue
             applicable += criterion.points
             fraction = result.get("fraction")
-            if result.get("assessed", True) and fraction is not None:
+            if result.get("assessed") is True and result.get("applies") is True and fraction is not None:
                 assessed += criterion.points
                 earned += criterion.points * fraction
         dimensions.append(dict(id=dimension.id, name=dimension.name, earned_points=earned,
@@ -38,7 +38,8 @@ def build_quality(review: dict, rubric: Rubric) -> dict:
     flagged = unchecked = 0
     for blocker in rubric.blockers:
         result = results.get(blocker.id)
-        if result is None or (result.get("applies", True) and not result.get("assessed", True)):
+        if (result is None or result.get("assessed") is not True
+                or not isinstance(result.get("applies"), bool)):
             unchecked += 1
         if result and any(f.get("severity") == "must_fix" for f in result.get("findings", [])):
             flagged += 1
