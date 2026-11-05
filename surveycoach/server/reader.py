@@ -34,7 +34,6 @@ class ReadRequest(BaseModel):
 def router(repository, app):
     routes = APIRouter()
     with repository.transaction() as db:
-        db.execute("CREATE TABLE IF NOT EXISTS captures (survey_id TEXT, version INTEGER, position INTEGER, page_id TEXT, path TEXT, PRIMARY KEY(survey_id,version,position))")
         db.execute("CREATE TABLE IF NOT EXISTS reader_jobs (id TEXT PRIMARY KEY, status TEXT NOT NULL, "
                    "survey_id TEXT, version INTEGER, error TEXT)")
         columns = {row[1] for row in db.execute('PRAGMA table_info(reader_jobs)')}

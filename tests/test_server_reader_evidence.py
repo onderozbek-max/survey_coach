@@ -211,3 +211,21 @@ def test_evidence_replacement_never_touches_user_decisions(client, app, tmp_path
     run(client, app, read_result(tmp_path, captures=2, tag="second"))      # replaced
     run(client, app, read_result(tmp_path, captures=0, stop="reader_error", tag="third"))  # retained
     assert [tuple(row) for row in db.execute("SELECT * FROM decisions")] == before
+
+
+# ---- The UI never has to guess capture indices -------------------------------------------------
+def test_detail_lists_the_capture_manifest_even_when_the_reader_claimed_more(client, app, tmp_path):
+    snap = snapshot(intro(), page(1, question()), thank_you())
+    job = run(client, app, read_result(tmp_path, snap, captures=2, claimed=5))
+    manifest = client.get(f"/api/surveys/{job['survey_id']}").json()["captures"]
+    assert [item["position"] for item in manifest] == [0, 1]
+    assert [item["page_id"] for item in manifest] == [snap.pages[0].id, snap.pages[1].id]
+
+
+def test_detail_manifest_is_empty_without_captures_and_follows_retention(client, app, tmp_path):
+    job = run(client, app, read_result(tmp_path, captures=0, stop="reader_error"))
+    assert client.get(f"/api/surveys/{job['survey_id']}").json()["captures"] == []
+    run(client, app, read_result(tmp_path, captures=2, tag="more"))
+    assert len(client.get(f"/api/surveys/{job['survey_id']}").json()["captures"]) == 2
+    run(client, app, read_result(tmp_path, captures=1, tag="less"))
+    assert len(client.get(f"/api/surveys/{job['survey_id']}").json()["captures"]) == 2   # retained

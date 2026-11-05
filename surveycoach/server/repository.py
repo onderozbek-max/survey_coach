@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS coverage (
     PRIMARY KEY (survey_id, version),
     FOREIGN KEY (survey_id, version) REFERENCES versions(survey_id, version)
 );
+CREATE TABLE IF NOT EXISTS captures (
+    survey_id TEXT, version INTEGER, position INTEGER, page_id TEXT, path TEXT,
+    PRIMARY KEY (survey_id, version, position)
+);
 CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY, survey_id TEXT NOT NULL, version INTEGER NOT NULL,
     ai_requested INTEGER NOT NULL, status TEXT NOT NULL, error TEXT,
@@ -236,6 +240,10 @@ class Repository:
             data["survey_type_detection"] = detect_survey_type(stored).model_dump(mode="json")
             data["snapshot_title"] = row["title"]
             data["coverage"] = self._coverage(db, survey_id, version)
+            # What can actually be fetched; coverage counters are claims, this is the evidence.
+            data["captures"] = [dict(position=c["position"], page_id=c["page_id"]) for c in db.execute(
+                "SELECT position,page_id FROM captures WHERE survey_id=? AND version=? ORDER BY position",
+                (survey_id, version))]
             return data
 
     def _project_detail(self, data, rubric=None):
