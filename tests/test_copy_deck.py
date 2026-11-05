@@ -13,9 +13,11 @@ from surveycoach.server.report import summary_packet
 ROOT = Path(__file__).resolve().parents[1]
 
 
+# "fix before launch", "check again" and "almost ready" left this list on purpose: the 2026-11-04 product design
+# makes the first two canonical (state name, header button) and the server's verdict headline uses the third.
 @pytest.mark.parametrize("phrase", [
-    r"fix before launch", r"worth a look", r"['\"](?-i:Polish)['\"]|\} polish", r"keep mine",
-    r"check again", r"share for sign-off", r"ready to launch", r"almost ready",
+    r"worth a look", r"['\"](?-i:Polish)['\"]|\} polish", r"keep mine",
+    r"share for sign-off", r"ready to launch",
     r"\bRound [{$]", r"\b(?:first|previous) round\b",
     r"min on the captured path", r"scope-limited review · not launch approval",
 ])
