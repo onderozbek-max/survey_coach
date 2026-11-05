@@ -76,6 +76,45 @@ def actual_wording(place, finding):
     return next((v for v in values if v and normalized(v) == normalized(current)), place["wording"])
 
 
+SCREEN_TEXT, QUESTION_TEXT, HELP_TEXT, ANSWER, SCALE_LABEL, NEW_ANSWER = (
+    "screen_text", "question_text", "help_text", "answer", "scale_label", "new_answer")
+FIELD_ORDER = (SCREEN_TEXT, QUESTION_TEXT, HELP_TEXT, ANSWER, SCALE_LABEL, NEW_ANSWER)   # the order RedJade shows fields
+
+
+def field_part(place, wording):
+    """Which editable field of `place` holds `wording`: (field, 1-based answer number or 0).
+
+    The one rule behind a finding's field location, the change sheet's target and the My changes order.
+    """
+    question = (place or {}).get("question")
+    if question is None:
+        return SCREEN_TEXT, 0
+    scale = question.get("scale") or {}
+    part = QUESTION_TEXT
+    if wording and wording == question.get("help_text"):
+        part = HELP_TEXT
+    elif wording in [v for v in (scale.get("low_label"), scale.get("high_label"), *scale.get("labels", [])) if v]:
+        part = SCALE_LABEL
+    for index, option in enumerate(question.get("options", []), 1):
+        if wording == option["label"]:
+            return ANSWER, index
+    return part, 0
+
+
+def field_location(finding: dict, place: dict | None, screens: list[dict]) -> str | None:
+    """Where in RedJade to look, e.g. "RedJade > Q1 > Question text". None when it can't be pinned down."""
+    if place is None:
+        return None
+    screen = next(s for s in screens if s["page_id"] == place["page_id"])
+    question = place.get("question")
+    if question is None:
+        return f"RedJade > {screen['name']} > {'Welcome text' if screen['name'] == 'Welcome' else 'Screen text'}"
+    label = next((q["label"] for q in screen["questions"] if q["id"] == question["id"]), screen["name"])
+    field, number = field_part(place, actual_wording(place, finding))
+    part = {QUESTION_TEXT: "Question text", HELP_TEXT: "Help text", SCALE_LABEL: "Scale label"}.get(field) or f"Answer {number}"
+    return f"RedJade > {label} > {part}"
+
+
 def same_location(old, new, decision):
     if old["position"] != new["position"] or old["slot"] != new["slot"] or old["context"] != new["context"]:
         return False
@@ -241,13 +280,9 @@ def decided_findings(detail, actions):
 def change_sheet(detail):
     lines = []
     for finding, decision, place, wording in decided_findings(detail, {"pick", "keep"}):
-        question = (place or {}).get("question", {})
-        target = "Question" if question else "Screen text"
-        for index, option in enumerate(question.get("options", []), 1):
-            if wording == option["label"]:
-                target = f"Answer {index}"
-        if wording in [v for v in (question.get("scale") or {}).values() if isinstance(v, str)]:
-            target = "Scale label"
+        part, number = field_part(place, wording)
+        target = {SCREEN_TEXT: "Screen text", QUESTION_TEXT: "Question", HELP_TEXT: "Help text",
+                  SCALE_LABEL: "Scale label"}.get(part) or f"Answer {number}"
         if finding.get('edit_kind') == 'add_answer':
             target = 'New answer option'
         lines.append({"fingerprint": finding["fingerprint"], 'edit_kind':finding.get('edit_kind','rewrite'),

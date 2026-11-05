@@ -230,3 +230,16 @@ def test_the_queue_is_served_over_http_and_follows_a_decision(tmp_path):
         after = client.get(f"/api/surveys/{created['id']}/versions/1").json()["queue"]
     assert after["counts"]["done"] == first["counts"]["done"] + 1
     assert after["first_open_id"] == first["items"][1]["id"]
+
+
+def test_done_and_keep_close_items_exactly_like_use_so_the_verdict_can_be_ready_but_flags_unverified(repo):
+    survey_id = saved(repo)
+    for index, item in enumerate(queue_of(repo, survey_id)["items"]):
+        body = {"action": "done"} if index % 2 else {"action": "keep", "keep_reason": "intentional"}
+        for fingerprint in item["fingerprints"]:
+            repo.save_decision(survey_id, 1, fingerprint, body)
+    detail = repo.detail(survey_id)
+    assert detail["overview"]["verdict"]["kind"] == "ready_for_signoff"
+    assert detail["queue"]["counts"]["open"] == 0 and detail["queue"]["first_open_id"] is None
+    assert detail["queue"]["counts"]["unverified"] == detail["queue"]["counts"]["by_kind"]["done"] > 0
+    check_counts(detail)

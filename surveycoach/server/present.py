@@ -11,8 +11,9 @@ from surveycoach.labels import screen_labels
 from surveycoach.quality import build_quality
 from surveycoach.recommendations import with_action
 from surveycoach.server.extras import display_type
+from surveycoach.server.my_changes import build_my_changes
 from surveycoach.server.plan import build_plan
-from surveycoach.server.rounds import actual_wording, locate, locations, presentation
+from surveycoach.server.rounds import field_location, locate, locations, presentation
 from surveycoach.signals import build_overview
 from surveycoach.snapshot import SurveySnapshot
 from surveycoach.timing import TimingConstants, reading_basis
@@ -59,28 +60,6 @@ def humanize(text: str | None, titles: dict[str, str]) -> tuple[str, list[str]]:
             kept.append(sentence)
     prose = "".join(kept).strip() if covered else text
     return prose, list(dict.fromkeys(covered))
-
-
-def field_location(finding: dict, place: dict | None, screens: list[dict]) -> str | None:
-    """Where in RedJade to look, e.g. "RedJade > Q1 > Question text". None when it can't be pinned down."""
-    if place is None:
-        return None
-    screen = next(s for s in screens if s["page_id"] == place["page_id"])
-    question = place.get("question")
-    if question is None:
-        return f"RedJade > {screen['name']} > {'Welcome text' if screen['name'] == 'Welcome' else 'Screen text'}"
-    wording = actual_wording(place, finding)
-    label = next((q["label"] for q in screen["questions"] if q["id"] == question["id"]), screen["name"])
-    scale = question.get("scale") or {}
-    part = "Question text"
-    if wording == question.get("help_text") and wording:
-        part = "Help text"
-    elif wording in [v for v in (scale.get("low_label"), scale.get("high_label"), *scale.get("labels", [])) if v]:
-        part = "Scale label"
-    for index, option in enumerate(question.get("options", []), 1):
-        if wording == option["label"]:
-            part = f"Answer {index}"
-    return f"RedJade > {label} > {part}"
 
 
 def present_findings(findings: list[dict], titles: dict[str, str], snapshot: dict | None = None) -> list[dict]:
@@ -152,5 +131,6 @@ def enrich(data: dict, rubric) -> dict:
             survey_type=survey_type, type_source=source, coverage=data.get("coverage"))
         data["methodology"]["not_checked_automatically"] = data["overview"].pop("not_checked_automatically")
     data["queue"] = build_queue(data.get("overview", {}).get("items", []))
+    data["my_changes"] = build_my_changes(data)
     data["presentation"] = presentation(data)
     return data
