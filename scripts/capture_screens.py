@@ -211,14 +211,14 @@ def capture(browser, base, detail, pattern, group, output, reduced_motion, clien
             snap('overview', 'pinned offline sample')
             page.locator('#start-improving').click()
             page.locator('#coach .card').wait_for()
-            first = detail['plan']['must_fix'][0]['fingerprints'][0]
+            first = next(e for e in detail['queue']['items'] if e['id'] == detail['queue']['first_open_id'])['fingerprints'][0]
             page.wait_for_function("fp => !!document.querySelector('#coach [data-fingerprint=\"' + fp + '\"]')", arg=first)
-            snap('improve', 'first sample must-fix')
+            snap('improve', 'first open item of the sample fix list')
             review(pattern, 'improve')
             page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding', {detail:fp}))",
                           group['fingerprints'][0])
-            page.wait_for_function('n => document.querySelectorAll(".pattern-row").length === n',
-                                   arg=len(group['fingerprints']))
+            page.wait_for_function('n => document.querySelectorAll("#coach .fix-card [data-fingerprint]").length === n',
+                                   arg=len(group['fingerprints']))      # one grouped card lists every member in its Details
             snap('improve-pattern', 'engine-generated group; ' + pattern['snapshot']['source_url'])
             review(detail, 'improve')
             # Choose actual engine wording through the UI, scoped to this disposable DB.
