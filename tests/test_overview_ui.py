@@ -8,7 +8,7 @@ from tests.test_workflow_e2e import studio
 
 
 def overview(browser, base_url, **kwargs):
-    return open_review(browser, base_url, chapter='overview', **kwargs)
+    return open_review(browser, base_url, chapter='overview', derived=False, **kwargs)
 
 
 def test_supplied_overview_signals_strengths_and_energy(browser, base_url):
@@ -54,10 +54,10 @@ def test_signal_energy_and_plan_routes_select_canonical_screen(browser, base_url
     assert detail['screens'][3]['name'] in page.locator('#stage .phone-bar').inner_text()
     go_to(page, 'overview')
     page.locator('#plan-summary button').nth(0).click()
-    assert page.evaluate('SC.improveFilter.tab') == 'must_fix'
+    assert page.evaluate('SC.improveFilter.state') == 'fix_before_launch'      # 1B tiles route by state, not by tab
     go_to(page, 'overview')
-    page.locator('#plan-summary button').nth(1).click()      # Improve opens the Fix flow on just those findings
-    assert page.evaluate('SC.improveFilter.fingerprints.length') > 0
+    page.locator('#plan-summary button').nth(1).click()      # Improve opens the Fix flow filtered to Worth improving
+    assert page.evaluate('SC.improveFilter.state') == 'worth_improving'
     assert page.locator('#coach .card, #coach [data-fingerprint]').first.is_visible()
     assert not writes and not errors
     context.close()
@@ -253,7 +253,8 @@ def test_absorbed_energy_link_opens_actual_primary_issue(browser, base_url):
     context, page, detail, writes, errors = overview(browser, base_url, prepare=prepare)
     page.locator('[data-signal=energy] .signal-link').click()
     assert page.url.endswith('#improve')
-    assert page.locator('#coach [data-fingerprint=primary]').is_visible()
+    assert page.locator('#coach .card').is_visible()
+    assert page.locator('#coach .card [data-fingerprint=primary]').count() == 1      # 2B: the finding sits in the card's collapsed Details
     assert 'Add a valid answer' in page.locator('#coach').inner_text()
     assert 'Nothing more in this view' not in page.locator('#coach').inner_text()
     assert not writes and not errors

@@ -9,7 +9,9 @@ from tests.site_helpers import go_to
 SITE = Path(__file__).parent.parent / 'site'
 
 
-def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
+def open_review(browser, base_url, width=1280, chapter='improve', prepare=None, derived=True):
+    """derived=True: the stand-in rebuilds queue, plan, overview and My changes from the prepared findings (as the server does).
+    derived=False: the prepared payload is served exactly as injected (tests of how a given overview renders)."""
     context = browser.new_context(viewport={'width': width, 'height': 900},
                                   permissions=['clipboard-read', 'clipboard-write'])
     page = context.new_page()
@@ -49,7 +51,15 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
         screens, snapshot = detail['screens'], detail['snapshot']
         detail.update(enrich(detail, rubric))
         detail['screens'], detail['snapshot'] = screens, snapshot
-    derive()
+    if derived:
+        derive()
+    else:
+        queue = detail.get('queue') or {'items': []}
+        for entry in queue['items']:
+            entry['fingerprints'] = [fingerprints.get(fp, fp) for fp in entry['fingerprints']]
+            entry['id'] = fingerprints.get(entry['id'], entry['id'])
+            entry['next_open_id'] = fingerprints.get(entry.get('next_open_id'), entry.get('next_open_id'))
+        queue['first_open_id'] = fingerprints.get(queue.get('first_open_id'), queue.get('first_open_id'))
     writes = []
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
