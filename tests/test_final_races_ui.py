@@ -1,7 +1,8 @@
-"""Delayed writes/clipboard cannot consume a replaced projection."""
+"""Delayed writes cannot consume a replaced projection; a dismissed toast never strands focus."""
 import pytest
-from tests.test_issue_loop_ui import open_review, focus
-from tests.test_improve_ui import pattern, hold_puts
+from tests.fixflow_helpers import flow, open_flow  # noqa: F401
+from tests.test_fix_flow_ui import select_kind
+from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
 
 
@@ -14,32 +15,41 @@ def replace_projection(page):
     }""")
 
 
-@pytest.mark.parametrize('delay', ['write', 'clipboard'])
-def test_projection_change_invalidates_delayed_batch(browser, base_url, delay):
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=pattern)
-    page.locator('[data-fk="queue-more"]').click()
-    if delay == 'write':
-        hold_puts(page)
-    else:
-        page.evaluate("() => { navigator.clipboard.writeText = () => new Promise(resolve => { window.releaseCopy = resolve; }); }")
-    page.locator('#use-all').click()
-    page.wait_for_function('putCalls.length === 1' if delay == 'write' else 'Boolean(window.releaseCopy)')
+def hold_puts(page):
+    page.evaluate("""() => {
+      window.pendingPuts = []; window.putCalls = [];
+      const original = window.fetch;
+      window.fetch = (url, options) => {
+        if (options?.method !== 'PUT') return original(url, options);
+        putCalls.push(JSON.parse(options.body));
+        return new Promise(resolve => pendingPuts.push(() => resolve(new Response(options.body, {status:200}))));
+      };
+    }""")
+
+
+def test_projection_change_invalidates_delayed_batch(browser, flow):
+    """2B: Add to my changes no longer copies, so only the delayed write is left to race. A grouped card saves one
+    member at a time; if the survey is replaced mid-way, the remaining members are never written."""
+    context, page, errors = open_flow(browser, flow)
+    card = select_kind(page, 'paste')
+    assert card.locator('> .location').inner_text().startswith('Applies to')      # a three-member group
+    hold_puts(page)
+    card.get_by_role('button', name='Add to my changes').click()
+    page.wait_for_function('putCalls.length === 1')
     replace_projection(page)
-    page.evaluate('pendingPuts.shift()()' if delay == 'write' else 'releaseCopy()')
+    page.evaluate('pendingPuts.shift()()')
     page.wait_for_function("document.querySelector('#toast') !== null")
-    text = page.locator('#toast').inner_text()
-    assert ('Nothing copied' in text) if delay == 'write' else ('Clipboard request already started' in text)
-    if delay == 'write':
-        assert page.evaluate('putCalls.length') == 1
+    assert 'The rest were not' in page.locator('#toast').inner_text()
+    page.wait_for_timeout(300)
+    assert page.evaluate('putCalls.length') == 1
     assert not errors
     context.close()
 
 
 @pytest.mark.parametrize('dismiss', ['Escape', 'button', 'expiry'])
-def test_dismiss_toast_never_leaves_focus_on_body(browser, base_url, dismiss):
-    context, page, detail, writes, errors = open_review(browser, base_url)
-    page.locator('#keep-as-is').click()
-    page.get_by_role('button', name='Stakeholder requirement', exact=True).click()
+def test_dismiss_toast_never_leaves_focus_on_body(browser, flow, dismiss):
+    context, page, errors = open_flow(browser, flow)
+    page.locator('#mark-done').click()
     page.locator('#undo').wait_for()
     if dismiss == 'expiry':
         page.clock.install()

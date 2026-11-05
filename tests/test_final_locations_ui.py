@@ -39,11 +39,11 @@ def test_exact_question_labels_topics_and_share_match_download(browser, base_url
     focus(page, members[0])
     for f in members:
         label = finding_label(f, detail['screens'])
-        row = page.locator(f'.pattern-row[data-fingerprint="{f["fingerprint"]}"]')
-        assert row.locator('.location').inner_text().startswith(label)
+        where = page.locator(f'.detail-block[data-fingerprint="{f["fingerprint"]}"] .detail-where')
+        assert where.text_content().startswith(label)       # each member keeps its own exact place, in Details
         q = next(q for q in questions if q['id'] == f['question_id'])
-        assert ' '.join(q['text'].split()[:5]) in row.locator('.location').inner_text()
-    page.locator('#use-all').click()
+        assert ' '.join(q['text'].split()[:5]) in where.text_content()
+    page.locator('#use-change').click()      # one action applies to the whole group
     page.locator('#undo').wait_for()
     go_to(page, 'share')
     text = page.evaluate('SC.shareChangesText(SC.workspaceDetail)')
