@@ -42,7 +42,7 @@ def test_undo_failed_restore_never_claims_restored(browser, base_url):
     page.wait_for_function("document.querySelector('#toast')?.textContent.includes('could not be undone')")
     assert 'Back on your list' not in page.locator('#toast').inner_text()
     assert page.locator('#queue-progress').inner_text() == f'1 of {total} done'     # still handled: nothing was restored
-    assert page.locator(f'[data-fk=fix-row-{entry["id"]}]').get_attribute('data-state') == 'done'
+    assert page.locator(f'[data-fk="fix-row-{entry["id"]}"]').get_attribute('data-state') == 'done'
     assert not errors
     context.close()
 

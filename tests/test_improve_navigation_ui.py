@@ -1,5 +1,5 @@
 """Phone and decision stay in context; keyboard controls survive rendering."""
-from tests.test_issue_loop_ui import open_review
+from tests.test_issue_loop_ui import focus, open_review, single_paste
 from tests.test_site_e2e import base_url, browser
 
 
@@ -13,18 +13,25 @@ def test_pager_selects_first_open_plan_item_on_destination_screen(browser, base_
     context.close()
 
 
-def test_queue_mode_and_energy_keyboard_activation_retains_focus(browser, base_url):
+def test_queue_mode_and_pager_keyboard_activation_retains_focus(browser, base_url):
+    """2B: the toolbar energy chart is gone; the screen pager and the mode toggle stay keyboard-operable across re-renders."""
     context, page, detail, writes, errors = open_review(browser, base_url)
-    mode = page.get_by_role('button', name='With changes', exact=True)
+    finding, entry = single_paste(detail)
+    focus(page, finding)
+    page.locator('#use-change').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Added to My changes')")
+    mode = page.get_by_role('button', name='With my changes (1)', exact=True)
     mode.focus()
     page.keyboard.press('Enter')
+    assert mode.get_attribute('aria-pressed') == 'true'
     assert mode.evaluate('e => e === document.activeElement')
-    bar = page.locator('#improve-bar .energy-bar').nth(3)
-    bar.focus()
+    before = page.locator('#stage .phone-bar').inner_text()
+    pager = page.locator('[data-fk=next]')
+    pager.focus()
     page.keyboard.press('Space')
-    assert bar.evaluate('e => e === document.activeElement')
-    assert detail['screens'][3]['name'] in page.locator('#stage .phone-bar').inner_text()
-    assert not writes and not errors
+    assert pager.evaluate('e => e === document.activeElement')
+    assert page.locator('#stage .phone-bar').inner_text() != before
+    assert len(writes) == 1 and not errors                      # only the add wrote
     context.close()
 
 
