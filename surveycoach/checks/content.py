@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from surveycoach.checks.reading import reading_advice, simpler_question
 from surveycoach.checks.registry import ReviewContext, check, clip, finding, result, share_fraction
 from surveycoach.checks.text import (WORD, emoji_count, limit_emoji, reading_grade, sentence_case, swap_word,
                                      title_case_signature)
@@ -47,11 +48,12 @@ def plain_words(ctx: ReviewContext) -> CheckResult:
                                     highlight=word,
                                     suggested_text=swap_word(q.text, word, plain) if plain is not None else None))
         elif grade > MAX_GRADE:
-            findings.append(finding("3.2", "worth_improving", f"Reads at grade {grade:.0f}; aim for {MAX_GRADE:.0f} or lower",
-                                    f"Reads at about grade {grade:.0f}: {clip(q.text, 90)}",
-                                    f"Use shorter sentences and simpler words (aim for grade {MAX_GRADE:.0f} or lower).",
-                                    "Dense wording slows members down and invites misreading.", question_id=q.id,
-                                    current_text=q.text))
+            suggested = simpler_question(q.text)
+            findings.append(finding("3.2", "worth_improving", "Question wording may be hard to read",
+                                    f"Automated US school grade estimate: {grade:.0f}. {clip(q.text, 90)}",
+                                    reading_advice(grade, MAX_GRADE, suggested),
+                                    "Complex wording may take more effort to understand; verify with a member read-through.",
+                                    question_id=q.id, current_text=q.text, suggested_text=suggested))
         failing += bool(jargon) or grade > MAX_GRADE
     return result("3.2", share_fraction(failing, len(questions)), *findings)
 

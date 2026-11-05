@@ -13,7 +13,7 @@ from surveycoach.snapshot import Question
 
 MAX_QUESTION_WORDS = 25
 MAX_LABEL_CHARS = 60
-MAX_CHOICES = 8
+MAX_CHOICES = 8   # configured layout-review cue, not a required maximum or research optimum
 MAX_DROPDOWN_BUTTONS = 7   # lists this short should be buttons, not a dropdown
 MAX_GRID_ROWS = 5
 MAX_GRID_COLUMNS = 5
@@ -65,6 +65,48 @@ def fits_one_screen(ctx: ReviewContext) -> CheckResult:
     return result("6.1", share_fraction(failing, len(screens)), *findings)
 
 
+def _choice_layout_advice(q: Question) -> str:
+    labels = [o.label for o in q.options if o.label.strip()]
+    # Shared final words can suggest a heading, not a merged answer. Avoid sorting or
+    # inferring a taxonomy from unrelated labels (or numeric/ordered frequency scales).
+    pair = None
+    for index, left in enumerate(labels):
+        left_words = left.split()
+        if len(left_words) < 2 or any(char.isdigit() for char in left):
+            continue
+        for right in labels[index + 1:]:
+            right_words = right.split()
+            if (len(right_words) >= 2 and left.casefold() != right.casefold()
+                    and left_words[-1].casefold() == right_words[-1].casefold()
+                    and not any(char.isdigit() for char in right)):
+                pair = (left, right, left_words[-1])
+                break
+        if pair:
+            break
+    threshold = (
+        f"The configured {MAX_CHOICES}-choice threshold is a phone-layout review cue, not a research optimum "
+        "or a requirement to remove answers. Preview this question on a narrow phone. "
+    )
+    if pair:
+        left, right, shared = pair
+        guidance = (
+            f'If the study owner confirms a useful grouping, try a "{shared}" heading above '
+            f'"{left}" and "{right}"; keep both as distinct selectable answers. '
+            "Use visual headings only if supported without changing how members answer. "
+        )
+    else:
+        examples = " and ".join(f'"{label}"' for label in labels[:2])
+        guidance = (
+            f"Keep distinct choices such as {examples}. Ask the study owner whether any choices share "
+            "a useful category; if so, add visual headings without merging the selectable answers. "
+            "If no grouping is meaningful, keep the full list and verify that every answer is reachable. "
+        )
+    return threshold + guidance + (
+        "Preserve any intended order, randomization, exclusive answers and routing. "
+        "Do not delete distinct options merely to meet the threshold; verify the layout and selection behavior on a phone."
+    )
+
+
 @check("6.2")
 def tappable_answers(ctx: ReviewContext) -> CheckResult:
     findings, failing, total = [], 0, 0
@@ -79,8 +121,8 @@ def tappable_answers(ctx: ReviewContext) -> CheckResult:
                                     f"Keep each answer to about {MAX_LABEL_CHARS} characters (2 lines).",
                                     current=long_labels[0], highlight=long_labels[0]))
         if len(q.options) > MAX_CHOICES and not standard_scale(q):
-            problems.append(Problem(f"{len(q.options)} answer choices; cut to {MAX_CHOICES}", f"{len(q.options)} answer choices.",
-                                    f"Group, alphabetize, or trim to {MAX_CHOICES} or fewer."))
+            problems.append(Problem(f"{len(q.options)} answer choices; review the phone layout",
+                                    f"{len(q.options)} answer choices.", _choice_layout_advice(q)))
         if q.kind == "dropdown" and len(q.options) <= MAX_DROPDOWN_BUTTONS:
             problems.append(Problem(f"Dropdown with only {len(q.options)} choices", f"A dropdown with only {len(q.options)} choices.",
                                     "Use buttons instead; they take one tap, not two."))
