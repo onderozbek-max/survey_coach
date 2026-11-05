@@ -86,21 +86,26 @@ def focus(page, finding):
     page.locator('#coach .card').wait_for()
 
 
-def test_contextual_use_copies_only_after_explicit_choice(browser, base_url):
+def test_adding_a_change_saves_only_after_an_explicit_action_and_feeds_the_tray(browser, base_url):
+    """2B: Use became Add to my changes. It saves and moves on; copying is its own explicit button."""
     context, page, detail, writes, errors = open_review(browser, base_url)
     finding = next(f for f in detail['review']['findings'] if f.get('suggested_text') or f.get('options'))
     focus(page, finding)
-    assert page.get_by_role('tab').count() == 3
+    assert page.get_by_role('tab').count() == 0                 # one ordered list, no tabs
     assert page.locator('#coach .card').count() == 1
-    assert not writes
-    assert page.locator('#copy-all').inner_text() == 'Copy all changes (0)'
+    assert not writes                                          # looking never saves
+    assert page.locator('#tray-toggle').inner_text().startswith('My changes (0)')
     page.locator('#coach .use-change').first.click()
-    page.wait_for_function("document.querySelector('#copy-all').textContent === 'Copy all changes (1)'")
+    page.wait_for_function("document.querySelector('#tray-toggle').textContent.startsWith('My changes (1)')")
     assert writes[-1]['action'] == 'pick'
     assert writes[-1]['revision'] == 1
     assert writes[-1]['client_id']
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
-    assert page.evaluate('navigator.clipboard.readText()') == writes[-1]['picked_text']
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Added to My changes')")
+    page.locator('#tray-toggle').click()
+    page.locator('#tray-copy-all').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.startsWith('Copied')")
+    assert page.evaluate('navigator.clipboard.readText()') == page.evaluate('SC.workspaceDetail.my_changes.copy_all_text')
+    assert writes[-1]['picked_text'] in page.evaluate('navigator.clipboard.readText()')
     page.locator('#all-screens').click()
     assert page.locator('#screen-drawer select, #screen-drawer textarea').count() == 0
     assert page.locator('#screen-drawer').get_by_text('Ask the coach').count() == 0
@@ -116,20 +121,21 @@ def test_contextual_use_copies_only_after_explicit_choice(browser, base_url):
     context.close()
 
 
-def test_action_only_keep_requires_reason_and_mobile_finish_loop(browser, base_url):
+def test_keep_needs_a_reason_chip_and_mobile_finish_loop(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, width=390)
     finding = next(f for f in detail['review']['findings'] if not f.get('suggested_text') and not f.get('options'))
     focus(page, finding)
-    page.get_by_role('button', name='Keep as is', exact=True).click()
-    page.get_by_role('button', name='Other…', exact=True).click()
-    page.get_by_role('button', name='Save reason').click()
+    page.get_by_role('button', name='Keep as is…', exact=True).click()
+    assert page.get_by_role('button', name='Keep as is', exact=True).is_disabled()      # no reason chip, no save
     assert not writes
-    page.get_by_role('button', name='Intentional for this study', exact=True).click()
+    page.get_by_role('button', name='Intentional', exact=True).click()
+    page.get_by_role('button', name='Keep as is', exact=True).click()
     page.wait_for_function("document.querySelector('#toast') !== null")
     focus(page, finding)
-    page.wait_for_function("document.querySelector('.accepted-risk') !== null")
+    page.wait_for_function("document.querySelector('.fix-handled') !== null")
     assert writes[-1]['action'] == 'keep'
-    assert writes[-1]['reason'] == 'Intentional for this study'
+    assert writes[-1]['keep_reason'] == 'intentional'
+    assert 'Kept as is' in page.locator('.fix-handled').inner_text()
     assert 'accepted risk' in page.locator('#decision-verdict').inner_text()
     assert page.locator('#copy-all').is_disabled()
     page.locator('#check-again').click()
@@ -166,7 +172,7 @@ def test_issue_tiers_locations_and_risk_are_shared_helpers(browser, base_url):
     context.close()
 
 
-def test_stale_use_this_response_does_not_copy_over_newer_keep(browser, base_url):
+def test_a_late_add_does_not_overwrite_a_newer_keep(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
     finding = next(f for f in detail['review']['findings'] if f.get('suggested_text') or f.get('options'))
     focus(page, finding)
@@ -178,41 +184,37 @@ def test_stale_use_this_response_does_not_copy_over_newer_keep(browser, base_url
         else:
             route.fallback()
     page.route('**/decisions/*', hold_first)
-    page.evaluate("navigator.clipboard.writeText('unchanged clipboard')")
     page.locator('#coach .use-change').first.click()
-    page.wait_for_timeout(100)
+    page.wait_for_function("document.querySelector('#coach .issue-save-status')?.textContent === 'Saving…'")
     assert pending
-    # Replacement controls remain locked; emulate a newer authoritative edit instead.
-    focus(page, finding)
-    assert page.get_by_role('button', name='Keep as is', exact=True).is_disabled()
+    # Controls stay locked while a save runs; emulate a newer authoritative edit instead.
+    assert page.locator('#coach .decision-actions button, #coach .fix-handled button').evaluate_all('bs => bs.every(b => b.disabled)')
     page.evaluate("""async fp => {
       SC.decisionRevisions.set(fp, 2);
       const response = await fetch(`/api/surveys/synthetic/versions/2/decisions/${fp}`, {
         method:'PUT', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'keep', reason:'Stakeholder requirement', revision:2, client_id:SC.decisionClient})});
+        body:JSON.stringify({action:'keep', keep_reason:'owner_decided', reason:'Stakeholder requirement', revision:2, client_id:SC.decisionClient})});
       SC.workspaceDetail.decisions[fp] = await response.json();
       dispatchEvent(new CustomEvent('surveycoach-decisions', {detail:SC.workspaceDetail}));
     }""", finding['fingerprint'])
-    page.wait_for_function("document.querySelector('.accepted-risk') !== null")
     pending[0].fulfill(json=pending[0].request.post_data_json)
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(300)
     assert writes[-1]['action'] == 'keep'
     assert writes[-1]['revision'] == 2
-    assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
-    assert page.locator('#copy-all').is_disabled()
+    assert page.locator('#tray-toggle').inner_text().startswith('My changes (0)')       # the stale add never reached My changes
     assert not errors
     context.close()
 
 
-def test_failed_save_never_copies_and_round_evidence_is_readable(browser, base_url):
+def test_failed_save_changes_nothing_and_round_evidence_is_readable(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
     finding = next(f for f in detail['review']['findings'] if f.get('suggested_text') or f.get('options'))
     focus(page, finding)
     page.route('**/decisions/*', lambda route: route.fulfill(status=503, json={'detail': 'Unavailable'}))
-    page.evaluate("navigator.clipboard.writeText('unchanged clipboard')")
     page.locator('#coach .use-change').first.click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('could not be saved')")
-    assert page.evaluate('navigator.clipboard.readText()') == 'unchanged clipboard'
+    page.locator('#coach .fix-error').wait_for()
+    assert 'Not saved' in page.locator('#coach .fix-error').inner_text()
+    assert page.locator('#tray-toggle').inner_text().startswith('My changes (0)')
     assert page.locator('#copy-all').is_disabled()
     text = page.evaluate('''() => {
       const d = SC.workspaceDetail;
