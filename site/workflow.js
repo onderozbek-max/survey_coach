@@ -32,8 +32,7 @@
       if (Number.isFinite(saved?.started) && saved.started <= Date.now()) {
         // Unknown submissions cannot safely expire into permission to submit again.
         if (saved.submissionPending === true) return {submissionPending:true, started:saved.started};
-        if (typeof saved.jobId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(saved.jobId)
-            && Date.now() - saved.started < 7200000) return {jobId:saved.jobId, started:saved.started};
+        if (typeof saved.jobId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(saved.jobId)) return {jobId:saved.jobId, started:saved.started};
       }
     } catch (_) {}
     forget(); return null;
@@ -66,6 +65,7 @@
         const payload = await response.json().catch(() => ({}));
         const error = new Error(typeof payload.detail === "string" ? payload.detail : `Request failed (${response.status}).`);
         // Only explicit client rejection proves that starting a fresh submission is safe.
+        error.status = response.status;
         error.rejected = response.status >= 400 && response.status < 500 && response.status !== 408;
         throw error;
       }
@@ -81,8 +81,7 @@
   function announce(outputId, text, tone = 'progress') {
     if ($(outputId)?.textContent !== text) message(outputId, text, tone);
   }
-  async function pauseChecking(jobId, outputId) {
-    const text = 'Status checks paused. The job may still be working. Resume checking this same job; do not start another review.';
+  async function pauseChecking(jobId, outputId, text = 'Status checks paused. The job may still be working. Resume checking this same job; do not start another review.') {
     window.SC.readConnection?.(text, true);
     announce(outputId, text, 'error');
     await new Promise(resolve => {
@@ -98,7 +97,11 @@
       if (attempt >= 600) { await pauseChecking(jobId, outputId); attempt = 0; }
       let job;
       try { job = await api(`/api/jobs/${encodeURIComponent(jobId)}`); }
-      catch (_) {
+      catch (error) {
+        if (error.status === 404) {
+          await pauseChecking(jobId, outputId, 'Request status unknown. We cannot verify this job has stopped. Check My surveys or contact the local pilot owner. Do not submit again while it may be running. Resume checking only checks this existing job.');
+          errors = 0; continue;
+        }
         errors++;
         const text = 'Connection interrupted. Waiting for a status response; retrying this job only. No new survey response will be created.';
         window.SC.readConnection?.(text);

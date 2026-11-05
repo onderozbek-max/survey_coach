@@ -10,7 +10,7 @@ Owner: code-puppy-4f5249. Scope: existing non-LD site only; no backend changes.
 - [x] Requests bounded to 20 seconds including response body. GET retries only; three consecutive failures pause with keyboard-operable Resume checking. 600 polling attempts also pause. Resume uses same opaque job ID.
 - [x] Ambiguous POST timeout/transport/server failure keeps submission controls locked and explicitly says status unknown, not safely failed. No automatic POST retry or fake cancellation.
 - [x] Concurrency guard covers submit handlers, sample, snapshot picker, URL editing, check-again. Previous review remains present on recheck failure.
-- [x] Session-only storage contains either an opaque submission-pending flag/start timestamp or opaque job ID/start timestamp; restores reasonably recent known jobs (<2h) by polling, never resubmitting. Unknown submissions retain their lock across reload without expiring into permission to submit. No URL, snapshot, image, or survey content stored.
+- [x] Session-only storage contains either an opaque submission-pending flag/start timestamp or opaque job ID/start timestamp; restores known jobs regardless of age by polling, never resubmitting. Unknown submissions retain their lock across reload without expiring into permission to submit. No URL, snapshot, image, or survey content stored.
 - [x] Live region sits outside panel aria-busy; only changed stage/error announcements, never ticking timer announcements. No focus moved on polling. Failed jobs have no current step. New jobs clear old image even before POST returns.
 - [x] Terminal completion renders ready and redirects directly without artificial delay or redundant terminal GET.
 
@@ -26,6 +26,15 @@ Regression run first exposed two old contracts assuming three stages (including 
 `node --check` passes both changed JS files; `git diff --check` clean. All changed code files <600 lines. Muted status color #465f5a against darkest panel background #f2faf6 calculates **6.50:1** contrast.
 
 No live vendor requests, live model calls, external browser jobs, full suite, deployment, or push. The existing local FakeProvider fixture supplies one sample review for the recheck regression test. Default `python` lacked pytest; attempted uv environment resolution failed DNS; all actual checks then used the existing `.venv` (no new dependencies).
+
+## Loading-review follow-up (three requested fixes)
+- Accepted records no longer expire. A three-hour-old ID is restored and GET-verified with submission controls locked. HTTP 404 becomes explicit manual uncertainty, retaining the ID and lock; Resume only rechecks that same ID. Only observed completed/failed status clears it. Unknown submission markers likewise have no timer expiry.
+- Capture-count observation age is now recomputed by the panel clock during stalled responses and paused/error checking. Text explicitly says this page observed the count, not that the server captured it at that time. It is not a live announcement.
+- Reader steps are shown only with reader evidence (`stage:reading` or a positive captured count). Sample/snapshot running jobs without reader stages use neutral supplied-content/checking steps, no opening-test-site claim or promised capture. Immediate initial and restored placeholders are neutral, and persisted record shape is unchanged (no job-kind field).
+
+TDD: added three synthetic regressions before implementation; all three failed for the reported reasons. Implemented fixes and reran loading/home/workflow tests: **22 passed**, one existing Starlette/httpx warning, 16.53s. JS syntax and diff checks clean. Old-record test covers running, 404 uncertainty, and terminal verification; clock test advances 45s stalled +15s paused without rendering another job; sample and snapshot tests intercept both jobs and assert neutral stages before and after reload. Timer assertions allow a one-second scheduling boundary, rather than brittle exact-second text.
+
+No full suite, live/vendor/model calls, delegation, backend edits, or push. Existing shared-test-string failures from the parent's full suite are outside this fix scope.
 
 ## Reload-safety follow-up
 The ambiguous pre-ID reload gap is closed without backend changes. Before POST, a single sessionStorage key is written with `{submissionPending:true, started}`. A known acceptance atomically overwrites that same key with `{jobId, started}` (no remove/write gap). Explicit client rejection clears it; transport errors, POST timeout, invalid/missing job references and server uncertainty retain it. Reload before acceptance or after timeout restores the lock and says:

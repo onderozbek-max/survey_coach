@@ -1,5 +1,6 @@
 """Truthful loading and recovery contracts. All job endpoints are synthetic."""
 import json
+import re
 
 from playwright.sync_api import expect
 
@@ -259,4 +260,82 @@ def test_acceptance_atomically_replaces_marker_and_storage_failure_can_finish(br
             assert set(writes[1]) == {'jobId', 'started'}
             assert writes[1]['jobId'] == 'accepted'
         assert page.evaluate('sessionStorage.getItem("surveycoach-pending-job")') is None
+        page.close()
+
+
+def test_old_accepted_job_requires_terminal_verification_even_after_404(browser, studio):
+    page = browser.new_page()
+    page.add_init_script('''
+      if (!sessionStorage.getItem('surveycoach-pending-job'))
+        sessionStorage.setItem('surveycoach-pending-job', JSON.stringify({jobId:'old-job', started:Date.now()-10800000}));
+    ''')
+    posts, gets = [], []
+    page.route('**/api/reader/jobs', lambda route: posts.append(route))
+    def missing(route):
+        gets.append(route.request.url)
+        route.fulfill(status=404, json={'detail':'Unknown job'})
+    page.route('**/api/jobs/old-job', lambda route: route.fulfill(json={'status':'running', 'stage':'reading', 'pages_captured':0}))
+    page.goto(studio + '/local.html')
+    expect(page.locator('#reading-progress')).to_have_text('Opening the test survey…')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    assert posts == []
+    page.unroute('**/api/jobs/old-job')
+    page.route('**/api/jobs/old-job', missing)
+    page.reload()
+    expect(page.locator('#import-status')).to_contain_text('cannot verify')
+    expect(page.locator('#sample-start')).to_be_disabled()
+    assert len(gets) == 1
+    assert posts == []
+    assert page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job")).jobId') == 'old-job'
+    page.unroute('**/api/jobs/old-job')
+    page.route('**/api/jobs/old-job', lambda route: route.fulfill(json={
+        'status':'failed', 'error':'Verified terminal failure'}))
+    page.reload()
+    expect(page.locator('#import-status')).to_have_text('Verified terminal failure')
+    expect(page.locator('#sample-start')).to_be_enabled()
+    assert page.evaluate('sessionStorage.getItem("surveycoach-pending-job")') is None
+    assert posts == []
+    page.close()
+
+
+def test_capture_observation_age_ticks_without_further_poll_response(browser, studio):
+    page = browser.new_page()
+    page.route('**/api/reader/jobs/*/preview/*', lambda route: route.abort())
+    page.goto(studio + '/local.html')
+    page.clock.install()
+    page.evaluate('SC.renderReadProgress({status:"running", stage:"reading", pages_captured:2}, "synthetic")')
+    page.clock.run_for(45000)
+    age = int(re.search(r'(\d+)s ago', page.locator('#reading-context').inner_text())[1])
+    assert 44 <= age <= 46
+    expect(page.locator('#reading-context')).to_contain_text('observed')
+    page.evaluate('SC.readConnection("Connection interrupted", true)')
+    page.clock.run_for(15000)
+    age = int(re.search(r'(\d+)s ago', page.locator('#reading-context').inner_text())[1])
+    assert 59 <= age <= 61
+    response_age = int(re.search(r'(\d+)s ago', page.locator('#reading-response').inner_text())[1])
+    assert abs(age - response_age) <= 1
+    page.close()
+
+
+def test_sample_and_snapshot_without_reader_stage_never_claim_test_site(browser, studio):
+    for kind in ('sample', 'snapshot'):
+        page = browser.new_page()
+        path = '**/api/samples/boxer-briefs' if kind == 'sample' else '**/api/surveys'
+        page.route(path, lambda route: route.fulfill(json={'job_id':'supplied'}) if route.request.method == 'POST' else route.fulfill(json={'surveys':[]}))
+        page.route('**/api/jobs/supplied', lambda route: route.fulfill(json={'status':'running', 'pages_captured':0}))
+        page.goto(studio + '/local.html')
+        if kind == 'sample':
+            page.get_by_role('button', name='Try a sample survey').click()
+        else:
+            page.locator('#snapshot').set_input_files({'name':'synthetic.json', 'mimeType':'application/json', 'buffer':b'{}'})
+            page.get_by_role('button', name='Check survey', exact=True).click()
+        expect(page.locator('#reading-progress')).to_contain_text('Checking wording and flow')
+        assert 'Opening test survey' not in page.locator('#reading-preview').inner_text()
+        assert 'captured screen will appear' not in page.locator('#reading-preview').inner_text()
+        assert page.locator('#reading-steps [aria-current]').inner_text() == 'Check wording & flow'
+        # No job-kind metadata is persisted; reload remains truthful using response evidence only.
+        assert set(page.evaluate('JSON.parse(sessionStorage.getItem("surveycoach-pending-job"))')) == {'jobId', 'started'}
+        page.reload()
+        expect(page.locator('#reading-progress')).to_contain_text('Checking wording and flow')
+        assert 'Opening test survey' not in page.locator('#reading-preview').inner_text()
         page.close()
