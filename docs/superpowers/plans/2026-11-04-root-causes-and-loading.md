@@ -13,10 +13,10 @@ Root-cause audit follows evidence through shared backend calculations, confidenc
 ## Checklist
 
 - [x] Inspect current entry/workflow/status backend and prior fixes; identify first-request feedback gap and unbounded stale polling.
-- [ ] Backend shared-contract audit: evidence classification, text projections, threshold/copy safeguards; implement proven adjacent bugs with red/green tests.
-- [ ] UI: test immediate submit, delayed first response, actual stages/capture count, stale/no-new-capture, interrupted connection, failure/completion, reload/resume, no duplicate POST, reduced motion, keyboard and 320px.
-- [ ] Implement progress component and bounded request/recovery lifecycle, reusable across new review/recheck.
-- [ ] Independent review, related old tests and full non-live suite, no external survey calls.
-- [ ] Open local page and provide user root-cause explanation, accurate limits and test results.
+- [x] Backend shared-contract audit: evidence classification, text projections, threshold/copy safeguards; implement proven adjacent bugs with red/green tests.
+- [x] UI: test immediate submit, delayed first response, actual stages/capture count, stale/no-new-capture, interrupted connection, failure/completion, reload/resume, no duplicate POST, reduced motion, keyboard and 320px.
+- [x] Implement progress component and bounded request/recovery lifecycle, reusable across new review/recheck.
+- [x] Independent review, related old tests and full non-live suite, no external survey calls. Full suite: 1327 passed, 1 deselected, 1 existing dependency warning (243.66s). Follow-up clock-rollback regression closes remaining reference-retention edge case; focused verification recorded in loading report.
+- [x] Open local page and provide user root-cause explanation, accurate limits and test results. Opened http://127.0.0.1:49307/local.html; no new vendor reads requested.
 
 Workers use isolated named file ownership and commits; preserve pre-existing staged progress and untracked screenshots.
