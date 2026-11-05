@@ -41,7 +41,8 @@ def test_home_renders_cards_example_and_toned_errors(browser, studio):
     # Empty state points at the hero instead of duplicating the sample button.
     page.get_by_text("Nothing reviewed yet", exact=False).wait_for()
     assert page.locator("#sample-start").count() == 1
-    assert page.get_by_role("img", name="Example review result", exact=False).count() == 1
+    # 3C: the example is an interactive mini-demo (tests/test_home_how_it_works.py), no longer one labelled picture.
+    assert page.locator("#example").count() == 1 and "example" in page.locator(".example-tag").inner_text().lower()
     page.get_by_label("RedJade preview link").fill("not-a-url")
     page.get_by_role("button", name="Check survey", exact=True).click()
     status = page.locator("#import-status")
@@ -74,8 +75,9 @@ def test_home_promise_notice_and_keyboard_dialog(browser, studio):
     assert page.locator('h1').inner_text() == 'See your survey through your members’ eyes.'
     assert page.locator('#import-form > p.help').all_text_contents() == [NOTICE]
     assert page.locator('section.steps, section.trust').count() == 0
-    assert page.locator('ol.narrative li').all_text_contents() == ['See', 'Improve', 'Share']
-    assert page.locator('ol.narrative svg').count() == 3
+    # 3C: the See / Improve / Share strip was pseudo-links; it is now the three-step How it works row.
+    assert page.locator('ol.narrative').count() == 0
+    assert page.locator('#how-steps > li h3').all_text_contents() == ['1See it like a member', '2Fix what matters', '3Sign off and share']
     assert page.locator('.go:visible, .btn-primary:visible').count() == 1
     trigger = page.get_by_role('button', name='How we handle data', exact=True)
     trigger.focus()

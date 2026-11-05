@@ -1,5 +1,4 @@
 /* Home "launch pad". Scoped to body.home; tokens come from design-system.css. WCAG 2.2 AA. */
-.example-check { display:grid; place-items:center; width:64px; height:64px; border-radius:18px; background:var(--attention-soft); color:var(--attention); font-size:32px; font-weight:750; }
 .home {
   min-height: 100vh; display: flex; flex-direction: column;
   background:var(--surface-2); }
@@ -53,25 +52,11 @@
   background: var(--surface-2); border: 1px solid var(--line-strong); max-width: 62ch; position: relative; overflow: hidden; }
 #import-status[data-tone="error"] { background: var(--critical-soft); border-color: var(--line-strong); color: var(--critical); }
 #import-status[data-tone="error"]::before { content: "!"; flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--critical); color: var(--on-accent); font-weight: 800; }
-/* example result (decorative content exposed as one labelled image) */
-.example { position: relative; margin: 0; padding: 24px; border-radius: 22px; background:var(--surface-2);
-  border: 1px solid var(--line); box-shadow:var(--shadow-2); }
-.example-tag { position: absolute; top: -12px; right: 20px; padding: 4px 12px; border-radius: 999px; background: var(--attention-soft); color: var(--attention); border: 1px solid var(--line-strong); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.example-head { display: flex; align-items: center; gap: 16px; }
-.example-title { font-weight: 700; font-size: 17px; margin-bottom: 6px; }
+/* example: an interactive mini-demo (home-how.js) */
 .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: var(--surface-2); color: var(--muted); }
 .chip.ready { background: var(--positive-soft); color: var(--positive); }
 .chip.almost_ready { background: var(--attention-soft); color: var(--attention); }
 .chip.needs_work { background: var(--critical-soft); color: var(--critical); }
-.example-stats { list-style: none; padding: 0; margin: 20px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.example-stats li { display: grid; padding: 10px; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 12.5px; }
-.example-stats b { font-size: 20px; color: var(--text); } .example-stats .red { color: var(--critical); } .example-stats .amber { color: var(--attention); }
-.example-fix { padding: 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 8px; }
-.fix-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--critical); }
-.dot-red { width: 8px; height: 8px; border-radius: 50%; background: var(--critical); }
-.before, .after { padding: 8px 10px; border-radius: 8px; font-size: 14px; }
-.before { animation:strike var(--dur-3) var(--ease) 1; background: var(--surface); color: var(--critical); text-decoration: line-through; text-decoration-color: currentColor; }
-.after { animation:insert var(--dur-3) var(--ease) 1; background: var(--surface); color: var(--positive); }
 
 /* library */
 .library { margin-top: 56px; }
@@ -103,18 +88,16 @@
   .hero { padding: 20px 0 32px; gap: 32px; }
   .command-bar { flex-wrap: wrap; padding: 8px; } .command-bar > svg { display: none; }
   .command-bar input { flex-basis: 100%; padding: 0 8px; } .go { width: 100%; justify-content: center; }
-  .example { transform: none; padding: 20px; }
+  .example { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home *, .home *::before, .home *::after { animation: none !important; transition: none !important; }
-  .example, .survey-card:hover { transform: none; }
+  .survey-card:hover { transform: none; }
 }
 
 /* Compact story. Survey cards show one state chip (states.css): symbol plus words, never colour alone. */
 .survey-card .card-action { justify-self:start; margin-top:var(--s-1); }
 #data-handling { justify-self:start; text-decoration:underline; padding:0 4px; }
-.narrative { display:flex; flex-wrap:wrap; gap:24px; list-style:none; padding:16px 0; border-block:1px solid var(--line); }
-.narrative li { display:flex; gap:8px; align-items:center; color:var(--accent); font-weight:650; font-size:var(--fs-14); }
 .home .survey-card { border-color:var(--line-strong); }
 .reading-preview { margin:24px auto; max-width:320px; text-align:center; }
 .reading-phone { width:220px; min-height:300px; margin:0 auto 16px; display:grid; place-items:center; padding:12px; border:4px solid var(--phone-frame); border-radius:var(--r-lg); background:var(--surface); }

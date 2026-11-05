@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SurveyCoach · My surveys</title>
-  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="home.css">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="home.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="home-how.css">
   <link rel="stylesheet" href="design-system.css">
 <link rel="stylesheet" href="states.css"><link rel="stylesheet" href="quality.css"><link rel="stylesheet" href="read-progress.css"></head>
 <body class="home">
   <a class="skip" href="#workspace">Skip to workspace</a>
   <header class="app-header home-header">
-    <a href="local.html" class="brand app-brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">Survey<span>Coach</span></span></a>
+    <a href="local.html" class="brand app-brand" aria-label="SurveyCoach home"><span id="home-logo"></span><span class="brand-word" aria-hidden="true">Survey<span>Coach</span></span></a>
     <span class="pill"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Private · saved on this computer</span>
   </header>
 
@@ -40,24 +40,29 @@
         <p id="import-status" role="status" aria-live="polite"></p>
       </div>
 
-      <figure class="example" role="img" aria-label="Example review result: 2 things to fix before launch, a suggested rewrite of a double-barrelled question, and about 6 minutes for members.">
-        <div class="example-tag" aria-hidden="true">Example</div>
-        <div class="example-head" aria-hidden="true">
-          <div class="example-check" aria-hidden="true">2</div>
-          <div><p class="example-title">Holiday Snacks Concept Test</p><span class="chip almost_ready">2 things to fix before launch</span></div>
+      <section class="example" id="example" aria-labelledby="example-h">
+        <p class="example-tag">Example · fictional survey</p>
+        <h2 id="example-h" class="example-title">Holiday Snacks Concept Test</h2>
+        <p class="example-summary"><span id="demo-chip" class="chip needs_work">2 things to fix before launch</span><span class="example-meta">5 worth improving · about 6 minutes</span></p>
+        <div class="example-fix">
+          <p class="fix-label"><i class="dot-red" aria-hidden="true"></i>Fix before launch · Q4 asks two things at once</p>
+          <p class="demo-label">Question as written</p>
+          <p id="demo-question" class="before">How satisfied are you with the taste and price?</p>
+          <div id="demo-suggestion" class="demo-suggestion">
+            <p class="demo-label">Suggested wording</p>
+            <p class="after">How satisfied are you with the taste?</p>
+            <button type="button" class="btn btn-secondary" id="demo-use">Use</button>
+          </div>
+          <div id="demo-done" class="demo-done" hidden><span>Added to your changes.</span><button type="button" class="btn btn-text" id="demo-reset">Reset</button></div>
         </div>
-        <ul class="example-stats" aria-hidden="true"><li><b class="red">2</b>to fix</li><li><b class="amber">5</b>to improve</li><li><b>~6</b>min for members</li></ul>
-        <div class="example-fix" aria-hidden="true">
-          <p class="fix-label"><i class="dot-red"></i>Fix before launch · Q4 asks two things at once</p>
-          <p class="before">How satisfied are you with the taste and price?</p>
-          <p class="after">How satisfied are you with the taste?</p>
-        </div>
-      </figure>
+        <p id="demo-status" class="sr-only" role="status" aria-live="polite"></p>
+      </section>
     </section>
 
-    <ol class="narrative" aria-label="How it works">
-      <li data-icon="eye">See</li><li data-icon="sparkle">Improve</li><li data-icon="share">Share</li>
-    </ol>
+    <section class="how" aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <ol id="how-steps" class="how-steps"></ol>
+    </section>
 
     <section class="library" aria-labelledby="surveys-h">
       <div class="section-head"><h2 id="surveys-h">My surveys</h2><span id="survey-count" class="help"></span></div>
@@ -75,6 +80,6 @@
       <p class="pilot-note">Local pilot, not an automatic launch approval. Check AI advice before using it.</p>
     </dialog>
   </main>
-  <script src="dom.js"></script><script src="developer.js"></script><script src="icons.js"></script><script src="states.js"></script><script src="quality.js"></script><script src="about.js"></script><script src="entry.js"></script><script src="card-status.js"></script><script src="home-card.js"></script><script src="workflow.js"></script>
+  <script src="dom.js"></script><script src="developer.js"></script><script src="icons.js"></script><script src="logo.js"></script><script src="states.js"></script><script src="quality.js"></script><script src="about.js"></script><script src="entry.js"></script><script src="card-status.js"></script><script src="home-card.js"></script><script src="home-how.js"></script><script src="workflow.js"></script>
 </body>
 </html>
