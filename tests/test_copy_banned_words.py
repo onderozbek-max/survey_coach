@@ -124,3 +124,36 @@ def test_sign_off_states_use_plain_words(browser, base_url, ready, signed, width
     assert offenders(page) == []
     assert not errors
     context.close()
+
+
+# 3B: the Verdict's journey strip, setup card, since-last-version card and the Play it as a member dialog.
+@pytest.mark.parametrize('width', [1280, 390])
+def test_verdict_journey_setup_and_delta_use_plain_words(browser, base_url, width):
+    from tests.journey_helpers import add_setup, confirm_type_on_patch, delta, open_verdict, reward_endpoint
+
+    def prepare(detail):
+        add_setup(detail)
+        detail['version_delta'] = delta((2, 1, 1, 1))
+    context, page, detail, writes, errors = open_verdict(browser, base_url, width=width, prepare=prepare)
+    confirm_type_on_patch(page, detail, writes)
+    reward_endpoint(page, detail, writes, fail_times=1)
+    assert offenders(page) == []                                               # card, strip, delta as first shown
+    page.evaluate("document.querySelectorAll('#version-delta details, #journey details').forEach(d => d.open = true)")
+    page.locator('#setup-type-change').click()
+    page.get_by_label('Yes', exact=True).click()
+    for scope in ('#setup-card', '#version-delta', '#journey'):
+        assert banned_in(page.locator(scope).inner_text()) == [], scope
+    page.locator('#reward-save').click()
+    page.locator('.setup-error').wait_for()                                    # the error state too
+    assert banned_in(page.locator('#setup-card').inner_text()) == []
+    strip = page.locator('#journey [role=group]')
+    assert banned_in(strip.get_attribute('aria-label')) == []
+    assert banned_in('\n'.join(page.locator('#journey .sr-only').all_text_contents())) == []
+    page.locator('#journey button[data-page]').nth(3).hover()
+    assert banned_in(page.locator('#journey .journey-tip').inner_text()) == []
+    page.mouse.move(0, 0)
+    page.locator('#preview-member').click()
+    dialog = page.get_by_role('dialog', name='Play it as a member')
+    assert banned_in(dialog.inner_text()) == []
+    assert not errors
+    context.close()

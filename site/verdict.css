@@ -36,3 +36,5 @@
   #signals { grid-template-columns:1fr; }
 }
 .dialog-actions { display:flex; flex-wrap:wrap; gap:var(--s-3); margin-top:var(--s-4); }
+/* D15: programmatic focus on a heading shows its ring only after a key press (set by overview.js), not on load or after a click. */
+html:not([data-input=keyboard]) :is(h1, h2, h3)[tabindex="-1"]:focus { outline:none; }

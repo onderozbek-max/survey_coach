@@ -3,6 +3,10 @@
 (() => {
   'use strict';
   const SC = window.SC, {h, mount, $, icon} = SC;
+  // D15: a heading takes focus when a page opens; its ring belongs to keyboard users only, never a stray box on load or after a click.
+  for (const type of ['keydown', 'pointerdown']) {
+    addEventListener(type, event => { document.documentElement.dataset.input = type === 'keydown' && event.key !== 'Escape' ? 'keyboard' : 'pointer'; }, true);
+  }
   const TAB_ORDER = ['must_fix', 'quick_wins', 'more'];
   let detail;
   // Wrapping and the device safe area both affect the fixed bar's real height.
