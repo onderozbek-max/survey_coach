@@ -14,10 +14,14 @@ from surveycoach.judge import JudgeCache
 from surveycoach.judge.batches import BATCHES
 from surveycoach.llm import LlmError, WibeyProvider
 from surveycoach.llm.base import ASSESSMENT_MODEL
+from surveycoach.reader.survey_type import detect_survey_type
 from surveycoach.review import run_review
+from surveycoach.reward import read_reward
 from surveycoach.rubric import load_rubric
 from surveycoach.snapshot import SurveySnapshot
 from surveycoach.server.present import enrich
+from surveycoach.server.signoff import signoff_state
+from surveycoach.server.slack import share_payload
 
 ROOT = Path(__file__).parent.parent
 SITE_DATA = ROOT / "site" / "data.js"
@@ -57,19 +61,34 @@ class ReviewedDemoCache(JudgeCache):
         return super().key(snapshot,rubric,batch,known)
 
 
+def _server_fields(data: dict, snapshot: SurveySnapshot) -> dict:
+    """The fields the server adds on top of `enrich` (one unconfirmed type guess, no reward answer, unsigned,
+    the Slack post), built by the same functions so the static sample shows exactly what the real page gets.
+    Samples are first versions, so there is no version delta (null, as on any v1). Nothing here is a link:
+    the page has no server, so no download route is offered either."""
+    first = dict(data, version=1)
+    return {"version": 1,
+            "survey_type_detection": dict(detect_survey_type(snapshot).model_dump(mode="json"), confirmed=False),
+            "reward": read_reward(None).as_dict(),
+            "version_delta": None,
+            "signoff": signoff_state(first, []),
+            "share": dict(share_payload(first), link=None, summary_url=None)}
+
+
 def _survey(sample_id: str, blurb: str, provider=None) -> dict:
     snapshot = SurveySnapshot.model_validate_json((ROOT / "fixtures" / f"{sample_id}.json").read_text())
     review = run_review(snapshot, provider=provider or CacheOnlyProvider(), cache=ReviewedDemoCache(AI_CACHE))
     encoded = review.model_dump(mode="json", exclude={"timing"})
     encoded["findings"] = [f.model_dump(mode="json") | {"fingerprint": f.fingerprint}
                            for f in review.findings]
-    return enrich({
+    enriched = enrich({
         "id": sample_id, "title": snapshot.title, "blurb": blurb,
         "review": encoded,
         "timeline": [{"page_id": p.page_id, "seconds": round(p.cumulative_seconds)} for p in review.timing.pages],
         "total_seconds": round(review.timing.total_seconds),
         "snapshot": snapshot.model_dump(mode="json", exclude_defaults=True),
     }, load_rubric())
+    return enriched | _server_fields(enriched, snapshot)
 
 
 def build_demo_data(provider=None) -> dict:
