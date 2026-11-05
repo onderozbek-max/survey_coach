@@ -214,3 +214,23 @@ def test_without_a_journey_the_verdict_has_no_empty_strip(browser, base_url):
     assert page.get_by_role('heading', name='Member journey').count() == 0
     assert not errors
     context.close()
+
+
+def test_the_tooltip_sits_right_under_the_hovered_segment_not_under_the_whole_strip(browser, base_url):
+    context, page, detail, writes, errors = open_verdict(browser, base_url, width=1280)
+    segment = segments(page).nth(3)
+    segment.hover()
+    tip, box, seg = page.locator('#journey .journey-tip').bounding_box(), None, segment.bounding_box()
+    assert tip['y'] >= seg['y'] + seg['height'] and tip['y'] - (seg['y'] + seg['height']) <= 12
+    assert tip['x'] <= seg['x'] + seg['width'] and tip['x'] + tip['width'] >= seg['x']       # horizontally over the segment
+    context.close()
+
+
+def test_compact_segments_keep_number_and_pin_inside_their_box(browser, base_url):
+    context, page, detail, writes, errors = open_review(browser, base_url, chapter='improve', prepare=add_journey, width=1280)
+    clipped = page.evaluate("""() => [...document.querySelectorAll('#improve-bar .journey button[data-page]')].filter(b => {
+      const box = b.getBoundingClientRect();
+      return [...b.querySelectorAll('.journey-num, .journey-pin')].some(c => { const r = c.getBoundingClientRect();
+        return r.left < box.left - 0.5 || r.right > box.right + 0.5 || r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5; }); }).map(b => b.dataset.page)""")
+    assert clipped == []
+    context.close()

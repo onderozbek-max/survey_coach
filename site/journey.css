@@ -25,13 +25,13 @@
 .journey-pin .state-icon { display:inline-flex; }
 .journey-pin svg { width:16px; height:16px; }
 .journey-more { margin:0; }
-.journey-tip { position:absolute; z-index:5; inset-block-start:calc(100% + var(--s-1)); transform:translateX(-50%); max-width:min(320px,90vw); padding:var(--s-2) var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); box-shadow:var(--shadow-2); font-size:var(--fs-14); pointer-events:none; white-space:normal; }
+.journey-tip { position:absolute; z-index:5; transform:translateX(-50%); max-width:min(320px,90vw); padding:var(--s-2) var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); box-shadow:var(--shadow-2); font-size:var(--fs-14); pointer-events:none; white-space:normal; }
 .journey-list summary { display:flex; align-items:center; min-height:44px; color:var(--accent); font-size:var(--fs-14); cursor:pointer; }
 .journey-list ol { display:grid; gap:var(--s-2); margin:0; padding:0 0 0 var(--s-5); font-size:var(--fs-14); }
 .journey-list li span { overflow-wrap:anywhere; }
 .journey-list li .state-icon { display:inline-flex; vertical-align:middle; margin-right:var(--s-2); }
 /* Compact: the Fix header. No section labels (the tooltip and the list carry them); shorter segments. */
-.journey.compact .journey-seg button { height:44px; flex-direction:row; gap:2px; }
+.journey.compact .journey-seg button { height:48px; gap:2px; }       /* still number over pin: a 28px segment cannot hold both side by side */
 .journey.compact { flex:1 1 100%; }
 /* On a phone the phone is the hero (it must start in the top half), so the Fix header's strip steps aside; the pager,
    All screens and the bar under the phone carry navigation there. The Verdict's strip and the dialog's strip stay. */

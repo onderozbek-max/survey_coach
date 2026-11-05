@@ -51,6 +51,7 @@
       tip.hidden = false;
       const base = root.getBoundingClientRect(), box = button.getBoundingClientRect(), half = tip.offsetWidth / 2;
       tip.style.left = `${Math.min(Math.max(box.left + box.width / 2 - base.left, half), Math.max(half, base.width - half))}px`;
+      tip.style.top = `${box.bottom - base.top + 6}px`;       // right under the segment, not under the whole component
     };
     root.addEventListener('pointerover', event => { const b = event.target.closest('button[data-page]'); if (b && event.pointerType !== 'touch') show(b); });
     root.addEventListener('pointerout', event => { if (event.target.closest('button[data-page]')) tip.hidden = true; });
