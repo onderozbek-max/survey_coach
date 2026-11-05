@@ -114,6 +114,7 @@ def test_repository_projects_screens_for_each_round_without_writing_history():
             projected = deepcopy(detail["snapshot"])
             for page, original in zip(projected["pages"], expected.pages, strict=True):
                 assert page.pop("reading_basis") == reading_basis(original)
+                assert page.pop("stimulus_text") == original.stimulus_text
             # Only the named derived field is removed: all capture values must
             # still match exactly, not merely survive permissive model validation.
             assert projected == expected.model_dump()
