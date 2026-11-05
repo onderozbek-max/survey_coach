@@ -1,5 +1,6 @@
 """Hypothetical preview changes wording without accepting or saving decisions."""
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -8,7 +9,7 @@ def test_preview_changes_immediately_without_writes_and_can_restore_original(bro
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#stage .phone-screen').wait_for()
     page.evaluate("() => { const f=SC.workspaceDetail.review.findings.find(f=>f.headline.includes('desktop word')); dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:f.fingerprint})); }")
     before = page.locator('#stage .phone-screen').inner_text()
@@ -17,7 +18,7 @@ def test_preview_changes_immediately_without_writes_and_can_restore_original(bro
     page.get_by_role('button', name='With changes', exact=True).click()
     assert page.locator('#stage .phone-screen').inner_text() != before
     assert 'Tap the one you like best.' in page.locator('#stage .phone-screen').inner_text()
-    assert 'not accepted or saved' in page.locator('.preview-effect').inner_text()
+    assert 'Edit RedJade to make them real' in page.locator('.preview-effect').inner_text()
     assert not writes
     page.get_by_role('button', name='Original', exact=True).click()
     assert page.locator('#stage .phone-screen').inner_text() == before

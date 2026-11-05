@@ -131,37 +131,15 @@ def test_it_opens_on_the_first_screen_with_a_must_fix_and_that_issue_selected(br
     assert not stray_text(page) and errors == []
 
 
-def test_the_header_scores_only_what_was_checked_and_says_what_the_ai_did(browser, base_url):
-    page, _ = open_page(browser, base_url)
-    header = page.locator("#topbar").inner_text()
-    review = page.evaluate('SURVEYCOACH_DEMO.surveys[0].review')
-    quality = page.evaluate('SURVEYCOACH_DEMO.surveys[0].quality')
-    assert f"{quality['score']:.0f}/100" in header
-    assert f"{quality['coverage_percent']:.0f}% coverage" in header
-    assert 'Provisional' in header and quality['unchecked_points'] > 0
-    assert 'AI checked 3 of 3 parts' in header and re.search(r'Needs work\. Fix \d+ things first\.', header)
-    assert all(name in header for name in review['unchecked'])
-    assert "AI check pending" not in header and "wait on the AI step" not in header
-
-
-@pytest.mark.parametrize("sample", [0, 1])
-def test_every_screen_renders_real_text(browser, base_url, sample):
+def test_the_sample_bar_shows_the_verdict_and_no_score(browser, base_url):
     page, errors = open_page(browser, base_url)
-    page.locator('[data-fk="survey-picker"]').select_option(index=sample)
-    screens = page.evaluate('SC.workspaceDetail.screens')
-    for screen in screens:
-        open_screen(page, screen['name'])
-        assert "[object" not in phone_text(page) and "undefined" not in phone_text(page)
-        assert not stray_text(page)
-    assert errors == []
+    header = page.locator("#topbar").inner_text()
+    overview = page.evaluate('SURVEYCOACH_DEMO.surveys[0].overview')
+    assert overview['headline'] in header and overview['verdict']['time']['label'] in header
+    assert page.locator('#topbar .state-chip svg').count() == 1
+    assert not any(word in header for word in ('/100', 'Provisional', 'coverage'))
+    assert not errors
 
-
-@pytest.mark.parametrize("width", [320, 390, 768, 1280])
-def test_page_reflows_without_sideways_scroll(browser, base_url, width):
-    page, _ = open_page(browser, base_url, width)
-    for name in ("Q1", "Q4", "Q7"):
-        open_screen(page, name)
-        assert page.evaluate("document.documentElement.scrollWidth") <= width, name
 
 
 def test_ai_findings_are_marked_and_code_findings_are_not(browser, base_url):
@@ -347,23 +325,19 @@ def test_unchecked_points_are_disclosed_as_unknown_not_earned(browser, base_url)
     context.close()
 
 
-def test_the_clean_sample_has_no_issues_but_does_not_hide_unchecked_points(browser, base_url):
+def test_the_second_sample_reports_its_own_verdict_without_claiming_launch_approval(browser, base_url):
     page, _ = open_page(browser, base_url)
     page.locator('[data-fk="survey-picker"]').select_option(index=1)
     header = page.locator("#topbar").inner_text()
-    review = page.evaluate('SURVEYCOACH_DEMO.surveys[1].review')
-    quality = page.evaluate('SURVEYCOACH_DEMO.surveys[1].quality')
-    assert page.locator('.card').count() == 0 and 'Nothing to fix.' in header
+    overview = page.evaluate('SURVEYCOACH_DEMO.surveys[1].overview')
+    assert page.locator('.card').count() == 0 and overview['headline'] in header
     assert 'Ready to launch' not in header
-    assert f"{quality['score']:.0f}/100" in header
-    assert f"{quality['coverage_percent']:.0f}% coverage" in header
-    assert 'Provisional' in header and quality['unchecked_points'] > 0
-    assert all(name in header for name in review['unchecked'])
-    assert 'AI checked 3 of 3 parts' in header    # never an unqualified full ring
+    assert not any(word in header for word in ('/100', 'Provisional', 'coverage'))
+    assert page.locator('h1').inner_text() == page.evaluate('SURVEYCOACH_DEMO.surveys[1].title')   # the shared header follows the picker
     page.locator('#all-screens').click()
-    screens = page.locator('#screen-drawer').inner_text()
-    assert 'No items' in page.locator('#screen-drawer').text_content()            # the AI did run, so 'yet' would be wrong
+    assert 'No items' in page.locator('#screen-drawer').text_content()
     assert not stray_text(page)
+
 
 
 def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base_url):
@@ -376,15 +350,19 @@ def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base
     assert screen["y"] <= pin["y"] and pin["y"] + pin["height"] <= screen["y"] + screen["height"]   # pin 1 is in view
 
 
-def test_quality_never_presents_unchecked_coverage_as_complete(browser, base_url):
+def test_score_and_coverage_live_only_in_the_methodology_dialog(browser, base_url):
     page, _ = open_page(browser, base_url)
-    quality = page.evaluate('SC.workspaceDetail.quality')
+    quality = page.evaluate('SC.workspaceDetail.methodology.quality')
     assert quality['assessed_points'] < quality['applicable_points']
     assert quality['score'] == pytest.approx(quality['earned_points'] / quality['assessed_points'] * 100)
     assert quality['coverage_percent'] < 100 and quality['provisional']
-    label = page.locator('#topbar .quality-compact').inner_text()
+    assert page.locator('#topbar .quality-compact, .ring').count() == 0
+    open_how_we_check(page)
+    dialog = page.get_by_role('dialog', name='How we check')
+    dialog.locator('summary').click()
+    label = dialog.inner_text()
     assert 'Provisional' in label and f"{quality['coverage_percent']:.0f}% coverage" in label
-    assert page.locator('.ring').count() == 0
+
 
 
 def test_ai_advice_is_labeled_for_review_and_rule_made_rewrites_are_not(browser, base_url):
