@@ -6,7 +6,7 @@ import re
 
 from surveycoach.server.rounds import change_sheet, presentation, valid_decisions
 from surveycoach.signals import SIGNALS
-from surveycoach.status import NOT_CHECKED_LABEL
+from surveycoach.status import NOT_CHECKED_LABEL, is_decided
 from surveycoach.quality import build_quality
 from surveycoach.rubric import load_rubric
 
@@ -228,10 +228,7 @@ def stakeholder_packet(detail):
     for finding in review.get("findings", []):
         if finding.get("absorbed_by"):
             continue
-        decision = decisions.get(finding["fingerprint"], {})
-        action = decision.get("action")
-        if action not in {"pick", "original"} and not (
-                action == "keep" and decision.get("reason", "").strip()):
+        if not is_decided(decisions.get(finding["fingerprint"])):
             open_findings.append(finding)
     parts.append(f"<p>{len(open_findings)} findings still need a choice.</p><ul>" if review
                  else "<p>Review not available; open findings are not yet known.</p><ul>")

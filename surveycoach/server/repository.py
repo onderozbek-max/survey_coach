@@ -13,6 +13,7 @@ from pydantic import TypeAdapter
 from surveycoach.reader.naming import is_generic_title, presentable_title
 from surveycoach.reader.survey_type import detect_survey_type
 from surveycoach.rubric import load_rubric
+from surveycoach.server.decisions import read_decision
 from surveycoach.server.extras import extras_for
 from surveycoach.server.present import enrich, present_findings
 from surveycoach.recommendations import guard_recommendation
@@ -57,6 +58,11 @@ CREATE TABLE IF NOT EXISTS decisions (
     survey_id TEXT NOT NULL, version INTEGER NOT NULL, fingerprint TEXT NOT NULL,
     data TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (survey_id, version, fingerprint),
+    FOREIGN KEY (survey_id, version) REFERENCES versions(survey_id, version)
+);
+CREATE TABLE IF NOT EXISTS decision_events (
+    id INTEGER PRIMARY KEY, survey_id TEXT NOT NULL, version INTEGER NOT NULL, fingerprint TEXT NOT NULL,
+    data TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (survey_id, version) REFERENCES versions(survey_id, version)
 );
 """
@@ -330,11 +336,26 @@ class Repository:
             if data["action"] == "pick" and data.get("picked_text") not in allowed:
                 raise ValueError("Choose one of this finding's saved suggestions")
             existing = detail["decisions"].get(fingerprint)
-            if existing and data.get("client_id") == existing.get("client_id") and data.get("revision", 0) <= existing.get("revision", 0):
+            # Only a tagged request can be a replay; an untagged one is always a deliberate change.
+            if (existing and data.get("client_id") and data["client_id"] == existing.get("client_id")
+                    and data.get("revision", 0) <= existing.get("revision", 0)):
                 return existing
             saved = {**data, "fingerprint": fingerprint,
                      "original": finding.get("current_text") or finding["evidence"]}
             db.execute("INSERT INTO decisions(survey_id,version,fingerprint,data) VALUES (?,?,?,?) "
                        "ON CONFLICT(survey_id,version,fingerprint) DO UPDATE SET data=excluded.data, "
                        "updated_at=CURRENT_TIMESTAMP", (survey_id, version, fingerprint, json.dumps(saved)))
+            # The live row above is the latest word; this append-only log is the history, never edited.
+            db.execute("INSERT INTO decision_events(survey_id,version,fingerprint,data) VALUES (?,?,?,?)",
+                       (survey_id, version, fingerprint, json.dumps(saved)))
             return saved
+
+    def decision_history(self, survey_id: str, version: int, fingerprint: str | None = None) -> list[dict]:
+        """Every decision ever recorded on a version, oldest first, each with when it was made."""
+        query = "SELECT data,created_at FROM decision_events WHERE survey_id=? AND version=?"
+        args = [survey_id, version]
+        if fingerprint:
+            query, args = query + " AND fingerprint=?", [*args, fingerprint]
+        with self.transaction() as db:
+            rows = db.execute(query + " ORDER BY id", args).fetchall()
+        return [{**read_decision(json.loads(row["data"])), "recorded_at": row["created_at"]} for row in rows]

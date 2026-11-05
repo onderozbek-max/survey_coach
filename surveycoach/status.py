@@ -34,6 +34,13 @@ MIN_ASSESSED_SHARE = .5   # ...and neither is a small slice of it
 
 _SEVERITY_STATE = {"must_fix": FIX_BEFORE_LAUNCH, "worth_improving": IMPROVE}
 
+# How an author closes an item. `use` = accepted our change; `done` = says they fixed it in RedJade
+# (unverified until Check again); `keep` = on purpose, with a reason chip and/or a note.
+USE, DONE, KEEP = "use", "done", "keep"
+KEEP_REASONS = {"intentional": "Intentional", "owner_decided": "Owner decided",
+                "not_applicable": "Not applicable", "other": "Other"}
+_ACTION_KIND = {"pick": USE, "done": DONE, "original": DONE}   # `original` is the older "Mark done"
+
 
 def worst_state(states) -> str | None:
     """Most urgent of the given states, or None when there are none."""
@@ -41,12 +48,26 @@ def worst_state(states) -> str | None:
     return next((state for state in STATES if state in present), None)
 
 
-def is_decided(decision: dict | None) -> bool:
-    """An explicit choice closes an item; a kept item needs a stated reason."""
+def handled_kind(decision: dict | None) -> str | None:
+    """`use`, `done`, `keep`, or None while open. A kept item needs a stated reason: a chip or a note."""
     decision = decision or {}
     action = decision.get("action")
-    return action in {"pick", "original"} or (
-        action == "keep" and bool((decision.get("reason") or "").strip()))
+    if action in _ACTION_KIND:
+        return _ACTION_KIND[action]
+    stated = (decision.get("reason") or "").strip() or decision.get("keep_reason") in KEEP_REASONS
+    return KEEP if action == "keep" and stated else None
+
+
+def is_decided(decision: dict | None) -> bool:
+    """An explicit choice closes an item; a kept item needs a stated reason."""
+    return handled_kind(decision) is not None
+
+
+def keep_text(decision: dict) -> str:
+    """The reason as one line for people: 'Owner decided: Priya signed off'."""
+    chip = KEEP_REASONS.get(decision.get("keep_reason"), "")
+    note = (decision.get("reason") or "").strip()
+    return f"{chip}: {note}" if chip and note else chip or note
 
 
 def finding_state(finding: dict) -> str:

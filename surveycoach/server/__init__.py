@@ -1,7 +1,6 @@
 """Local Studio API. Start with create_app(db_path, provider=None)."""
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal
 
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -9,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from surveycoach.server.decisions import DecisionRequest
 from surveycoach.server.report import attachment_filename
 from surveycoach.server.repository import Repository
 from surveycoach.server.security import LocalRequestGuard
@@ -58,26 +58,6 @@ class SurveyUpdate(BaseModel):
     def has_update(self):
         if self.title is None and self.survey_type is None:
             raise ValueError("Supply a title or survey_type")
-        return self
-
-
-class DecisionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    action: Literal["pick", "original", "keep", "open"]
-    picked_text: str | None = Field(default=None, max_length=50000)
-    reason: str = Field(default="", max_length=10000)
-    manual_done: StrictBool = False
-    client_id: str | None = Field(default=None, max_length=100)
-    revision: int = Field(default=0, ge=0)
-
-    @model_validator(mode="after")
-    def coherent_decision(self):
-        if self.action == "keep" and not self.reason.strip():
-            raise ValueError("Keeping a finding requires a reason")
-        if self.action == "pick" and not (self.picked_text or "").strip():
-            raise ValueError("Picking a rewrite requires picked_text")
-        if self.action != "pick":
-            self.picked_text = None
         return self
 
 

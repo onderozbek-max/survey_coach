@@ -4,8 +4,10 @@ from urllib.parse import urlsplit, urlunsplit
 
 from surveycoach.labels import finding_label, screen_labels
 from surveycoach.reader.policy import UnsafeSurveyURL, validate_url
+from surveycoach.server.decisions import read_decision
 from surveycoach.server.extras import extras_for
 from surveycoach.snapshot import SurveySnapshot
+from surveycoach.status import is_decided, keep_text
 
 
 def canonical_source_url(url):
@@ -96,6 +98,7 @@ def valid_decisions(detail):
         finding = known.get(key)
         if not finding:
             continue
+        decision = read_decision(decision)
         if decision.get("action") == "pick" and decision.get("picked_text") not in allowed_texts(finding):
             output[key] = dict(decision, action="open", picked_text=None, manual_done=False,
                                stale_pick=True, previous_text=decision.get("picked_text"))
@@ -190,8 +193,8 @@ def compare_rounds(prior, current):
             entry["resolution"] = "Still flagged"
             changes["still"].append(entry)
             action = decision.get("action")
-            if (action in {"keep", "original", "pick"}
-                    and (action != "keep" or decision.get("reason", "").strip())
+            # `done` is deliberately not carried: it is unverified until this very recheck says so.
+            if (action in {"keep", "original", "pick"} and is_decided(decision)
                     and (action != "pick" or decision.get("picked_text") in allowed_texts(now))):
                 carried[now["fingerprint"]] = dict(decision, fingerprint=now["fingerprint"],
                     original=now.get("current_text") or now["evidence"], manual_done=False,
@@ -220,17 +223,24 @@ def compare_rounds(prior, current):
     return changes, carried
 
 
-def change_sheet(detail):
+def decided_findings(detail, actions):
+    """(finding, decision, place, wording) for each visible finding the author closed with one of `actions`.
+
+    The one walk over decisions that the change sheet and the My changes list both use.
+    """
     places = locations(detail["snapshot"])
-    lines = []
     for finding in (detail.get("review") or {}).get("findings", []):
         if finding.get("absorbed_by"):
             continue  # The parent owns this change; retain the child as evidence only.
         decision = detail.get("decisions", {}).get(finding["fingerprint"], {})
-        if decision.get("action") not in {"pick", "keep"}:
-            continue
-        place = locate(finding, places)
-        wording = actual_wording(place, finding)
+        if decision.get("action") in actions:
+            place = locate(finding, places)
+            yield finding, decision, place, actual_wording(place, finding)
+
+
+def change_sheet(detail):
+    lines = []
+    for finding, decision, place, wording in decided_findings(detail, {"pick", "keep"}):
         question = (place or {}).get("question", {})
         target = "Question" if question else "Screen text"
         for index, option in enumerate(question.get("options", []), 1):
@@ -245,7 +255,7 @@ def change_sheet(detail):
                       "screen_label": (place or {}).get("screen_label", "Survey overall"),
                       "position": (place or {}).get("position", 0), "target": target,
                       "find": wording, "replace": decision.get("picked_text"),
-                      "action": decision["action"], "reason": decision.get("reason", ""),
+                      "action": decision["action"], "reason": keep_text(decision),
                       "acknowledged_risk": decision["action"] == "keep",
                       "manual_edit_required": bool(finding.get("structural") or not wording)})
     return sorted(lines, key=lambda line: line["position"])
