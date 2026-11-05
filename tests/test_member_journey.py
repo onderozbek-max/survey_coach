@@ -2,7 +2,7 @@
 import pytest
 
 from tests.test_issue_loop_ui import open_review
-from tests.test_site_e2e import base_url, browser
+from tests.test_site_e2e import add_change, base_url, browser
 from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
@@ -45,7 +45,7 @@ def test_playback_stops_on_chapter_exit_and_reentry_shows_play(browser, base_url
 def test_uncertain_captured_walkthrough_qualifies_total_timing(browser, base_url):
     def prepare(detail):
         detail['overview']['energy']['path_uncertain'] = True
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare, derived=False)
     timing = page.locator('#stage .timing')
     assert 'Captured-screen walkthrough' in timing.inner_text()
     assert 'route uncertain' in timing.inner_text()
@@ -84,6 +84,8 @@ def test_journey_comparison_and_question_stem_visible(browser, studio):
     page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
     assert page.locator('#coach h3.headline').inner_text() == finding['headline']
     assert finding['current_text'] in page.locator('#stage .phone-screen').inner_text()
+    add_change(page)                     # 2B: only an added change is compared; it is added, then the card is reopened
+    page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
     tools(page)
     page.get_by_role('button', name='Compare wording', exact=True).click()
     assert not errors

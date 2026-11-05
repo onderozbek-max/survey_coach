@@ -183,7 +183,7 @@ def test_about_uses_scope_verbatim_not_score_or_findings_and_refreshes(browser, 
             'unchecked_paths': ['Unvisited synthetic branch <img src=x onerror=alert(1)>'],
             'unchecked_checks': ['Synthetic unchecked wording check'],
         }}
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare, derived=False)
     open_how_we_check(page)
     dialog = page.get_by_role('dialog', name='How we check')
     text = dialog.inner_text()
@@ -213,7 +213,7 @@ def test_about_uses_scope_verbatim_not_score_or_findings_and_refreshes(browser, 
 def test_about_missing_scope_is_unknown_not_all_checked(browser, base_url):
     def prepare(detail):
         detail.pop('presentation', None)
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare, derived=False)
     open_how_we_check(page)
     dialog = page.get_by_role('dialog', name='How we check')
     assert 'Check coverage unavailable' in dialog.inner_text()
@@ -236,7 +236,7 @@ def test_about_discloses_absent_ai_blockers(browser, base_url, mode, checked):
         detail['presentation']['scope'] = scope(evidence)
         detail['review']['ai'] = evidence['review']['ai']
 
-    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare)
+    context, page, detail, writes, errors = open_review(browser, base_url, prepare=prepare, derived=False)
     open_how_we_check(page)
     dialog = page.get_by_role('dialog', name='How we check')
     assert f'{checked} of 48 checks' in dialog.inner_text()

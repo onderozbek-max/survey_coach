@@ -50,7 +50,7 @@ def test_null_and_provisional_quality_do_not_claim_perfect_score(browser, base_u
         detail.setdefault('methodology', {})['quality'] = dict(
             score=None, coverage_percent=0, provisional=True, assessed_points=0, applicable_points=100,
             unchecked_points=100, blockers={'flagged': 0, 'unchecked': 2})
-    context, page, detail, writes, errors = open_review(browser, base_url, chapter='overview', prepare=prepare)
+    context, page, detail, writes, errors = open_review(browser, base_url, chapter='overview', prepare=prepare, derived=False)
     open_how_we_check(page)
     dialog = page.get_by_role('dialog', name='How we check')
     dialog.locator('summary').click()
