@@ -3,6 +3,7 @@ import pytest
 
 from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -48,10 +49,10 @@ def test_signal_energy_and_plan_routes_select_canonical_screen(browser, base_url
     assert page.url.endswith('#improve')
     assert page.evaluate('SC.improveFilter.signal') == signal['id']
     assert detail['screens'][next(i for i,s in enumerate(detail['screens']) if s['page_id'] == signal['pages'][0])]['name'] in page.locator('#stage .phone-bar').inner_text()
-    page.locator('[data-chapter=overview]').click()
+    go_to(page, 'overview')
     page.locator('#energy-map .energy-bar').nth(3).click()
     assert detail['screens'][3]['name'] in page.locator('#stage .phone-bar').inner_text()
-    page.locator('[data-chapter=overview]').click()
+    go_to(page, 'overview')
     page.locator('#plan-summary button').nth(1).click()
     assert page.evaluate('SC.improveFilter.tab') == 'quick_wins'
     assert not writes and not errors
@@ -73,8 +74,8 @@ def test_style_refetches_and_generic_title_uses_patch(browser, base_url):
     assert writes == [{'survey_type': 'community_pulse'}]
     assert any(method == 'GET' and '/api/surveys/synthetic' in url for method, url in requests)
     page.locator('#name-survey').click()
-    page.get_by_role('textbox', name='Survey title', exact=True).fill('Our next idea')
-    page.get_by_role('button', name='Save title', exact=True).click()
+    page.get_by_role('textbox', name='Survey name', exact=True).fill('Our next idea')
+    page.get_by_role('button', name='Save', exact=True).click()
     page.wait_for_function("document.querySelector('#overview-h').textContent === 'Our next idea'")
     assert writes[-1] == {'title': 'Our next idea'}
     assert not errors

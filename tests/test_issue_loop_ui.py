@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to
 
 SITE = Path(__file__).parent.parent / 'site'
 
@@ -87,7 +88,7 @@ def test_contextual_use_copies_only_after_explicit_choice(browser, base_url):
     assert page.locator('#screen-drawer').get_by_text('Ask the coach').count() == 0
     assert 'fingerprint-' not in page.locator('#screen-drawer').inner_text()
     page.get_by_role('button', name='Close all screens').click()
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     assert page.locator('#change-list .diff').count() == 1
     page.locator('#copy-all').click()
     page.wait_for_function("navigator.clipboard.readText().then(t => t.includes('Replace with:'))")
@@ -116,12 +117,13 @@ def test_action_only_keep_requires_reason_and_mobile_finish_loop(browser, base_u
     page.locator('#check-again').click()
     assert page.locator('#survey-link').input_value() == detail['snapshot']['source_url']
     assert not page.locator('#snapshot').is_visible()
-    page.locator('[data-chapter=improve]').click()
-    page.get_by_role('button', name='Rename', exact=True).click()
-    page.get_by_role('textbox', name='Survey title', exact=True).fill('Member experience round')
-    page.get_by_role('button', name='Save title', exact=True).click()
+    page.locator('#recheck-cancel').click()
+    go_to(page, 'improve')
+    page.get_by_role('button', name='Rename survey', exact=True).click()
+    page.get_by_role('textbox', name='Survey name', exact=True).fill('Member experience round')
+    page.get_by_role('button', name='Save', exact=True).click()
     page.wait_for_function("document.querySelector('#review-title').textContent === 'Member experience round'")
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     assert page.locator('.round-timeline a').count() == 2
     assert 'no longer flagged' in page.locator('.round-comparison').inner_text()
     assert '/versions/2/summary?download=1' in page.locator('#download-summary').get_attribute('href')

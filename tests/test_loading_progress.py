@@ -5,6 +5,7 @@ import re
 from playwright.sync_api import expect
 
 from tests.test_site_e2e import browser
+from tests.site_helpers import go_to
 from tests.test_workflow_e2e import studio
 
 LINK = 'https://app.redjade.net/surveys/synthetic'
@@ -163,19 +164,20 @@ def test_recheck_progress_is_visible_and_failed_job_keeps_old_workspace(browser,
     page.goto(studio + '/local.html')
     page.get_by_role('button', name='Try a sample survey').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    go_to(page, 'improve')
     page.locator('#check-again').click()
     page.get_by_label('Updated RedJade preview link').fill(LINK)
     page.route('**/api/reader/jobs', lambda route: route.fulfill(json={'job_id':'recheck'}))
     page.route('**/api/jobs/recheck', lambda route: route.fulfill(json=dict(
         status='failed', stage='reading', pages_captured=0, error='Synthetic recheck failure. Previous review unchanged.')))
-    page.get_by_role('button', name='Start next version').click()
+    page.get_by_role('button', name='Check updated survey').click()
     expect(page.locator('#reading-heading')).to_be_visible()
     expect(page.locator('#import-status')).to_contain_text('Previous review unchanged')
-    expect(page.get_by_role('button', name='Start next version')).to_be_enabled()
+    expect(page.get_by_role('button', name='Check updated survey')).to_be_enabled()
     assert page.locator('#reading-preview img').count() == 0
     assert page.locator('#reading-steps [aria-current]').count() == 0
-    page.locator('#chapter-nav [data-chapter=improve]').click()
+    page.locator('#recheck-cancel').click()      # a failed check leaves the dialog open until the user closes it
+    go_to(page, 'improve')
     expect(page.locator('#stage .phone-screen')).to_be_visible()
     page.close()
 
