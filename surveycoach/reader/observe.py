@@ -69,7 +69,7 @@ OBSERVE = r"""() => {
       const col=row ? [...row.children].indexOf(e.closest('td,th')) : -1;
       const header=table && col>=0 ? table.querySelector('tr')?.children[col] : null;
       return {id:tag(e,'answer-'+groupIndex+'-'+i),label:label(e)||text(header),
-        row:row ? text(row.querySelector('th')) : '',name:e.name||'',type:e.type||e.getAttribute('role'),
+        row:row ? text(row.querySelector('th')) : '',row_index:row ? row.rowIndex : -1,column:col,name:e.name||'',type:e.type||e.getAttribute('role'),
         checked:!!e.checked||e.getAttribute('aria-checked')==='true'||!!e.querySelector?.('input:checked'),value:e.value||'',disabled:!!e.disabled,
         minlength:e.minLength ?? -1,maxlength:e.maxLength ?? -1,step:e.step||'',
         accept:e.accept||'',files:e.files?.length||0,validation:e.validationMessage||'',

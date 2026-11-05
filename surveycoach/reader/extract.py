@@ -1,6 +1,7 @@
 """Interpret only observed DOM wording; never invent missing questions or labels."""
 import hashlib
 import json
+from collections import Counter
 from collections.abc import Sequence
 
 from surveycoach.snapshot import Media, Option, Page, Question
@@ -18,6 +19,39 @@ def fingerprint(observation: dict) -> str:
         [group["prompt"], group["kind"], [item["label"] for item in group["items"]]]
         for group in observation["groups"]
     ])
+
+
+def _row_key(item: dict):
+    """Grid row identity: the DOM row when observed, else the visible row text."""
+    index = item.get("row_index", -1)
+    return index if index >= 0 else item["row"]
+
+
+def _row_labels(items: list[dict]) -> list[str]:
+    """One label per distinct row; equal row text in different DOM rows stays distinct."""
+    rows = {}
+    for item in items:
+        if item["row"]:
+            rows.setdefault(_row_key(item), item["row"])
+    return list(rows.values())
+
+
+def _answer_labels(kind: str, items: list[dict]) -> list[str]:
+    """Every native choice is its own control, even when labels repeat."""
+    if kind == "dropdown":
+        return [o["label"] for o in items[0]["options"]]
+    if kind in {"grid_single", "grid_multi"}:
+        # Each row repeats the same columns: merge by column identity, never by label text.
+        seen, columns = Counter(), {}
+        for item in items:
+            row = _row_key(item)
+            column = item.get("column", -1)
+            columns.setdefault(column if column >= 0 else seen[row], item["label"])
+            seen[row] += 1
+        return [columns[key] for key in sorted(columns)]
+    if kind in {"single_choice", "multi_choice"}:
+        return [item["label"] for item in items]
+    return []
 
 
 def extract_page(observation: dict, position: int, *, existing_pages: Sequence[Page] = ()) -> Page:
@@ -44,18 +78,11 @@ def extract_page(observation: dict, position: int, *, existing_pages: Sequence[P
         items = group["items"]
         qid = allocate("q", group.get("source_id") or stable_id("q", page_id, index, group["prompt"]),
                        question_ids)
-        options = []
-        if kind == "dropdown":
-            labels = [o["label"] for o in items[0]["options"]]
-        elif kind in {"single_choice", "multi_choice", "grid_single", "grid_multi"}:
-            labels = list(dict.fromkeys(item["label"] for item in items))
-        else:
-            labels = []
-        for number, label in enumerate(labels):
-            options.append(Option(id=stable_id("o", qid, number, label), label=label))
+        options = [Option(id=stable_id("o", qid, number, label), label=label)
+                   for number, label in enumerate(_answer_labels(kind, items))]
         questions.append(Question(
             id=qid, text=group["prompt"], kind=kind, required=group["required"], options=options,
-            rows=list(dict.fromkeys(item["row"] for item in items if item["row"])),
+            rows=_row_labels(items),
         ))
     kind = "screen_out" if observation["screenout"] else "question" if questions else "info"
     return Page(id=page_id, position=position, kind=kind, questions=questions,
