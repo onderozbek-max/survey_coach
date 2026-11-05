@@ -68,7 +68,7 @@
 
   function hero(overview, model) {
     const verdict = overview.verdict, ready = verdict?.kind === 'ready_for_signoff', {state, label} = SC.verdictState(verdict);
-    return h('section', {class:'verdict-hero', 'aria-labelledby':'overview-h'},
+    return h('div', {class:'verdict-hero'},
       SC.stateChip(state, {label, className:'verdict-chip'}),
       h('h2', {id:'overview-h', tabindex:'-1'}, overview.headline),
       overview.subline && h('p', {id:'overview-subline'}, overview.subline),

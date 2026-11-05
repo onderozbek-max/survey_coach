@@ -38,6 +38,7 @@
   .review-header { grid-template-columns:auto minmax(0,1fr) auto auto; grid-template-areas:'brand title steps actions'; padding:var(--s-1) var(--s-3); gap:var(--s-1) var(--s-2); }
   .hdr-mysurveys { display:none; }
   .menu-mysurveys { display:flex !important; }
+  .hdr-brand { min-width:44px; justify-content:center; }
   .hdr-brand .brand-word { display:none; }
   #review-title { font-size:var(--fs-16); }
   .hdr-title { flex-direction:column; align-items:flex-start; gap:0; }
