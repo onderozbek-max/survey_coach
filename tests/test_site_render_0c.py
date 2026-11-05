@@ -10,6 +10,7 @@ from tests.test_improve_ui import curated, pattern
 from tests.test_issue_loop_ui import open_review
 from tests.test_queue_position import tiers
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import open_how_we_check, go_to
 
 ROOT = Path(__file__).parent.parent
 SITE = ROOT / 'site'
@@ -114,8 +115,8 @@ def test_every_secondary_button_declares_the_base_class():
 
 def test_buttons_are_padded_rounded_and_unlike_inputs(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    page.locator('[data-chapter=share]').click()
-    page.locator('#about-review').click()
+    go_to(page, 'share')
+    open_how_we_check(page)
     page.keyboard.press('Escape')
     result = page.evaluate('''() => {
       const style = el => getComputedStyle(el);
@@ -166,7 +167,7 @@ def test_one_progress_model_everywhere(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=tiers)
     tabs = page.locator('#queue-tabs [role=tab]')
     sizes = [len(detail['plan'][name]) for name in ('must_fix', 'quick_wins', 'more')]
-    assert tabs.all_inner_texts() == [f'Must-fix\n0 of {sizes[0]} done', f'Quick wins\n0 of {sizes[1]} done',
+    assert tabs.all_inner_texts() == [f'Fix before launch\n0 of {sizes[0]} done', f'Worth improving\n0 of {sizes[1]} done',
                                       f'More ideas\n0 of {sizes[2]} done']
     assert page.locator('#queue-progress').inner_text() == f'0 of {sum(sizes)} done'
     first = detail['plan']['must_fix'][0]
@@ -174,7 +175,7 @@ def test_one_progress_model_everywhere(browser, base_url):
     assert done0 == 0 and total0 >= 1
     page.locator('#use-change').click()
     page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
-    assert tabs.first.inner_text() == f'Must-fix\n1 of {sizes[0]} done'
+    assert tabs.first.inner_text() == f'Fix before launch\n1 of {sizes[0]} done'
     assert page.locator('#queue-progress').inner_text() == f'1 of {sum(sizes)} done'
     done1, total1, _ = drawer_progress(page, screen_of(detail, first['fingerprints'][0])['name'])
     assert (done1, total1) == (1, total0)
@@ -195,48 +196,52 @@ def test_progress_ignores_which_item_is_open(browser, base_url):
 
 def test_empty_tab_says_none_not_zero_of_zero(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=curated)
-    assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Must-fix\n0 of 3 done', 'Quick wins\nnone', 'More ideas\nnone']
+    assert page.locator('#queue-tabs [role=tab]').all_inner_texts() == ['Fix before launch\n0 of 3 done', 'Worth improving\nnone', 'More ideas\nnone']
     context.close()
 
 
 # ---- D10: "Checking…" only for a live job with real stage data ------------------------------------
 
 def status(s):
-    script = (f"global.window={{}};require('./site/dom.js');require('./site/card-status.js');"
+    script = (f"global.window={{}};require('./site/dom.js');require('./site/states.js');require('./site/card-status.js');"
               f"console.log(JSON.stringify(window.SC.surveyStatus({s})));")
     done = subprocess.run(['node', '-e', script], cwd=ROOT, capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     return json.loads(done.stdout)
 
 
-@pytest.mark.parametrize('survey,label,state', [
-    ("{job:{status:'running',stage:'reading'},must_fix:null,readiness:null}", 'Checking…', 'unknown'),
-    ("{job:{status:'running'},must_fix:null,readiness:null}", 'In progress', 'unknown'),
-    ("{job:{status:'queued'},must_fix:null,readiness:null}", 'Queued', 'unknown'),
-    ("{job:{status:'completed'},must_fix:2,readiness:'needs_work',ready_to_share:true}", '2 must-fixes', 'needs_work'),
-    ("{job:{status:'completed'},must_fix:1,readiness:'needs_work'}", '1 must-fix', 'needs_work'),
-    ("{job:{status:'completed'},must_fix:0,readiness:'ready',ready_to_share:true}", 'Ready to share', 'strong'),
-    ("{job:{status:'completed'},must_fix:0,readiness:'ready',ready_to_share:false}", 'No blockers found in what we checked', 'mixed'),
-    ("{must_fix:0,readiness:'almost_ready',ready_to_share:false}", 'Ideas to consider', 'mixed'),
-    ("{must_fix:0,readiness:'needs_work',ready_to_share:false}", 'Needs work', 'needs_work'),
-    ("{must_fix:null,readiness:null,job:null}", 'Not checked yet', 'unknown'),
-    ("{must_fix:null,readiness:null,job:{status:'failed'}}", 'Check did not finish', 'unknown'),
+FIX = "{kind:'fix_before_launch',tiles:{fix:2,improve:0,you_check:0}}"
+OUT = {'running': True, 'state': None}
+
+
+@pytest.mark.parametrize('survey,expected', [
+    ("{job:{status:'running',stage:'reading'},verdict:null}", dict(OUT, label='Checking…')),
+    ("{job:{status:'running'},verdict:null}", dict(OUT, label='In progress')),
+    ("{job:{status:'queued'},verdict:null}", dict(OUT, label='Queued')),
+    (f"{{job:{{status:'completed'}},verdict:{FIX}}}", {'label': 'Fix before launch', 'state': 'fix_before_launch'}),
+    ("{job:{status:'completed'},verdict:{kind:'ready_for_signoff',tiles:{fix:0,improve:0,you_check:0}}}",
+     {'label': 'Ready for sign-off', 'state': 'looks_good'}),
+    ("{verdict:{kind:'almost_ready',tiles:{fix:0,improve:3,you_check:1}}}", {'label': 'Almost ready', 'state': 'worth_improving'}),
+    ("{verdict:{kind:'almost_ready',tiles:{fix:0,improve:0,you_check:4}}}", {'label': 'Almost ready', 'state': 'you_check'}),
+    ("{verdict:null,job:null}", {'label': 'Not checked yet', 'state': None}),
+    ("{verdict:null,job:{status:'failed'}}", {'label': 'Check did not finish', 'state': None}),
+    (f"{{job:{{status:'failed'}},verdict:{FIX}}}", {'label': 'Fix before launch', 'state': 'fix_before_launch'}),   # the old review still stands
 ])
-def test_card_status_never_claims_checking_without_a_live_job(survey, label, state):
-    assert status(survey) == {'label': label, 'state': state}
+def test_card_status_never_claims_checking_without_a_live_job(survey, expected):
+    assert status(survey) == expected
 
 
 def test_home_card_chip_follows_status(browser, base_url):
     context = browser.new_context()
     page = context.new_page()
-    base = dict(title='T', version=1, created_at='2026-01-01 00:00:00', signals=None, quality=None, ready_to_share=False,
-                must_fix=0, readiness='ready', job={'status': 'completed'})
+    base = dict(title='T', version=1, created_at='2026-01-01 00:00:00', signals=[], tiles=None, ready_to_share=False,
+                verdict=None, job={'status': 'completed'})
+    done = {'kind': 'ready_for_signoff', 'tiles': {'fix': 0, 'improve': 0, 'you_check': 0}}
     page.route('**/api/surveys', lambda route: route.fulfill(json={'surveys': [
-        dict(base, id='a'), dict(base, id='b', readiness=None, must_fix=None, job={'status': 'running', 'stage': 'reading'}),
-        dict(base, id='c', readiness=None, must_fix=None, job=None)]}))
+        dict(base, id='a', verdict=done, tiles=done['tiles']), dict(base, id='b', job={'status': 'running', 'stage': 'reading'}),
+        dict(base, id='c', job=None)]}))
     page.route('**/api/reader/mode', lambda route: route.fulfill(json={}))
     page.goto(base_url + 'local.html')
     page.locator('a.survey-card').first.wait_for()
-    assert page.locator('a.survey-card .chip').all_text_contents() == [
-        'No blockers found in what we checked', 'Checking…', 'Not checked yet']
+    assert page.locator('a.survey-card .state-chip').all_text_contents() == ['Ready for sign-off', 'Checking…', 'Not checked yet']
     context.close()
