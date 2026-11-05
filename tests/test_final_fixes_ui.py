@@ -1,79 +1,86 @@
 """Cross-feature regressions. Synthetic intercepted API and disposable localhost only."""
 import pytest
-from tests.test_issue_loop_ui import open_review, focus
+from tests.test_issue_loop_ui import focus, keep_item, open_review
 from tests.test_site_e2e import base_url, browser
 from tests.site_helpers import open_how_we_check, go_to
 from tests.test_workflow_e2e import studio
 
 
-def keep(page):
-    page.locator('#keep-as-is').click()
-    page.get_by_role('button', name='Stakeholder requirement', exact=True).click()
-    page.locator('#undo').wait_for()
+def keepable(detail):
+    """A finding whose own fix-list entry is a single pasteable card (Keep as is is offered)."""
+    entry = next(e for e in detail['queue']['items'] if e['action_kind'] == 'paste' and len(e['fingerprints']) == 1)
+    return next(f for f in detail['review']['findings'] if f['fingerprint'] == entry['fingerprints'][0]), entry
 
 
 @pytest.mark.parametrize('removed', [False, True, 'in-range'])
 def test_undo_resolves_refetched_fingerprint_not_array_index(browser, base_url, removed):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    target = detail['review']['findings'][-1]
+    target, entry = keepable(detail)
     focus(page, target)
-    keep(page)
-    page.evaluate("""removed => {
+    keep_item(page)
+    page.evaluate("""([removed, fp]) => {
       const d = structuredClone(SC.workspaceDetail);
-      if (removed === true) {
-        const fp = d.review.findings.pop().fingerprint;
-        for (const name of ['must_fix','quick_wins','more'])
-          d.plan[name] = d.plan[name].filter(i => !i.fingerprints.includes(fp));
-      } else if (removed === 'in-range') d.review.findings.reverse();
-      else d.review.findings.splice(0,2);
+      const drop = fps => {           // a refetched detail drops findings and their list entries together
+        d.review.findings = d.review.findings.filter(f => !fps.includes(f.fingerprint));
+        d.queue.items = d.queue.items.filter(e => !e.fingerprints.some(x => fps.includes(x)));
+      };
+      if (removed === true) drop([fp]);
+      else if (removed === 'in-range') { d.review.findings.reverse(); d.queue.items.reverse(); }
+      else drop(d.review.findings.filter(f => f.fingerprint !== fp).slice(0, 2).map(f => f.fingerprint));
       dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail:d}));
-    }""", removed)
+    }""", [removed, target['fingerprint']])
     page.locator('#undo').click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('restored')")
-    assert len(writes) == (1 if removed is True else 2)
-    if removed is not True:
+    if removed is True:       # the finding is gone from the refetched detail: nothing may be written for it
+        page.wait_for_function("document.querySelector('#toast')?.textContent.includes('could not be undone')")
+        assert len(writes) == 1
+    else:
+        page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Back on your list')")
+        assert len(writes) == 2                       # the keep, then the restore of exactly that fingerprint
         decisions = page.evaluate('SC.workspaceDetail.decisions')
         assert decisions[target['fingerprint']]['action'] == 'open'
         assert set(decisions) == {target['fingerprint']}
-        assert page.locator('#coach .decision-content').get_attribute('data-fingerprint') == target['fingerprint']
+        assert page.locator('#fix-queue [aria-current=true]').get_attribute('data-fk') == f"fix-row-{entry['id']}"
         assert page.locator('#coach-h').evaluate('el => el === document.activeElement')
     assert not errors
     context.close()
 
 
-def test_preview_choice_survives_reordering_only_on_its_fingerprint(browser, base_url):
+def test_kept_item_is_not_a_change_and_survives_reordering_only_on_its_fingerprint(browser, base_url):
+    """A saved keep must not become a default rewrite, in the tray or on the phone, after the list is reordered."""
     context, page, detail, writes, errors = open_review(browser, base_url)
-    target = detail['review']['findings'][-1]
+    target, entry = keepable(detail)
     focus(page, target)
-    keep(page)
+    keep_item(page)
     page.evaluate("""() => {
       const d = structuredClone(SC.workspaceDetail);
-      d.review.findings.reverse();
+      d.review.findings.reverse(); d.queue.items.reverse();
       dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail:d}));
     }""")
-    # Saved keep must not become a default rewrite after its index changes.
-    page.locator('[data-fk=queue-mode-fixes]').click()
     focus(page, target)
-    assert page.locator('#stage .phone-screen').inner_text().find(target['current_text']) >= 0
+    assert page.locator('[data-fk=queue-mode-fixes]').is_disabled()                 # nothing was added, so nothing to preview
+    assert page.locator('#tray-toggle').inner_text().startswith('My changes (0)')
+    assert target['current_text'].splitlines()[0] in page.locator('#stage .phone-screen').inner_text()
     assert not errors
     context.close()
 
 
 def test_keyboard_undo_returns_to_restored_single_card(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
-    fp = page.locator('.decision-content').get_attribute('data-fingerprint')
+    target, entry = keepable(detail)
+    focus(page, target)
+    title = page.locator('#coach h3').inner_text()
     page.locator('#keep-as-is').focus()
     page.keyboard.press('Enter')
-    page.get_by_role('button', name='Stakeholder requirement', exact=True).focus()
+    page.get_by_role('button', name='Owner decided', exact=True).focus()
+    page.keyboard.press('Enter')
+    page.locator('#keep-save').focus()
     page.keyboard.press('Enter')
     page.locator('#undo').wait_for()
     page.locator('#undo').focus()
     page.keyboard.press('Enter')
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Previous decisions restored')")
+    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Back on your list')")
     assert page.locator('#coach-h').evaluate('el => el === document.activeElement')
-    assert page.locator('.decision-content').get_attribute('data-fingerprint') == fp
-    page.locator('#skip').focus()
-    page.keyboard.press('Enter')
+    assert page.locator('#coach h3').inner_text() == title
     page.locator('[data-chapter=share]').focus()
     page.keyboard.press('Enter')
     assert page.locator('#share-h').evaluate('el => el === document.activeElement')
@@ -172,7 +179,10 @@ def test_decision_refresh_overview_matches_authoritative_api(browser, studio):
     page.locator('#overview-h').wait_for()
     before = page.locator('#overview-h').inner_text()
     page.locator('#start-improving').click()
-    keep(page)
+    page.locator('#keep-as-is').click()
+    page.get_by_role('button', name='Owner decided', exact=True).click()
+    page.locator('#keep-save').click()
+    page.locator('#undo').wait_for()
     go_to(page, 'overview')
     page.wait_for_function("before => document.querySelector('#overview-h').textContent !== before", arg=before)
     authoritative = page.evaluate("fetch('/api/surveys/'+SC.workspaceDetail.id).then(r=>r.json())")

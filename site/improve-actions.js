@@ -29,6 +29,7 @@
       } finally {
         operation.busy = false; ctx.onRender();
         if (restored && SC.currentChapter() === 'improve') ctx.onFocusFinding(records[0]?.fingerprint);
+        if (SC.currentChapter() === 'improve') focusCard();        // the toast (and its Undo button) is gone: land on the card, never on the page body
       }
     };
 

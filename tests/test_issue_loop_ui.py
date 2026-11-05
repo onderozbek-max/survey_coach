@@ -97,6 +97,14 @@ def focus(page, finding):
     page.locator('#coach .card').wait_for()
 
 
+def keep_item(page, reason='Owner decided'):
+    """Keep the open card as is: open the panel, pick a reason, save (nothing is saved before the last click)."""
+    page.locator('#keep-as-is').click()
+    page.get_by_role('button', name=reason, exact=True).click()
+    page.locator('#keep-save').click()
+    page.locator('#undo').wait_for()
+
+
 def test_adding_a_change_saves_only_after_an_explicit_action_and_feeds_the_tray(browser, base_url):
     """2B: Use became Add to my changes. It saves and moves on; copying is its own explicit button."""
     context, page, detail, writes, errors = open_review(browser, base_url)
