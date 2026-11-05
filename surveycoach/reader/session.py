@@ -14,6 +14,7 @@ from .adaptive import AdaptiveReader
 from .definition import apply_definition
 from .extract import extract_page, fingerprint
 from .models import Capture, Coverage, ReadResult
+from .naming import resolve_title
 from .observe import OBSERVE
 from .progression import advance
 from .requirements import UnmetRequirement
@@ -96,6 +97,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     elif not allow_test_local:
         coverage.warnings.append("Approved external read: page loads can create partial participant data. All writes are blocked.")
     from playwright.async_api import async_playwright
+    document_title = ""
 
     async def capture(page, observed):
         number = len(result.captures)
@@ -160,7 +162,7 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
                             coverage.warnings.append('A blank/loading/upload status screen did not resolve into a survey page.')
                             break
                         observed = await page.evaluate(OBSERVE)
-                    result.snapshot.title = result.snapshot.title or observed["title"]
+                    document_title = document_title or observed["title"]
                     fp = fingerprint(observed)
                     if participate:
                         # A generic follow-up may recur after different concepts.
@@ -247,6 +249,9 @@ async def _read_survey(url: str, *, allow_test_local: bool, approval: bool,
     if transport.definition is not None:
         transport.definition.snapshot.source_url = url
         apply_definition(result, transport.definition)
+    definition_title = result.snapshot.title if transport.definition is not None else ""
+    result.snapshot.title = resolve_title(result.snapshot, definition_title=definition_title,
+                                          document_title=document_title)
     coverage.visual_media_verified = result.snapshot.all_pages_rendered
     coverage.warnings.append(f"Read stopped: {coverage.stop_reason}. " + (
         "Definition wording is available; only captures have rendered evidence."

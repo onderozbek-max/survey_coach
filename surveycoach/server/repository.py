@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter
 
+from surveycoach.reader.naming import is_generic_title, presentable_title
 from surveycoach.rubric import load_rubric
 from surveycoach.server.present import enrich, present_findings
 from surveycoach.recommendations import guard_recommendation
@@ -178,7 +179,8 @@ class Repository:
         for item in surveys:
             detail = self.detail(item["id"], item["version"])
             signals = detail.get("overview", {}).get("signals", [])
-            item.update({key: detail[key] for key in ("title", "survey_type", "survey_type_chosen")})
+            item.update({key: detail[key] for key in ("title", "title_confirmed", "title_generic",
+                                                      "survey_type", "survey_type_chosen")})
             item.update(signals=signals, quality=detail["quality"], job=detail.get("job"),
                         readiness=None, must_fix=None, score_checked=None)
             review = detail.get("review") or {}
@@ -211,8 +213,9 @@ class Repository:
                                    (survey_id, version)).fetchall()
             job = db.execute("SELECT * FROM jobs WHERE survey_id=? AND version=? ORDER BY rowid DESC LIMIT 1",
                              (survey_id, version)).fetchone()
+            stored = SurveySnapshot.model_validate_json(row["snapshot"])
             data = {"id": survey_id, "survey_id": survey_id, "title": row["title"], "version": version,
-                    "content_hash": SurveySnapshot.model_validate_json(row["snapshot"]).content_hash,
+                    "content_hash": stored.content_hash,
                     "review_hash": row["content_hash"], "snapshot": json.loads(row["snapshot"]),
                     "review": None, "timeline": [], "total_seconds": 0,
                     "versions": [dict(v) for v in versions],
@@ -221,7 +224,10 @@ class Repository:
             if review:
                 data.update(review)
             metadata = db.execute("SELECT display_title,survey_type FROM surveys WHERE id=?", (survey_id,)).fetchone()
-            data["title"] = metadata["display_title"] or row["title"]
+            # The user's own name wins; a generic stored title is projected, never rewritten.
+            data["title"] = metadata["display_title"] or presentable_title(stored)
+            data["title_confirmed"] = bool(metadata["display_title"])
+            data["title_generic"] = is_generic_title(data["title"])
             data["survey_type"] = metadata["survey_type"] or data["snapshot"]["survey_type"]
             data["survey_type_chosen"] = bool(metadata["survey_type"])
             data["snapshot_title"] = row["title"]
