@@ -57,9 +57,11 @@ def test_clean_fixture_is_never_called_ready_while_ai_blockers_are_pending():
     expected_earned = sum(c.points * review.results[c.id].fraction for c in RUBRIC.criteria
                           if c.active and c.id in review.results and review.results[c.id].applies
                           and review.results[c.id].fraction is not None)
-    assert card.score == expected_earned == 43
-    assert card.unchecked_points == 54 and card.checked_points == 43
-    assert card.not_applicable_points == 3
+    # coffee-pods has no scales or grids: 4.4 and 6.3 (2 points each) used to earn 4 points for
+    # categories that do not exist (audit 18); they are explicit N/A now.
+    assert card.score == expected_earned == 39
+    assert card.unchecked_points == 54 and card.checked_points == 39
+    assert card.not_applicable_points == 7
     assert card.open_blockers == []
     assert card.pending_blockers == ["B1", "B2", "B5", "B6"]
     assert card.readiness != "ready"

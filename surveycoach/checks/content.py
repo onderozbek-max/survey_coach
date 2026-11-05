@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from surveycoach.checks.reading import reading_advice, simpler_question
-from surveycoach.checks.registry import ReviewContext, check, clip, finding, result, share_fraction
+from surveycoach.checks.registry import ReviewContext, check, clip, finding, not_applicable, result, share_result
 from surveycoach.checks.text import (WORD, emoji_count, limit_emoji, reading_grade, sentence_case, swap_word,
                                      title_case_signature)
 from surveycoach.findings import CheckResult, Finding
@@ -55,19 +55,21 @@ def plain_words(ctx: ReviewContext) -> CheckResult:
                                     "Complex wording may take more effort to understand; verify with a member read-through.",
                                     question_id=q.id, current_text=q.text, suggested_text=suggested))
         failing += bool(jargon) or grade > MAX_GRADE
-    return result("3.2", share_fraction(failing, len(questions)), *findings)
+    return share_result("3.2", failing, len(questions), *findings)
 
 
 @check("3.3")
 def clear_instructions(ctx: ReviewContext) -> CheckResult:
     multi = [q for q in _questions(ctx) if q.kind == "multi_choice"]
+    if not multi:
+        return not_applicable("3.3")   # no select-all question exists, so there is no instruction to check
     missing = [q for q in multi if not ALL_THAT_APPLY.search(f"{q.text} {q.help_text}")]
     findings = [finding("3.3", "worth_improving", 'Missing "Select all that apply"', clip(q.text),
                         'Add "Select all that apply" to the question.',
                         "Members can't tell whether they may pick more than one answer.", question_id=q.id,
                         current_text=q.text, suggested_text=f"{q.text.rstrip()} Select all that apply.")
                 for q in missing]
-    return result("3.3", share_fraction(len(missing), len(multi)), *findings)
+    return share_result("3.3", len(missing), len(multi), *findings)
 
 
 @check("9.1")

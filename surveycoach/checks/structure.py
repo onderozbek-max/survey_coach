@@ -98,26 +98,37 @@ def _screen_out_pages(ctx: ReviewContext) -> list[tuple[int, Page]]:
 
 @check("B3")
 def late_screen_out(ctx: ReviewContext) -> CheckResult:
-    findings = []
+    """Thank-you wording is judged on canonical page copy; late-effort timing only when it is verified.
+
+    A screen-out after other pages needs calibrated, certain timing to judge effort. Without it the
+    check keeps its independent copy findings but cannot clear the blocker (assessed=False).
+    A survey with no observed screen-out has nothing to place and keeps the existing clear.
+    """
+    findings, timing_unverified = [], False
+    timing_verified = ctx.timing.calibrated and not ctx.timing.path_uncertain
     for index, page in _screen_out_pages(ctx):
+        copy = ctx.snapshot.page_copy(page)
+        timing_unverified |= index > 0 and not timing_verified
         effort = ctx.timing.pages[index - 1].cumulative_seconds if index > 0 else 0
-        if ctx.timing.calibrated and not ctx.timing.path_uncertain and effort > SCREEN_OUT_EFFORT_SECONDS:
+        if timing_verified and effort > SCREEN_OUT_EFFORT_SECONDS:
             findings.append(finding(
                 "B3", "must_fix", f"Members are screened out after about {effort / 60:.0f} min of effort",
                 f"Members can be screened out after about {effort / 60:.0f} minutes of effort.",
                 "Move the qualifying questions to the start so unqualified members find out in under 2 minutes.",
                 "Spending minutes and then being told you don't qualify is the fastest way to lose a member.",
                 page_id=page.id))
-        if not THANKS.search(page.text or page.intro_text):
+        if not THANKS.search(copy):
             findings.append(finding(
                 "B3", "must_fix", "Screen-out page has no thank-you",
-                clip(page.text) or "The screen-out page has no thank-you.",
+                clip(copy) or "The screen-out page has no thank-you.",
                 "Thank members warmly on the screen-out page, for example: Thanks for your time! "
                 "This one isn't a match, but we'd love your help on the next one.",
                 "Members who don't qualify still decide whether to come back.", page_id=page.id,
                 current_text=page.text or None,
                 suggested_text="Thanks for your time! This one isn't a match, but we'd love your help on the next one."))
-    return result("B3", None, *findings) if findings else blocker_ok("B3")
+    if findings or timing_unverified:
+        return CheckResult(criterion_id="B3", findings=findings, assessed=not timing_unverified)
+    return blocker_ok("B3")
 
 
 @check("1.4")

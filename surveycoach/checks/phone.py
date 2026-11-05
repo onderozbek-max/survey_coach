@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 
 from surveycoach.checks.answers import standard_scale
-from surveycoach.checks.registry import (Problem, ReviewContext, check, clip, problem_finding, result,
-                                         share_fraction)
+from surveycoach.checks.registry import (Problem, ReviewContext, absent_or_unknown, check, clip, problem_finding,
+                                         share_result)
 from surveycoach.checks.text import plural, swap_word
 from surveycoach.findings import CheckResult, Finding
 from surveycoach.snapshot import Question
@@ -61,7 +61,7 @@ def fits_one_screen(ctx: ReviewContext) -> CheckResult:
                                             "Crowded screens need a lot of scrolling on a phone.", page_id=page.id))
         failing += bool(problems)
         findings += problems
-    return result("6.1", share_fraction(failing, len(screens)), *findings)
+    return share_result("6.1", failing, len(screens), *findings)
 
 
 def _choice_layout_advice(q: Question) -> str:
@@ -108,8 +108,9 @@ def _choice_layout_advice(q: Question) -> str:
 
 @check("6.2")
 def tappable_answers(ctx: ReviewContext) -> CheckResult:
+    questions = _questions(ctx)
     findings, failing, total = [], 0, 0
-    for q in _questions(ctx):
+    for q in questions:
         if q.kind not in CHOICE_KINDS or not q.options:
             continue
         total += 1
@@ -127,13 +128,16 @@ def tappable_answers(ctx: ReviewContext) -> CheckResult:
                                     "Use buttons instead; they take one tap, not two."))
         failing += bool(problems)
         findings += [_on_question("6.2", q, pr, "Long or crowded answers are hard to read and tap on a phone.") for pr in problems]
-    return result("6.2", share_fraction(failing, total), *findings)
+    if not total:   # choice questions whose answers were not captured are unknown, not absent
+        return absent_or_unknown("6.2", kind_present=any(q.kind in CHOICE_KINDS for q in questions))
+    return share_result("6.2", failing, total, *findings)
 
 
 @check("6.3")
 def small_grids(ctx: ReviewContext) -> CheckResult:
+    questions = _questions(ctx)
     findings, failing, total = [], 0, 0
-    for q in _questions(ctx):
+    for q in questions:
         columns = q.scale.points if q.scale else len(q.options)
         problems = []
         if q.kind in GRID_KINDS:
@@ -151,7 +155,9 @@ def small_grids(ctx: ReviewContext) -> CheckResult:
                                         f"Use {MAX_SCALE_POINTS} points or fewer; a 0 to 10 scale is hard to tap."))
         failing += bool(problems)
         findings += [_on_question("6.3", q, pr, "Wide grids and long scales force sideways scrolling and mis-taps.") for pr in problems]
-    return result("6.3", share_fraction(failing, total), *findings)
+    if not total:   # a rating or slider without a captured scale is unknown, not absent
+        return absent_or_unknown("6.3", kind_present=any(q.kind in {"rating", "slider"} for q in questions))
+    return share_result("6.3", failing, total, *findings)
 
 
 def _desktop_word(q: Question) -> tuple[str, str] | None:
@@ -174,7 +180,7 @@ def thumb_friendly(ctx: ReviewContext) -> CheckResult:
                                     suggested=swap_word(text, word, replacement) if replacement else None))
         failing += bool(problems)
         findings += [_on_question("6.4", q, pr, "Members on a phone can't click, hover, or drag.") for pr in problems]
-    return result("6.4", share_fraction(failing, len(_questions(ctx))), *findings)
+    return share_result("6.4", failing, len(_questions(ctx)), *findings)
 
 
 @check("6.5")
@@ -194,4 +200,4 @@ def stays_put(ctx: ReviewContext) -> CheckResult:
     # Reader-only image failures are unverified capture evidence, owned by B7.
     # They neither deduct layout credit nor dilute observed layout problems.
     total = len(ctx.snapshot.pages) + len(_questions(ctx))
-    return result("6.5", share_fraction(failing, total), *findings)
+    return share_result("6.5", failing, total, *findings)

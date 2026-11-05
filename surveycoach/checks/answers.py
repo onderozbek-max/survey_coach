@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from surveycoach.checks.registry import ReviewContext, check, clip, finding, passed, result
+from surveycoach.checks.registry import ReviewContext, absent_or_unknown, check, clip, finding, passed, result
 from surveycoach.findings import CheckResult
 from surveycoach.snapshot import Question
 
@@ -16,6 +16,21 @@ ABOVE_EXCL = re.compile(rf"\b(?:over|more than|above|greater than)\s*{NUM}", re.
 AT_LEAST = re.compile(rf"(?:\bat least\s*{NUM}|{NUM}\s*(?:\+|or more|or older|and over|and above))", re.I)
 AT_MOST = re.compile(rf"{NUM}\s*(?:or less|or fewer|or younger|and under|and below)", re.I)
 CHOICE_KINDS = {"single_choice", "multi_choice", "dropdown"}
+CURRENCY_BEFORE = re.compile(r"[$\u20ac\u00a3]\s*$")
+QUANTITY_FILLER = {"old", "a", "an", "the"}
+# Units people state as whole numbers. Money, weight, hours and unit-less ranges are never assumed integral.
+INTEGRAL_UNITS = {"day", "week", "month", "year", "time", "visit", "order", "purchase", "item", "product",
+                  "person", "people", "child", "children", "kid", "unit", "pack", "package", "trip", "session"}
+COUNT_QUESTION = re.compile(r"\bhow many\b|\bhow old\b|\bage\b|\bnumber of\b", re.I)
+OVERLAP_FIX_WHOLE = "Make the ranges share no numbers, for example 1 to 4 and 5 to 10."
+OVERLAP_FIX_CONTINUOUS = (
+    "Make the ranges share no values without leaving a gap. These units may fall between whole numbers, so do not "
+    "just lower the top number. Use exclusive boundaries, for example 'under 10' for the lower range and '10 to "
+    "under 20' for the next, and check the wording in the survey editor.")
+
+
+def _singular(word: str) -> str:
+    return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
 
 
 @dataclass(frozen=True)
@@ -23,29 +38,51 @@ class Interval:
     label: str
     lo: float
     hi: float
+    quantity: str = ""   # what is measured: currency sign plus the words after the numbers
 
     def overlaps(self, other: "Interval") -> bool:
         return self.lo <= other.hi and other.lo <= self.hi
+
+    def comparable(self, other: "Interval") -> bool:
+        """Ranges compete only when they measure the same quantity ('1 to 2 days' vs '1 to 2 years' do not)."""
+        return self.quantity == other.quantity
+
+    def integral(self, question_text: str) -> bool:
+        """True only when the quantity is clearly counted in whole numbers (ages, days, times, items)."""
+        if not self.quantity:
+            return bool(COUNT_QUESTION.search(question_text))
+        return any(word in INTEGRAL_UNITS for word in self.quantity.split())
+
+
+def _quantity(label: str, match: re.Match) -> str:
+    words = [_singular(w) for w in re.findall(r"[a-z]+", label[match.end():].lower()) if w not in QUANTITY_FILLER]
+    currency = ["$"] if CURRENCY_BEFORE.search(label[:match.start()]) else []
+    return " ".join(currency + words)
 
 
 def parse_interval(label: str) -> Interval | None:
     """Numeric range hidden in an answer label, with open ends. None when the label isn't numeric."""
     inf = float("inf")
     if m := BETWEEN.search(label):
-        return Interval(label, float(m.group(1)), float(m.group(2)))
-    if m := BELOW.search(label):
-        return Interval(label, -inf, float(m.group(1)) - EPS)
-    if m := ABOVE_EXCL.search(label):
-        return Interval(label, float(m.group(1)) + EPS, inf)
-    if m := AT_MOST.search(label):
-        return Interval(label, -inf, float(m.group(1)))
-    if m := AT_LEAST.search(label):
-        return Interval(label, float(m.group(1) or m.group(2)), inf)
-    return None
+        lo, hi = float(m.group(1)), float(m.group(2))
+    elif m := BELOW.search(label):
+        lo, hi = -inf, float(m.group(1)) - EPS
+    elif m := ABOVE_EXCL.search(label):
+        lo, hi = float(m.group(1)) + EPS, inf
+    elif m := AT_MOST.search(label):
+        lo, hi = -inf, float(m.group(1))
+    elif m := AT_LEAST.search(label):
+        lo, hi = float(m.group(1) or m.group(2)), inf
+    else:
+        return None
+    return Interval(label, lo, hi, _quantity(label, m))
 
 
 def shorten_to_clear(earlier: str, later: str) -> str | None:
-    """The earlier range label with its top number lowered to stop just before the later range starts."""
+    """The earlier range label with its top number lowered to stop just before the later range starts.
+
+    Only valid for whole-number units; callers must check `Interval.integral` first.
+    """
     a, b = BETWEEN.search(earlier), BETWEEN.search(later)
     if not (a and b) or float(b.group(1)) != int(float(b.group(1))):
         return None
@@ -57,20 +94,24 @@ def shorten_to_clear(earlier: str, later: str) -> str | None:
 
 @check("4.2")
 def no_overlap(ctx: ReviewContext) -> CheckResult:
+    questions = [q for q in ctx.snapshot.all_questions() if q.kind in CHOICE_KINDS]
+    eligible = [q for q in questions if q.options]
+    if not eligible:   # choice questions whose answers were not captured are unknown, not absent
+        return absent_or_unknown("4.2", kind_present=bool(questions))
     findings = []
-    for q in ctx.snapshot.all_questions():
-        if q.kind not in CHOICE_KINDS:
-            continue
+    for q in eligible:
         intervals = [i for o in q.options if (i := parse_interval(o.label))]
         for a_index, a in enumerate(intervals):
             for b in intervals[a_index + 1:]:
-                if a.overlaps(b):
+                if a.comparable(b) and a.overlaps(b):
+                    whole = a.integral(q.text)
                     findings.append(finding(
                         "4.2", "worth_improving", f"Answer ranges overlap: {a.label}, {b.label}",
                         f'"{a.label}" and "{b.label}" overlap.',
-                        "Make the ranges share no numbers, for example 1 to 4 and 5 to 10.",
+                        OVERLAP_FIX_WHOLE if whole else OVERLAP_FIX_CONTINUOUS,
                         "A member at the shared number can't tell which answer is theirs.", question_id=q.id,
-                        current_text=a.label, suggested_text=shorten_to_clear(a.label, b.label), highlight=a.label))
+                        current_text=a.label, suggested_text=shorten_to_clear(a.label, b.label) if whole else None,
+                        highlight=a.label))
     return result("4.2", 0.0 if findings else 1.0, *findings[:3])
 
 
@@ -175,8 +216,9 @@ def honest_scales(ctx: ReviewContext) -> CheckResult:
             "Some scales run from positive to negative, others the other way round.",
             "Use the same direction throughout, so the highest number always means best (the direction rule).",
             "Members on autopilot tap the wrong end when the direction flips."))
-    if not scaled:
-        return result("4.4", 1.0)
+    if not scaled:   # a rating or slider without a captured scale is unknown, not absent
+        unreadable = any(q.kind in {"rating", "slider"} for q in ctx.snapshot.all_questions())
+        return absent_or_unknown("4.4", kind_present=unreadable)
     problem_kinds = len({f.explanation for f in findings})
     return result("4.4", max(0.0, 1 - 0.5 * min(problem_kinds, 2)), *findings[:4])
 

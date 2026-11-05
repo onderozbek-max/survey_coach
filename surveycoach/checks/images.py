@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from surveycoach.checks.registry import (Problem, ReviewContext, blocker_ok, check, finding, not_applicable, passed,
-                                         problem_finding, result, share_fraction)
+                                         problem_finding, result, share_result)
 from surveycoach.findings import CheckResult, Finding
 from surveycoach.imageio import BLUR_MIN, analyze_image
 from surveycoach.snapshot import Media
@@ -104,13 +104,15 @@ def sharp_and_high_res(ctx: ReviewContext) -> CheckResult:
     refs = [r for r in all_media(ctx) if r.media.loaded]
     if not refs:
         return not_applicable("7.3")
-    findings, failing = [], 0
+    findings, failing, unmeasured = [], 0, 0
     for ref in refs:
         problems = _sharpness_problems(ref)
         failing += bool(problems)
+        # Resolution needs both the file size and the displayed size; without them the clear is unknown.
+        unmeasured += not (ref.media.natural_w and ref.media.rendered_w)
         findings += [_img_finding("7.3", ref, pr, "Soft or stretched images make products look cheap and hard to judge.")
                      for pr in problems]
-    return result("7.3", share_fraction(failing, len(refs)), *findings)
+    return share_result("7.3", failing, len(refs), *findings, assessed=not unmeasured)
 
 
 @check("7.5")
@@ -118,17 +120,19 @@ def fair_image_choices(ctx: ReviewContext) -> CheckResult:
     questions = [q for q in ctx.snapshot.all_questions() if sum(1 for o in q.options if o.media) >= 2]
     if not questions:
         return not_applicable("7.5")
-    findings, failing = [], 0
+    findings, failing, layout_unknown = [], 0, False
     for q in questions:
         pictured = [o for o in q.options if o.media]
         ratios = [r for o in pictured if (r := _ratio(o.media))]
-        widths = [o.media.natural_w for o in pictured if o.media.natural_w]
+        # Presentation fairness compares what members see; source resolution belongs to 7.3.
+        displayed = [o.media.rendered_w for o in pictured if o.media.rendered_w]
+        layout_unknown |= len(displayed) < len(pictured)
         problems = []
         if ratios and max(ratios) / min(ratios) > 1.05:
             problems.append(Problem("Image options have different shapes", "The images have different shapes.",
                                     "Crop every option to the same shape."))
-        if widths and max(widths) / min(widths) > 1.25:
-            problems.append(Problem("Image options differ a lot in size", "The images are very different sizes.",
+        if len(displayed) == len(pictured) and max(displayed) / min(displayed) > 1.25:
+            problems.append(Problem("Image options differ a lot in size", "The images are shown at very different sizes.",
                                     "Use matching sizes so no option looks fancier."))
         if any(not o.label.strip() for o in pictured):
             problems.append(Problem("Image option has no label", "Some options have no label.", "Give every image a short label."))
@@ -141,7 +145,7 @@ def fair_image_choices(ctx: ReviewContext) -> CheckResult:
         failing += bool(problems)
         findings += [problem_finding("7.5", pr, "Unequal or crowded image presentation can influence comparisons; check the actual phone layout before changing research content.",
                                      question_id=q.id) for pr in problems]
-    return result("7.5", share_fraction(failing, len(questions)), *findings)
+    return share_result("7.5", failing, len(questions), *findings, assessed=not layout_unknown)
 
 
 @check("7.6")
@@ -168,7 +172,9 @@ def light_and_accessible(ctx: ReviewContext) -> CheckResult:
                                 f"Images total {total_bytes / 1_000_000:.1f} MB.",
                                 "Keep the whole survey under about 5 MB of images.",
                                 "Many members are on cellular, where big surveys load slowly."))
-    return result("7.6", share_fraction(failing + heavy, len(refs) + 1), *findings)
+    # Alt text is always checkable; weight is not, so unknown bytes leave the criterion unassessed.
+    unmeasured = any(r.media.bytes is None for r in refs)
+    return share_result("7.6", failing + heavy, len(refs) + 1, *findings, assessed=not unmeasured)
 
 
 @check("B7")

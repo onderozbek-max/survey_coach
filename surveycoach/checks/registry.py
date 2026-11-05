@@ -85,5 +85,27 @@ def clip(text: str, limit: int = 120) -> str:
 
 
 def share_fraction(failing: int, total: int) -> float:
-    """Proportional credit: the share of items that pass (full credit when there is nothing to judge)."""
-    return 1.0 if total == 0 else round(max(0.0, 1 - failing / total), 2)
+    """Proportional credit: the share of items that pass. There must be something to judge.
+
+    Zero items is not a pass: callers go through `share_result`, which answers N/A instead.
+    """
+    if total <= 0:
+        raise ValueError("share_fraction needs at least one eligible item; use share_result for N/A")
+    return round(max(0.0, 1 - failing / total), 2)
+
+
+def share_result(criterion_id: str, failing: int, total: int, *findings: Finding, assessed: bool = True) -> CheckResult:
+    """Proportional credit over eligible items; explicit N/A when none exist.
+
+    `assessed=False` keeps the findings that could be evaluated but withholds credit, because
+    some evidence the criterion needs was not captured.
+    """
+    if total == 0 and not findings:
+        return not_applicable(criterion_id)
+    fraction = share_fraction(failing, total) if assessed else None
+    return CheckResult(criterion_id=criterion_id, fraction=fraction, assessed=assessed, findings=list(findings))
+
+
+def absent_or_unknown(criterion_id: str, *, kind_present: bool) -> CheckResult:
+    """Nothing eligible to judge. Truly absent content is N/A; present-but-unreadable content is unknown."""
+    return CheckResult(criterion_id=criterion_id, assessed=False) if kind_present else not_applicable(criterion_id)

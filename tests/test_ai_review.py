@@ -13,7 +13,9 @@ from surveycoach.review import run_review
 from surveycoach.snapshot import SurveySnapshot
 
 ROOT = Path(__file__).parent.parent
-IMAGES_STILL_WAITING = {"The right image is there", "The product is the hero"}
+IMAGES_STILL_WAITING = {"The right image is there", "The product is the hero", "Readable, light, and accessible"}
+# 7.6 joined the set: boxer-briefs has an image with no measured bytes, which used to earn full
+# credit (audit 5). Unmeasured weight is unknown, so the criterion waits for evidence.
 
 
 @pytest.fixture(scope="module")
@@ -54,9 +56,9 @@ def test_all_clear_judge_resolves_semantic_blockers_but_cannot_calibrate_timing(
     assert review.scorecard.pending_blockers == ["B5", "B7"] and set(review.unchecked) == IMAGES_STILL_WAITING
     assert not review.results["B7"].assessed  # AI cannot resolve a reader-only image observation.
     # Checking more earns evidence-backed points; unknown checks never get free credit.
-    assert review.scorecard.unchecked_points == 4 < code_only.scorecard.unchecked_points == 54
+    assert review.scorecard.unchecked_points == 6 < code_only.scorecard.unchecked_points == 56
     assert review.scorecard.score > code_only.scorecard.score
-    assert review.scorecard.checked_points == 91
+    assert review.scorecard.checked_points == 89
     assert review.scorecard.not_applicable_points == 5
     assert sum((review.scorecard.checked_points, review.scorecard.unchecked_points,
                 review.scorecard.not_applicable_points)) == 100
