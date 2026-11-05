@@ -18,7 +18,7 @@ def tiers(detail):
 def test_progress_counts_saved_decisions_not_the_open_item(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=tiers)
     tabs = page.locator('#queue-tabs [role=tab]')
-    expected = ['Must-fix\n0 of 3 done', 'Quick wins\n0 of 3 done', 'More ideas\n0 of 2 done']
+    expected = ['Fix before launch\n0 of 3 done', 'Worth improving\n0 of 3 done', 'More ideas\n0 of 2 done']
     assert tabs.all_inner_texts() == expected
     assert page.locator('#queue-progress').inner_text() == '0 of 8 done'
     for name in ('must_fix', 'quick_wins', 'more'):
@@ -40,10 +40,10 @@ def test_save_advances_and_undo_restores_progress(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=curated)
     page.locator('#use-change').click()
     page.locator('#undo').wait_for()
-    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix\n1 of 3 done'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Fix before launch\n1 of 3 done'
     assert page.locator('#queue-progress').inner_text() == '1 of 3 done'
     page.locator('#undo').click()
     page.wait_for_function("document.querySelector('#queue-progress').textContent === '0 of 3 done'")
-    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Must-fix\n0 of 3 done'
+    assert page.locator('#queue-tabs [role=tab]').first.inner_text() == 'Fix before launch\n0 of 3 done'
     assert not errors
     context.close()

@@ -13,7 +13,7 @@ def test_share_tracks_decision_reset_and_refetched_plan(browser, base_url):
       d.plan.must_fix = []; d.plan.counts.must_fix = 0;
       dispatchEvent(new CustomEvent('surveycoach-detail-updated', {detail:d}));
     }""")
-    assert page.locator('#share-summary').inner_text() == '0 changes chosen · 0 kept on purpose · 0 must-fixes still open'
+    assert page.locator('#share-summary').inner_text() == '0 changes chosen · 0 kept on purpose · 0 to fix before launch still open'
     assert page.locator('#copy-all').is_hidden()
     assert not writes and not errors
     context.close()
@@ -31,7 +31,7 @@ def test_share_uses_canonical_names_and_keeps_mixed_plan_item_open(browser, base
         detail['plan']['counts']['must_fix'] = 1
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share', prepare=prepare)
     assert 'Canonical study welcome' in page.locator('#change-list h3').all_text_contents()
-    assert page.locator('#share-summary').inner_text().endswith('1 must-fixes still open')
+    assert page.locator('#share-summary').inner_text().endswith('1 to fix before launch still open')
     after = page.locator('#change-list .diff').evaluate("el => [...el.childNodes].filter(n => n.nodeName !== 'DEL').map(n => n.textContent).join('')")
     assert after == '<script>not markup</script>'
     assert page.locator('#change-list img, #change-list script').count() == 0
@@ -45,7 +45,7 @@ def test_share_original_without_reason_is_open_and_unknown_comparison_honest(bro
         detail['decisions'][keep['fingerprint']] = {'action': 'original', 'reason': ''}
         detail['round_changes'] = None
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share', prepare=prepare)
-    assert page.locator('#share-summary').inner_text() == '2 changes chosen · 0 kept on purpose · 2 must-fixes still open'
+    assert page.locator('#share-summary').inner_text() == '2 changes chosen · 0 kept on purpose · 2 to fix before launch still open'
     assert 'Nothing is claimed fixed' in page.locator('#version-changes').inner_text()
     page.locator('.round-timeline a').first.click()
     assert 'version=1#share' in page.url

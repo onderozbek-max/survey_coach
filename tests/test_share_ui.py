@@ -3,6 +3,7 @@ import pytest
 
 from tests.test_issue_loop_ui import open_review
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import open_how_we_check, open_recheck
 
 
 def chosen(detail):
@@ -24,7 +25,7 @@ def chosen(detail):
 
 def test_share_explicit_grouped_changes_copy_and_kept_reasons(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share', prepare=chosen)
-    assert page.locator('#share-summary').inner_text() == '2 changes chosen · 1 kept on purpose · 1 must-fixes still open'
+    assert page.locator('#share-summary').inner_text() == '2 changes chosen · 1 kept on purpose · 1 to fix before launch still open'
     assert page.locator('#change-list li').count() == 2
     expected = {s['name'] for s in detail['screens'] if any(
         f.get('page_id') == s['page_id'] or any(q['id'] == f.get('question_id') for q in s['questions'])
@@ -64,11 +65,13 @@ def test_share_zero_changes_and_honest_version_evidence(browser, base_url):
     assert '1 no longer flagged' in page.locator('#version-changes').inner_text()
     assert 'not blanket verification' in page.locator('#version-changes').inner_text()
     assert '#share' in page.locator('.round-timeline a').first.get_attribute('href')
-    page.locator('#about-review').click()
-    assert 'not launch approval' in page.get_by_role('dialog', name='About this review').inner_text()
+    open_how_we_check(page)
+    assert 'not launch approval' in page.get_by_role('dialog', name='How we check').inner_text()
     page.keyboard.press('Escape')
+    open_recheck(page)
     assert page.locator('#survey-link').input_value() == detail['snapshot']['source_url']
     assert "The next check compares with the latest saved version, not necessarily the version displayed here." in page.locator('#recheck-form').inner_text()
+    page.keyboard.press('Escape')
     timeline = page.get_by_role('navigation', name='Review versions', exact=True)
     assert timeline.get_by_role('link', name='Version 1', exact=True).is_visible()
     assert timeline.get_by_role('link', name='Version 2', exact=True).get_attribute('aria-current') == 'page'
@@ -84,6 +87,7 @@ def test_share_never_prefills_or_echoes_unsafe_source(browser, base_url, url):
         detail['source_url'] = url
         detail['snapshot']['source_url'] = url
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share', prepare=prepare)
+    open_recheck(page)
     assert page.locator('#survey-link').input_value() == ''
     assert 'secret' not in page.locator('#chapter-share').inner_text()
     requests = []
@@ -105,6 +109,7 @@ def test_historical_share_recheck_discloses_latest_baseline_and_opens_result(bro
     page.goto(base_url + f'review.html?id=synthetic&version={version}#share')
     page.wait_for_function('SC.reviewReady === true')
     assert page.locator('#download-summary').get_attribute('href') == f'/api/surveys/synthetic/versions/{version}/summary?download=1'
+    open_recheck(page)
     assert 'latest saved version, not necessarily the version displayed here' in page.locator('#recheck-form').inner_text()
     assert 'compare it with this version' not in page.locator('#recheck-form').inner_text()
     assert 'round' not in page.locator('#chapter-share').inner_text().lower()
@@ -115,7 +120,7 @@ def test_historical_share_recheck_discloses_latest_baseline_and_opens_result(bro
     page.route('**/api/reader/jobs', reader)
     page.route('**/api/jobs/historical-job', lambda r: r.fulfill(json={
         'status': 'completed', 'survey_id': 'synthetic', 'version': 4}))
-    page.get_by_role('button', name='Start next version', exact=True).click()
+    page.get_by_role('button', name='Check updated survey', exact=True).click()
     page.wait_for_url('**/review.html?id=synthetic&version=4')
     assert payloads == [{'url': detail['snapshot']['source_url'], 'approval': True, 'ai': True, 'survey_id': 'synthetic'}]
     assert not writes and not errors
@@ -130,6 +135,7 @@ def test_share_recheck_uses_existing_reader_job_and_preserves_version(browser, b
         route.fulfill(json={'job_id': 'synthetic-job'})
     page.route('**/api/reader/jobs', reader)
     page.route('**/api/jobs/synthetic-job', lambda r: r.fulfill(json={'status': 'failed', 'error': 'Synthetic stop; prior version unchanged'}))
+    open_recheck(page)
     page.locator('#recheck-form button[type=submit]').click()
     page.wait_for_function("document.querySelector('#import-status').textContent.includes('prior version unchanged')")
     assert payloads == [{'url': detail['snapshot']['source_url'], 'approval': True, 'ai': True, 'survey_id': 'synthetic'}]
