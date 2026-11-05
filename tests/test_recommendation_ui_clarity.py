@@ -37,8 +37,8 @@ def isolated(detail):
 def test_screen_without_findings_reports_checks_not_zero_handled(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, prepare=isolated)
     select_screen(page, detail['screens'][0]['page_id'])
-    assert page.locator('#coach h3').inner_text() == 'No issues found for this screen in the checks run'
-    assert 'not a guarantee' in page.locator('#coach').inner_text()
+    assert page.locator('#coach h3').inner_text() == 'Nothing to fix on this screen'
+    assert 'Our checks found nothing here' in page.locator('#coach').inner_text()
     assert 'handled' not in page.locator('#coach h3').inner_text()
     assert not writes and not errors
     context.close()
@@ -163,7 +163,7 @@ def test_compact_energy_legend_navigation_and_mobile_layout(browser, base_url, w
     explanation = energy.locator('.energy-explanation')
     assert explanation.is_visible()
     text = explanation.inner_text()
-    for phrase in ['Height: estimated effort per screen', 'Color: accumulated effort', 'heuristic',
+    for phrase in ['Height: estimated effort per screen', 'Color: accumulated effort', 'an estimate',
                    'not severity', 'measured time or fatigue', 'Blue outline: selected screen']:
         assert phrase in text
     summary.focus()

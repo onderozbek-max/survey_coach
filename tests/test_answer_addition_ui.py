@@ -1,6 +1,7 @@
 """Addition cards and clipboard describe authoring actions, not stem replacements."""
 from tests.test_issue_loop_ui import open_review, focus
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to
 
 
 def test_added_answer_card_copies_only_label_and_sheet_never_says_replace(browser, base_url):
@@ -18,7 +19,7 @@ def test_added_answer_card_copies_only_label_and_sheet_never_says_replace(browse
     page.get_by_role('button',name='Use this change',exact=True).click()
     page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
     assert page.evaluate('navigator.clipboard.readText()')=='I did not shop this year'
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     text=page.locator('#change-list').inner_text()
     assert 'Add answer option: I did not shop this year' in text
     assert 'Replace with:' not in text

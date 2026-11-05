@@ -9,6 +9,7 @@ from surveycoach.labels import finding_label
 from surveycoach.rubric import load_rubric
 from tests.test_issue_loop_ui import open_review, focus
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import go_to
 
 
 def test_exact_question_labels_topics_and_share_match_download(browser, base_url):
@@ -43,7 +44,7 @@ def test_exact_question_labels_topics_and_share_match_download(browser, base_url
         assert ' '.join(q['text'].split()[:5]) in row.locator('.location').inner_text()
     page.locator('#use-all').click()
     page.locator('#undo').wait_for()
-    page.locator('[data-chapter=share]').click()
+    go_to(page, 'share')
     text = page.evaluate('SC.shareChangesText(SC.workspaceDetail)')
     packet = summary_packet(page.evaluate('SC.workspaceDetail'), download=True)
     for f in members:

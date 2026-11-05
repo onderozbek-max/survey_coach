@@ -2,6 +2,7 @@
 import pytest
 from tests.test_issue_loop_ui import open_review, focus
 from tests.test_site_e2e import base_url, browser
+from tests.site_helpers import open_how_we_check, go_to
 from tests.test_workflow_e2e import studio
 
 
@@ -111,7 +112,7 @@ def test_about_closes_on_real_chapter_change(browser, base_url, route):
     if route == 'forward':
         page.evaluate("SC.goChapter('overview')")
         page.go_back()
-    page.locator('#about-review').click()
+    open_how_we_check(page)
     if route == 'hash':
         page.evaluate("location.hash='overview'")
     elif route == 'back':
@@ -128,10 +129,10 @@ def test_about_closes_on_real_chapter_change(browser, base_url, route):
 def test_about_escape_returns_connected_trigger_deterministically(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share')
     for _ in range(3):
-        page.locator('#about-review').click()
+        open_how_we_check(page)
         page.keyboard.press('Escape')
         page.wait_for_function("!document.querySelector('#about-review-dialog').open")
-        assert page.evaluate("document.activeElement.isConnected && document.activeElement.id === 'about-review'")
+        page.wait_for_function("document.activeElement.isConnected && document.activeElement.id === 'header-menu-button'")
     assert not errors
     context.close()
 
@@ -168,14 +169,14 @@ def test_decision_refresh_overview_matches_authoritative_api(browser, studio):
     page.goto(studio + '/local.html')
     page.locator('#sample-start').click()
     page.wait_for_url('**/review.html?**')
-    page.locator('#overview-headline').wait_for()
-    before = page.locator('#overview-headline').inner_text()
+    page.locator('#overview-h').wait_for()
+    before = page.locator('#overview-h').inner_text()
     page.locator('#start-improving').click()
     keep(page)
-    page.locator('[data-chapter=overview]').click()
-    page.wait_for_function("before => document.querySelector('#overview-headline').textContent !== before", arg=before)
+    go_to(page, 'overview')
+    page.wait_for_function("before => document.querySelector('#overview-h').textContent !== before", arg=before)
     authoritative = page.evaluate("fetch('/api/surveys/'+SC.workspaceDetail.id).then(r=>r.json())")
-    assert page.locator('#overview-headline').inner_text() == authoritative['overview']['headline']
+    assert page.locator('#overview-h').inner_text() == authoritative['overview']['headline']
     page.locator('#undo').click()
-    page.wait_for_function("before => document.querySelector('#overview-headline').textContent === before", arg=before)
+    page.wait_for_function("before => document.querySelector('#overview-h').textContent === before", arg=before)
     page.close()
