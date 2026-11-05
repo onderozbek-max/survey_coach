@@ -22,6 +22,7 @@ from surveycoach.recommendations import guard_recommendation
 from surveycoach.snapshot import SurveySnapshot, SurveyType
 from surveycoach.server.rounds import (canonical_source_url, change_sheet, compare_rounds,
                                        presentation, project_review, valid_decisions)
+from surveycoach.server.signoff import build_record, clean_name, now_iso, signoff_state, utc_iso
 from surveycoach.server.version_delta import build_version_delta
 
 SCHEMA = """
@@ -67,6 +68,15 @@ CREATE TABLE IF NOT EXISTS decision_events (
     data TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (survey_id, version) REFERENCES versions(survey_id, version)
 );
+CREATE TABLE IF NOT EXISTS signoffs (
+    id INTEGER PRIMARY KEY, survey_id TEXT NOT NULL, version INTEGER NOT NULL, name TEXT NOT NULL,
+    signed_at TEXT NOT NULL, data TEXT NOT NULL,
+    FOREIGN KEY (survey_id, version) REFERENCES versions(survey_id, version)
+);
+CREATE TRIGGER IF NOT EXISTS signoffs_no_update BEFORE UPDATE ON signoffs
+BEGIN SELECT RAISE(ABORT, 'sign-offs are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS signoffs_no_delete BEFORE DELETE ON signoffs
+BEGIN SELECT RAISE(ABORT, 'sign-offs are append-only'); END;
 """
 
 
@@ -173,6 +183,25 @@ class Repository:
                               (json.dumps(answer.as_dict()), survey_id)).rowcount:
                 raise KeyError("Survey not found")
         return {"id": survey_id, "survey_id": survey_id, "reward": answer.as_dict()}
+
+    def _signoff_rows(self, survey_id: str) -> list[dict]:
+        with self.transaction() as db:
+            rows = db.execute("SELECT version,name,signed_at,data FROM signoffs WHERE survey_id=? ORDER BY id",
+                              (survey_id,)).fetchall()
+        return [{"version": r["version"], "name": r["name"], "signed_at": r["signed_at"],
+                 "record": json.loads(r["data"])} for r in rows]
+
+    def sign_off(self, survey_id: str, version: int, name: str, acknowledge_open: bool = False) -> dict:
+        """Append a sign-off for one version and return its state. ValueError says why it was refused."""
+        name = clean_name(name)
+        detail = self.detail(survey_id, version)
+        decided_at = {event["fingerprint"]: utc_iso(event["recorded_at"])
+                      for event in self.decision_history(survey_id, version)}      # oldest first, latest wins
+        record = build_record(detail, name, acknowledge_open, decided_at, now_iso())
+        with self.transaction() as db:
+            db.execute("INSERT INTO signoffs(survey_id,version,name,signed_at,data) VALUES (?,?,?,?,?)",
+                       (survey_id, version, name, record["signed_at"], json.dumps(record)))
+        return signoff_state(detail, self._signoff_rows(survey_id))
 
     @staticmethod
     def _latest_review(db, survey_id: str, version: int):
@@ -304,6 +333,7 @@ class Repository:
         data = enrich(data, rubric)
         data["change_sheet"] = change_sheet(data)
         data["version_delta"] = build_version_delta(data["round_changes"], version)
+        data["signoff"] = signoff_state(data, self._signoff_rows(survey_id))
         return data
 
     @staticmethod

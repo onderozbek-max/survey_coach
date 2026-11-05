@@ -3,10 +3,10 @@ import pytest
 
 from builders import intro, page, question, survey, thank_you
 from concept_fixture import concept_survey
+from review_helpers import save_review
 from surveycoach.demo_export import build_demo_data
 from surveycoach.journey import build_journey
 from surveycoach.labels import screen_labels
-from surveycoach.review import run_review
 from surveycoach.server.repository import Repository
 from surveycoach.timing import estimate
 
@@ -143,19 +143,10 @@ def test_tooltip_reads_like_the_brief():
     assert journey_for(snap, many)["segments"][1]["tooltip"].endswith("2 things to check")
 
 
-def encoded(snapshot):
-    result = run_review(snapshot)
-    review = result.model_dump(mode="json", exclude={"timing"})
-    review["findings"] = [f.model_dump(mode="json") | {"fingerprint": f.fingerprint} for f in result.findings]
-    return {"review": review}
-
-
 def _details(tmp_path):
     repo = Repository(tmp_path / "j.db")
     snap = concept_survey()
-    created = repo.submit(snap, ai=False)
-    repo.finish(created["job_id"], encoded(snap))
-    found = {"concept": repo.detail(created["id"])}
+    found = {"concept": repo.detail(save_review(repo, snap))}
     for index, entry in enumerate(build_demo_data()["surveys"]):
         found[f"demo-{index}"] = entry
     repo.close()

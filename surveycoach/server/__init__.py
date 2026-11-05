@@ -13,6 +13,7 @@ from surveycoach.server.decisions import DecisionRequest
 from surveycoach.server.report import attachment_filename
 from surveycoach.server.repository import Repository
 from surveycoach.server.security import LocalRequestGuard
+from surveycoach.server.signoff import SignoffRequest
 from surveycoach.server.service import metadata, run_job, summary_packet
 from surveycoach.snapshot import SurveySnapshot, SurveyType
 
@@ -156,6 +157,10 @@ def create_app(db_path, provider=None) -> FastAPI:
     @app.put("/api/surveys/{survey_id}/reward")
     def set_reward(survey_id: str, body: RewardUpdate):
         return repository.set_reward(survey_id, body.has_reward, body.text)
+
+    @app.post("/api/surveys/{survey_id}/versions/{version}/signoff", status_code=201)
+    def sign_off(survey_id: str, version: int, body: SignoffRequest):
+        return repository.sign_off(survey_id, version, body.name, body.acknowledge_open)
 
     @app.get("/api/surveys/{survey_id}/versions/{version}/change-sheet")
     def changes(survey_id: str, version: int):

@@ -2,7 +2,7 @@
 import pytest
 
 from concept_fixture import concept_survey
-from surveycoach.review import run_review
+from review_helpers import save_review
 from surveycoach.server.repository import Repository
 from surveycoach.server.version_delta import SNIPPET_MAX, build_version_delta
 
@@ -67,21 +67,12 @@ def repo(tmp_path):
     repository.close()
 
 
-def save(repo, snapshot, survey_id=None):
-    created = repo.submit(snapshot, ai=False, survey_id=survey_id)
-    result = run_review(snapshot)
-    review = result.model_dump(mode="json", exclude={"timing"})
-    review["findings"] = [f.model_dump(mode="json") | {"fingerprint": f.fingerprint} for f in result.findings]
-    repo.finish(created["job_id"], {"review": review})
-    return created["id"]
-
-
 def test_detail_has_null_delta_on_v1_and_a_matching_delta_on_v2(repo):
-    survey_id = save(repo, concept_survey())
+    survey_id = save_review(repo, concept_survey())
     assert repo.detail(survey_id)["version_delta"] is None
     changed = concept_survey().model_copy(deep=True)
     changed.pages[1].questions[0].text = "How often do you make breakfast at home?"
-    save(repo, changed, survey_id)
+    save_review(repo, changed, survey_id)
     detail = repo.detail(survey_id, 2)
     delta, buckets = detail["version_delta"], detail["round_changes"]
     assert delta["counts"] == {key: len(buckets[key]) for key in ("fixed", "still", "new", "uncertain")}

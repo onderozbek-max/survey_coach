@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from builders import intro, page, question, survey, thank_you
 from concept_fixture import concept_survey
+from review_helpers import save_review
 from surveycoach.checks import structure
 from surveycoach.checks.registry import ReviewContext
 from surveycoach.review import run_review
@@ -66,13 +67,6 @@ def test_the_default_context_is_unanswered():
     assert run_review(snap).results["1.4"].findings
 
 
-def encoded(snapshot):
-    result = run_review(snapshot)
-    review = result.model_dump(mode="json", exclude={"timing"})
-    review["findings"] = [f.model_dump(mode="json") | {"fingerprint": f.fingerprint} for f in result.findings]
-    return {"review": review}
-
-
 @pytest.fixture
 def repo(tmp_path):
     repository = Repository(tmp_path / "reward.db")
@@ -81,10 +75,7 @@ def repo(tmp_path):
 
 
 def saved(repo, snapshot=None):
-    snapshot = snapshot or concept_survey()
-    created = repo.submit(snapshot, ai=False)
-    repo.finish(created["job_id"], encoded(snapshot))
-    return created["id"]
+    return save_review(repo, snapshot or concept_survey())
 
 
 def reward_findings(detail):
@@ -123,8 +114,7 @@ def test_the_answer_applies_to_earlier_versions_of_the_same_survey(repo):
     repo.set_reward(survey_id, False, "")
     changed = concept_survey().model_copy(deep=True)
     changed.pages[1].questions[0].text = "How often do you make breakfast at home?"
-    created = repo.submit(changed, ai=False, survey_id=survey_id)
-    repo.finish(created["job_id"], encoded(changed))
+    save_review(repo, changed, survey_id)
     assert reward_findings(repo.detail(survey_id, 1)) == [] and reward_findings(repo.detail(survey_id, 2)) == []
 
 
