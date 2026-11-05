@@ -46,10 +46,11 @@ def test_click_becomes_tap_and_the_word_is_highlighted(flawed):
     assert f.suggested_text == "Tap the one you like best."
 
 
-def test_one_intro_finding_fixes_time_without_inventing_reward_terms(flawed):
+def test_one_intro_finding_requests_verification_without_inventing_promises(flawed):
     (f,) = by_criterion(flawed, "1.4")
     assert "3 min" in f.headline and "reward" in f.headline
-    assert f.suggested_text == "Welcome to the Boxer Briefs Survey! This takes about 4 minutes."
+    assert f.suggested_text is None
+    assert "timed run" in f.explanation and "calibrated" in f.explanation
 
 
 def test_jargon_is_highlighted_and_removed_from_the_suggestion(flawed):
@@ -73,7 +74,8 @@ def test_broken_image_names_the_image_and_costs_renders_cleanly_credit_without_a
 
 def test_the_time_overrun_is_reported_even_though_it_is_below_the_blocker_threshold(flawed):
     assert not by_criterion(flawed, "B5") and flawed.est_minutes > flawed.promised_minutes * 1.25
-    assert any("takes about 4" in f.headline for f in by_criterion(flawed, "1.4"))
+    assert any("promise checked" in f.headline for f in by_criterion(flawed, "1.4"))
+    assert any("estimated member completion" in f.evidence.lower() for f in by_criterion(flawed, "1.4"))
 
 
 def test_intro_fixer_keeps_what_is_right():

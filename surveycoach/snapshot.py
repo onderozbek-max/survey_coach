@@ -115,7 +115,17 @@ class SurveySnapshot(BaseModel):
                 r"your thoughts\s+(?:on|about))\s+(?!(?:next|continue|back|submit)\b)[a-z][\w'-]*",
                 text, re.I,
             )
-            if greeting or (invitation and not system_message):
+            purpose = re.search(
+                r"\bwe(?:['’]re| are)\s+(?:exploring|cooking up|testing|learning about)\s+"
+                r"(?!(?:how to|the next|this survey)\b)[a-z][\w'’-]*(?:\s+[a-z][\w'’-]*)+",
+                text, re.I,
+            )
+            input_invitation = re.search(
+                r"\bwe(?:['’]d| would)\s+(?:love|like)\s+your\s+(?:input|feedback|thoughts|opinions?)\b",
+                text, re.I,
+            )
+            grounded_invitation = invitation or (len(text) <= 1200 and purpose and input_invitation)
+            if not system_message and (greeting or grounded_invitation):
                 return "intro"
         if self.pages and page.id == self.pages[-1].id and re.search(
             r"\bthank(?:s| you)\b", text, re.I

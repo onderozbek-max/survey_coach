@@ -61,10 +61,17 @@ def no_intro(ctx: ReviewContext) -> CheckResult:
     pages = ctx.snapshot.pages
     if pages and ctx.snapshot.page_role(pages[0]) == "intro":
         return blocker_ok("B4")
+    title = ctx.snapshot.title.strip()
+    known_topic = title and title.casefold() not in {"untitled", "untitled survey", "survey", "t"}
+    draft = (f"We'd love your input on {title}. Thanks for sharing your thoughts!"
+             if known_topic else "We'd love your input. Thanks for sharing your thoughts!")
     return result("B4", None, finding(
-        "B4", "must_fix", "Survey opens with no welcome page", "The survey opens straight into questions.",
-        "Add a short welcome before the first question. State the known purpose and a verified time estimate.",
-        "A welcome helps members understand what they are being asked to do."))
+        "B4", "must_fix", "Survey opens with no welcome page", "No opening welcome was recognized.",
+        "Add a short welcome before the first question. This example uses the survey title when available; "
+        "verify that it describes the intended purpose. Add a time promise only after a timed pilot, "
+        "and reward details only when confirmed.",
+        "A welcome helps members understand what they are being asked to do.",
+        suggested_text=draft))
 
 
 @check("B5")
@@ -129,21 +136,22 @@ def time_and_reward(ctx: ReviewContext) -> CheckResult:
         parts.append("doesn't say how long it takes")
         details.append("The intro doesn't say how long the survey takes.")
     if wrong_time:
-        parts.append(f"says {promised:g} min but it takes about {max(1, round(estimated))}")
-        details.append(f"The intro promises {promised:g} minutes; we estimate about {estimated:g}.")
+        parts.append(f"needs its {promised:g} min promise checked")
+        details.append(f"The intro promises {promised:g} minutes; estimated member completion is about {estimated:g}. "
+                       "Verify this estimate before changing the promise.")
     if no_reward:
-        parts.append("has no confirmed reward details")
+        parts.append("lacks confirmed reward terms")
         details.append("No reward terms are stated; whether a reward applies is unknown.")
     if not parts:
         return result("1.4", fraction)
     return result("1.4", fraction, finding(
         "1.4", "worth_improving", "Intro " + " and ".join(parts), " ".join(details),
         "Verify the estimated time with a timed run. If a reward applies, state its confirmed terms separately; "
-        "no reward details were supplied. The rewrite changes only the estimated time.",
+        "no reward details were supplied. A time rewrite is offered only for a calibrated, verified route.",
         "Clear time expectations and confirmed reward terms, when applicable, help members decide whether to start.",
         page_id=_intro_page_id(ctx), current_text=intro or None,
         suggested_text=(fixed_intro(intro, estimated, fix_time=True, add_reward=False)
-                        if no_time or wrong_time else None),
+                        if ctx.timing.calibrated and (no_time or wrong_time) else None),
         highlight=(MINUTES_PHRASE.search(intro) or [None])[0] if wrong_time else None))
 
 
@@ -157,10 +165,13 @@ def length_fits_type(ctx: ReviewContext) -> CheckResult:
         return passed("2.1")
     fraction = 0.6 if minutes <= partial else 0.0
     return result("2.1", fraction, finding(
-        "2.1", "worth_improving", f"Takes about {minutes:g} min; the target is {full:g}",
-        f"About {minutes:g} minutes across {count} questions; the target is up to {full:g}.",
-        f"Cut to about {full:g} minutes by removing or merging questions that don't drive a decision.",
-        "Every extra minute on a phone costs completions and goodwill."))
+        "2.1", "worth_improving", f"Estimated member completion: {minutes:g} min; configured guideline: {full:g}",
+        f"Estimated member completion is {minutes:g} minutes across {count} questions, not crawl or load time. "
+        f"The configured survey-type guideline is up to {full:g} minutes; it is not a measured member limit.",
+        ("This is an uncalibrated estimate. " if not ctx.timing.calibrated else "This is a calibrated estimate. ") +
+        "Verify it with a timed pilot before shortening the survey. If confirmed, consider removing or merging "
+        "questions that don't drive a decision.",
+        "Use observed member effort alongside the configured guideline to assess survey length."))
 
 
 @check("2.2")

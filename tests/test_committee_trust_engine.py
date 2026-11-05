@@ -154,13 +154,13 @@ def test_required_final_comment_is_made_optional_not_duplicated():
     assert f.suggested_text is None
 
 
-def test_time_rewrite_does_not_disappear_for_missing_reward_context():
+def test_time_rewrite_requires_calibration_not_missing_reward_context():
     text = "Welcome! This takes 1 minute."
     fixed = fixed_intro(text, 7, fix_time=True, add_reward=True)
     assert fixed == "Welcome! This takes about 7 minutes."
     result = run_all(context(survey(intro("Welcome!"), page(1, question()))))["1.4"]
-    assert result.findings[0].suggested_text
-    assert "[" not in result.findings[0].suggested_text
+    assert result.findings[0].suggested_text is None
+    assert "calibrated" in result.findings[0].explanation.lower()
     assert "suggested intro does both" not in result.findings[0].explanation.lower()
 
 
