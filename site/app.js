@@ -250,7 +250,7 @@
         h('section', {'aria-label':'Original wording'},h('h3',null,'Original'),SC.renderPhone(item,originalCtx)),
         h('section', {'aria-label':'Recommended wording'},h('h3',null,'Rewritten'),SC.renderPhone(item,rewrittenCtx))) : SC.renderPhone(item, context()),
       localDetail && h('p', {class:'preview-effect',role:'status'}, comparison.replace('See the coach','See the issues')),
-      comparing && h('p', {class:'comparison-note'}, `Estimated reading-time change: ${Math.abs(SC.previewReadingDelta(item.page,previewPlan(true)))} seconds ${SC.previewReadingDelta(item.page,previewPlan(true)) < 0 ? 'longer' : 'shorter'}. Layout, typing and unvisited paths are not reassessed.`),
+      comparing && h('p', {class:'comparison-note'}, SC.previewReadingEvidence(item.page, previewPlan(true))),
       SC.workspaceDetail && h('button', {type:'button',class:'mobile-coach-link',onclick:()=>{ $('coach').scrollIntoView({block:'start',behavior:'smooth'}); $('coach-h')?.focus(); }},
         current().entries.length ? `Review ${plural(current().entries.length, 'issue')} on this screen ↓` : 'Read the coach notes ↓'),
       h("div", { class: "pager" },
