@@ -103,6 +103,25 @@ def card_with(page, text: str):
     return page.locator('#coach .card')
 
 
+def add_change(page, finding=None):
+    """Press Add to my changes on the open card (or on this finding's card) and wait until My changes grows."""
+    before = page.evaluate("SC.myChangesOf(SC.workspaceDetail).count")
+    if finding:
+        open_finding(page, finding)
+    page.locator('#coach .use-change').first.click()
+    page.wait_for_function("b => SC.myChangesOf(SC.workspaceDetail).count > b", arg=before)
+
+
+def add_every_change(page):
+    for fp in page.evaluate("SC.workspaceDetail.queue.items.filter(e => e.has_paste).map(e => e.fingerprints[0])"):
+        open_finding(page, {'fingerprint': fp})
+        add_change(page)
+
+
+def preview_with_my_changes(page):
+    page.get_by_role('button', name=re.compile(r'^With my changes \(\d+\)$')).click()
+
+
 def settings(page):
     """Open Preview tools, where the Text size control lives."""
     page.wait_for_selector('#stage .phone')
@@ -129,7 +148,7 @@ def test_it_opens_on_the_first_screen_with_a_must_fix_and_that_issue_selected(br
     shown = page.locator("#stage .phone-bar").inner_text().split()[0]
     assert page.locator('#coach .location').inner_text().startswith(shown)
     first = page.locator(".card").first
-    assert "Must-fix" in first.inner_text()
+    assert "Fix before launch" in first.inner_text()
     assert page.locator("#stage .phone-marker.on").get_attribute("aria-label").startswith("Must-fix:")
     assert not stray_text(page) and errors == []
 
@@ -177,12 +196,19 @@ def test_a_code_fix_previews_and_your_original_pick_wins(browser, base_url):
     page, _ = open_page(browser, base_url)
     open_screen(page, "Q7")
     assert "Click" in phone_text(page)
-    page.get_by_role("button", name="With changes").click()
+    assert page.get_by_role('button', name='With my changes (0)').is_disabled()       # nothing added yet, nothing to preview
+    card_with(page, "desktop word")
+    add_change(page)
+    open_screen(page, "Q7")
+    preview_with_my_changes(page)
     assert "Tap the one you like best." in phone_text(page) and "Click the one" not in phone_text(page)
-    card_with(page, "desktop word").get_by_role('button', name='Keep as is', exact=True).click()
-    page.get_by_role('button', name='Stakeholder requirement', exact=True).click()
+    card_with(page, "desktop word").get_by_role('button', name='Undo', exact=True).click()
+    page.get_by_role('button', name='Keep as is…', exact=True).click()
+    page.get_by_role('button', name='Intentional', exact=True).click()
+    page.get_by_role('button', name='Keep as is', exact=True).click()
     page.locator('#toast').wait_for()
     open_screen(page, 'Q7')
+    assert page.get_by_role('button', name='With my changes (0)').is_disabled()       # a kept item is never previewed
     assert "Tap the one" not in phone_text(page) and "Click the one you like best." in phone_text(page)
 
 
@@ -195,14 +221,15 @@ def test_an_ai_finding_offers_three_rewrites_and_the_picked_one_is_previewed_and
     assert card.locator('.issue-original').count() == 1
     assert card.locator('.alternatives button').count() == 3
     assert card.locator('.alternatives button').all_inner_texts() == [o['label'] for o in finding['options']]
-    page.get_by_role("button", name="With changes").click()
     index = next(i for i, o in enumerate(finding['options']) if o['label'] == 'Shorter')
     card.locator('.alternatives button').nth(index).click()
-    card.locator('.use-change').click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
-    open_finding(page, finding)
-    assert shorter in phone_text(page)
+    card.get_by_role('button', name='Copy the new wording').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.startsWith('Copied')")
     assert page.evaluate("navigator.clipboard.readText()") == shorter
+    add_change(page)
+    open_finding(page, finding)
+    preview_with_my_changes(page)
+    assert shorter in phone_text(page)
 
 
 def test_a_bundle_of_answer_choices_is_copy_only_and_never_drawn_on_the_phone(browser, base_url):
@@ -212,20 +239,23 @@ def test_a_bundle_of_answer_choices_is_copy_only_and_never_drawn_on_the_phone(br
     before = phone_text(page)
     new_choices = [line for line in finding["options"][0]["text"].splitlines()[1:] if line.strip() and line not in before]
     assert new_choices                                          # the rewrite adds answer choices the phone does not have yet
-    page.get_by_role("button", name="With changes").click()
     card = card_with(page, finding["headline"])
-    assert card.locator('.suggested').count() > 0
-    assert not any(choice in phone_text(page) for choice in new_choices)    # the bundle's choices did not leak into the phone
-    card.locator('.use-change').first.click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
+    assert card.locator('.fix-paste').count() == 1
+    card.get_by_role('button', name='Copy the new wording').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.startsWith('Copied')")
     copied = page.evaluate("navigator.clipboard.readText()")
     assert copied == finding["options"][0]["text"] and copied.count("\n") >= 2
+    add_every_change(page)
+    open_finding(page, finding)
+    preview_with_my_changes(page)
+    assert not any(choice in phone_text(page) for choice in new_choices)    # the bundle's choices did not leak into the phone
 
 
 def test_rewrites_only_replace_real_matching_phone_text(browser, base_url):
     """Every previewable rewrite must actually change its matching phone wording."""
     page, _ = open_page(browser, base_url)
-    page.get_by_role('button', name='With changes').click()
+    add_every_change(page)
+    preview_with_my_changes(page)
     claimed = 0
     findings = page.evaluate('SC.workspaceDetail.review.findings')
     for finding in findings:
@@ -252,13 +282,20 @@ def test_first_rewrite_wins_when_two_fixes_target_the_same_words(browser, base_u
           const s = SURVEYCOACH_DEMO.surveys[0], p = s.snapshot.pages[0];
           const f = {...s.review.findings[0], page_id:p.id, question_id:null, current_text:p.intro_text, structural:false, source:'auto', options:[], suggested_text:'Complete replacement introduction.'};
           s.review.findings = s.review.findings.filter(existing => existing.page_id !== p.id || existing.question_id);
-          s.review.findings.push({...f, headline:'First rewrite for regression'});
-          s.review.findings.push({...f, headline:'Conflicting rewrite for regression', suggested_text:'Different complete wording.'});
+          const made = [{...f, fingerprint:'conflict-1', headline:'First rewrite for regression'},
+                        {...f, fingerprint:'conflict-2', headline:'Conflicting rewrite for regression', suggested_text:'Different complete wording.'}];
+          s.review.findings.push(...made);
+          // The server would list these in the queue; clone a real paste item for each (the sample has no server).
+          const base = s.queue.items.find(i => i.has_paste);
+          made.forEach(m => s.queue.items.unshift({...base, id:'q-' + m.fingerprint, fingerprints:[m.fingerprint], pages:[p.id], title:m.headline, count:1}));
         }'''
         route.fulfill(response=response, body=script)
     page.route('**/data.js', conflict)
     page.goto(base_url + 'index.html#improve')
-    page.get_by_role("button", name="With changes").click()
+    for fp in ('conflict-1', 'conflict-2'):                  # both are added; the first one still wins the phone
+        open_finding(page, {'fingerprint': fp})
+        add_change(page)
+    preview_with_my_changes(page)
     open_screen(page, "Welcome")
     assert 'Complete replacement introduction.' in phone_text(page)
     assert 'Different complete wording.' not in phone_text(page)
@@ -272,7 +309,8 @@ def test_a_finding_without_a_real_fix_has_no_copy_button(browser, base_url):
     page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
     assert page.locator('#coach h3').inner_text() == finding['headline']
     assert page.locator('#coach .use-change').count() == 0
-    assert page.locator('#coach .suggested h4').inner_text() == 'Recommended action'
+    assert page.locator('#coach .fix-paste').count() == 0
+    assert page.locator('#coach .fix-steps, #coach .fix-check').count() == 1       # still something to do, just not a paste
 
 
 def test_original_and_rewrite_make_changed_wording_comparable(browser, base_url):
@@ -280,18 +318,18 @@ def test_original_and_rewrite_make_changed_wording_comparable(browser, base_url)
     open_screen(page, "Q7")
     card = card_with(page, "desktop word")
     assert card.locator('.issue-original blockquote').text_content() == 'Click the one you like best.'
-    assert card.locator('.suggested ins').inner_text() == 'Tap'
-    assert 'the one you like best.' in card.locator('.suggested').inner_text()
+    card.get_by_role('button', name='Show changes').click()
+    assert card.locator('.fix-paste ins').inner_text() == 'Tap'
+    assert 'the one you like best.' in card.locator('.fix-paste').inner_text()
 
 
 def test_copy_puts_only_the_suggested_text_on_the_clipboard(browser, base_url):
     page, _ = open_page(browser, base_url)
     open_screen(page, "Q7")
     card = card_with(page, "desktop word")
-    card.locator('.use-change').first.click()
-    page.wait_for_function("document.querySelector('#toast')?.textContent.includes('Copied.')")
+    card.get_by_role('button', name='Copy the new wording').click()
+    page.wait_for_function("document.querySelector('#toast')?.textContent.startsWith('Copied')")
     assert page.evaluate("navigator.clipboard.readText()") == "Tap the one you like best."
-    assert 'Paste it into RedJade.' in page.locator('#toast').inner_text()
 
 
 def test_what_we_checked_explains_ai_advice_and_unchecked_scope(browser, base_url):
@@ -334,12 +372,15 @@ def test_the_second_sample_reports_its_own_verdict_without_claiming_launch_appro
     assert page.locator('[data-fk="survey-picker"]').evaluate('el => el.selectedIndex') == 1   # the picker shows what is on screen
     header = page.locator("#topbar").inner_text()
     overview = page.evaluate('SURVEYCOACH_DEMO.surveys[1].overview')
-    assert page.locator('.card').count() == 0 and overview['headline'] in header
+    assert overview['headline'] in header
+    # No findings here: nothing to fix or improve, only the short list of things the owner checks themselves.
+    assert {i['state'] for i in page.evaluate('SURVEYCOACH_DEMO.surveys[1].queue.items')} == {'you_check'}
+    assert page.locator('#fix-queue .fix-row').count() == 3 and page.locator('#coach .fix-card .state-chip').inner_text().startswith('You check')
     assert 'Ready to launch' not in header
     assert not any(word in header for word in ('/100', 'Provisional', 'coverage'))
     assert page.locator('h1').inner_text() == page.evaluate('SURVEYCOACH_DEMO.surveys[1].title')   # the shared header follows the picker
     page.locator('#all-screens').click()
-    assert 'No items' in page.locator('#screen-drawer').text_content()
+    assert 'Nothing to fix' in page.locator('#screen-drawer').text_content()
     assert not stray_text(page)
 
 
@@ -349,7 +390,7 @@ def test_on_a_phone_the_phone_is_the_hero_and_opens_on_the_problem(browser, base
     phone = page.locator("#stage .phone").bounding_box()
     assert phone["y"] < 844 / 2 and phone["y"] < page.locator(".coach").bounding_box()["y"]   # the phone starts in the top half
     assert page.get_by_role("group", name="Device").is_hidden()
-    assert page.locator('#queue-tabs [aria-selected=true]').inner_text().startswith('Fix before launch')
+    assert page.locator('#coach .fix-card .state-chip').first.inner_text().startswith('Fix before launch')      # it opens on the first problem
     pin, screen = page.locator('#stage .phone-marker.on').bounding_box(), page.locator("#stage .phone-screen").bounding_box()
     assert screen["y"] <= pin["y"] and pin["y"] + pin["height"] <= screen["y"] + screen["height"]   # pin 1 is in view
 
@@ -372,7 +413,7 @@ def test_score_and_coverage_live_only_in_the_methodology_dialog(browser, base_ur
 def test_ai_advice_is_labeled_for_review_and_rule_made_rewrites_are_not(browser, base_url):
     page, _ = open_page(browser, base_url)
     assert page.locator('.card').first.locator('.pill.ai').inner_text() == 'AI suggestion'
-    assert page.locator('.card').first.locator('.suggested').count() > 0
+    assert page.locator('.card').first.locator('.fix-paste').count() == 1
     open_screen(page, "Q7")
     assert "AI-written" not in card_with(page, "desktop word").inner_text()           # a rule-made fix is not labeled as AI
 
@@ -389,19 +430,23 @@ def test_a_bundle_shows_its_original_choices_next_to_the_rewrite_so_they_can_be_
 
 def test_the_title_is_not_pretended_to_be_previewed_and_an_overridden_fix_says_why(browser, base_url):
     page, _ = open_page(browser, base_url)
-    page.get_by_role("button", name="With changes").click()
     title = page.evaluate("window.SURVEYCOACH_DEMO.surveys[0].review.findings.find((f) => f.criterion_id === '1.1')")
     open_screen(page, "Welcome")                                                         # the title finding is anchored to the first page
     title_card = card_with(page, title["headline"])
-    assert title_card.locator('.suggested').count() > 0
-    rewrites = title_card.locator('.suggested ins').all_inner_texts()
-    assert all(text not in phone_text(page) for text in rewrites)
-    assert not page.evaluate('Object.keys(SC.workspaceDetail.decisions).length')
+    assert title_card.locator('.fix-paste').count() == 1
+    title_card.get_by_role('button', name='Show changes').click()
+    rewrites = title_card.locator('.fix-paste ins').all_inner_texts()
+    add_change(page)
+    open_screen(page, "Welcome")
+    preview_with_my_changes(page)
+    assert all(text not in phone_text(page) for text in rewrites)                       # a survey title is not on the phone
+    assert page.evaluate('Object.keys(SC.workspaceDetail.decisions).length') == 1
 
 
 def test_with_fixes_does_not_invent_a_verified_time_promise(browser, base_url):
     page, _ = open_page(browser, base_url)
-    page.get_by_role("button", name="With changes").click()
+    add_every_change(page)
+    preview_with_my_changes(page)
     open_screen(page, "Welcome")
     intro = phone_text(page)
     assert 'about 3 minutes' in intro and 'about 4 minutes' not in intro
@@ -410,4 +455,4 @@ def test_with_fixes_does_not_invent_a_verified_time_promise(browser, base_url):
     page.evaluate("fp => dispatchEvent(new CustomEvent('surveycoach-focus-finding',{detail:fp}))", finding['fingerprint'])
     assert page.locator('#coach h3').inner_text() == finding['headline']
     assert page.locator('#coach .use-change').count() == 0
-    assert page.locator('#coach .suggested').get_by_text(finding['explanation'], exact=True).is_visible()
+    assert page.locator('#coach .fix-paste').count() == 0
