@@ -43,8 +43,11 @@ def open_review(browser, base_url, width=1280, chapter='improve', prepare=None):
     rubric = load_rubric()
 
     def derive():
-        """The server rebuilds queue, plan and My changes from the decisions on every read; so does this stand-in."""
+        """The server rebuilds queue, plan and My changes from the decisions on every read; so does this stand-in.
+        A test's own screen names stay as the test set them."""
+        screens = detail['screens']
         detail.update(enrich(detail, rubric))
+        detail['screens'] = screens
     derive()
     writes = []
     errors = []

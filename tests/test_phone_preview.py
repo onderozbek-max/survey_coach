@@ -89,7 +89,12 @@ def test_answer_additions_are_ghosts_not_stem_rewrites_or_verified_fixes(browser
     raw = page.evaluate('JSON.stringify(SC.workspaceDetail.snapshot)')
     focus(page, finding)
     assert page.locator('li.suggested-option').count() == 0
-    page.get_by_role('button', name='With changes', exact=True).click()
+    # 2B: the preview shows only what was added to My changes, so the toggle is off until then.
+    assert page.get_by_role('button', name='With my changes (0)').is_disabled()
+    page.get_by_role('button', name='Add to my changes', exact=True).click()
+    page.get_by_role('button', name='With my changes (1)').wait_for()
+    focus(page, finding)                                   # saving moved on to the next item; come back to this screen
+    page.get_by_role('button', name='With my changes (1)').click()
     ghost = page.locator('li.suggested-option')
     assert ghost.locator('span:not(.sr-only)').inner_text() == 'I did not shop this year'
     assert ghost.locator('.sr-only').evaluate('e => getComputedStyle(e).position') == 'absolute'
@@ -104,17 +109,19 @@ def test_answer_additions_are_ghosts_not_stem_rewrites_or_verified_fixes(browser
     assert page.evaluate('JSON.stringify(SC.workspaceDetail.snapshot)') == raw
     page.get_by_role('button', name='Original', exact=True).click()
     assert ghost.count() == 0
-    assert not writes
+    assert [w['action'] for w in writes] == ['pick']       # only the explicit add was written; previews write nothing
     page.locator('#coach details.more > summary').click()
     assert 'exclusive' in page.locator('#coach details.more').inner_text()
     assert 'Preview does not configure its behavior.' in page.locator('#coach details.more').inner_text()
-    page.get_by_role('button', name='Keep as is', exact=True).click()
-    page.get_by_role('button', name='Intentional for this study', exact=True).click()
-    page.locator('#toast').wait_for()
+    page.get_by_role('button', name='Undo', exact=True).first.click()
     focus(page, finding)
-    page.get_by_role('button', name='With changes', exact=True).click()
+    page.get_by_role('button', name='Keep as is…', exact=True).click()
+    page.get_by_role('button', name='Intentional', exact=True).click()
+    page.get_by_role('button', name='Keep as is', exact=True).click()
+    page.locator('.fix-handled').wait_for()
+    assert 'Kept as is' in page.locator('.fix-handled').inner_text()
+    assert page.get_by_role('button', name='With my changes (0)').is_disabled()      # a kept answer is never previewed
     assert ghost.count() == 0
-    assert 'accepted risk' in page.locator('.accepted-risk').inner_text()
     assert not errors
     context.close()
 
@@ -124,8 +131,8 @@ def test_answer_additions_are_ghosts_not_stem_rewrites_or_verified_fixes(browser
 def test_option_control_and_copy_share_a_row(browser, base_url, width, large, kind):
     def prepare(detail):
         question = detail['snapshot']['pages'][1]['questions'][0]
-        question.update(kind=kind, options=[{'label': 'Ordinary answer'},
-                                           {'label': 'A longer answer that can wrap naturally'}],
+        question.update(kind=kind, options=[{'id': 'o1', 'label': 'Ordinary answer'},
+                                           {'id': 'o2', 'label': 'A longer answer that can wrap naturally'}],
                         options_below_fold=1)
     context, page, detail, writes, errors = open_review(browser, base_url, width=width, prepare=prepare)
     open_screen(page, detail['screens'][1]['name'])
