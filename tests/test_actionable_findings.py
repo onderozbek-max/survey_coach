@@ -65,11 +65,19 @@ def test_unlabeled_scale_end_gets_a_matching_label(flawed):
     assert f.suggested_text == "Not at all likely ... Extremely likely"
 
 
-def test_broken_image_names_the_image_and_costs_renders_cleanly_credit_without_a_duplicate_finding(flawed):
-    (blocker,) = by_criterion(flawed, "B7")
-    assert "Relaxed fit" in blocker.headline and blocker.element_id == "img3"
-    assert by_criterion(flawed, "6.5") == []
-    assert "Stays put and renders cleanly" not in flawed.scorecard.strengths
+def test_unverified_image_names_capture_without_hidden_layout_penalty(flawed):
+    (observation,) = by_criterion(flawed, "B7")
+    assert "Relaxed fit" in observation.headline and observation.element_id == "img3"
+    assert "could not verify" in observation.headline.lower()
+    assert observation.severity == "worth_improving"
+    assert flawed.results["B7"].assessed is False
+    assert "B7" in flawed.scorecard.pending_blockers
+    assert "B7" not in flawed.scorecard.open_blockers
+    layout = flawed.results["6.5"]
+    assert layout.assessed is True and layout.applies is True
+    assert layout.fraction == 1.0  # No link/truncation defects: no silent image deduction.
+    assert layout.findings == [] and by_criterion(flawed, "6.5") == []
+    assert "Stays put and renders cleanly" in flawed.scorecard.strengths
 
 
 def test_the_time_overrun_is_reported_even_though_it_is_below_the_blocker_threshold(flawed):

@@ -1,5 +1,6 @@
 """Canonical labels are a read-only projection shared by screen and round views."""
 from copy import deepcopy
+import json
 
 import pytest
 
@@ -7,6 +8,7 @@ from surveycoach.labels import finding_label, screen_labels
 from surveycoach.server.repository import Repository
 from surveycoach.server.rounds import change_sheet, compare_rounds, locations
 from surveycoach.snapshot import SurveySnapshot
+from surveycoach.timing import reading_basis
 
 
 def snap():
@@ -109,7 +111,22 @@ def test_repository_projects_screens_for_each_round_without_writing_history():
         for version, expected in [(1, snapshot), (2, second_snapshot)]:
             detail = repo.detail(first["id"], version)
             assert detail["screens"] == screen_labels(expected)
-            assert detail["snapshot"] == expected.model_dump()
+            projected = deepcopy(detail["snapshot"])
+            for page, original in zip(projected["pages"], expected.pages, strict=True):
+                assert page.pop("reading_basis") == reading_basis(original)
+            # Only the named derived field is removed: all capture values must
+            # still match exactly, not merely survive permissive model validation.
+            assert projected == expected.model_dump()
+            restored = SurveySnapshot.model_validate(detail["snapshot"])
+            assert restored.review_hash == detail["review_hash"] == expected.review_hash
+            assert restored.content_hash == detail["content_hash"] == expected.content_hash
+            stored = repo.db.execute("SELECT snapshot,content_hash FROM versions WHERE survey_id=? AND version=?",
+                                     (first["id"], version)).fetchone()
+            assert json.loads(stored["snapshot"]) == expected.model_dump()
+            assert stored["content_hash"] == expected.review_hash
+            # Mutating a response's derived evidence cannot taint a later read.
+            detail["snapshot"]["pages"][0]["reading_basis"]["fields"].clear()
+            assert repo.detail(first["id"], version)["snapshot"]["pages"][0]["reading_basis"] == reading_basis(expected.pages[0])
         assert repo.detail(first["id"])["screens"][1]["name"] == "Q7a"
         assert list(repo.db.iterdump()) == before
     finally:
