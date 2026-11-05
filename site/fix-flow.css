@@ -8,7 +8,7 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 96px); }
 #queue-progress { margin:0; font-size:var(--fs-14); font-weight:700; font-variant-numeric:tabular-nums; }
 .progress-ring { --p:0; display:inline-grid; place-items:center; width:32px; height:32px; border-radius:50%; background:conic-gradient(var(--positive) calc(var(--p) * 1%), var(--line) 0); transition:--p var(--dur-3) var(--ease); }
 .progress-ring-hole { width:22px; height:22px; border-radius:50%; background:var(--surface); }
-.fix-filters { display:flex; flex-wrap:wrap; gap:var(--s-2); }
+.fix-filters { display:flex; flex-wrap:wrap; gap:var(--s-2); margin-bottom:var(--s-3); }
 .filter-chip { display:inline-flex; align-items:center; gap:var(--s-2); min-height:44px; padding:0 var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-pill); background:var(--surface); color:var(--text); font-size:var(--fs-14); cursor:pointer; }
 .filter-chip[data-state=fix_before_launch] svg { color:var(--critical); }
 .filter-chip[data-state=worth_improving] svg { color:var(--attention); }
@@ -16,9 +16,9 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 96px); }
 .filter-chip[aria-pressed=true] { border:2px solid var(--accent); background:var(--accent-soft); font-weight:700; }
 .filter-count { font-variant-numeric:tabular-nums; color:var(--muted); }
 .queue-tools { display:flex; flex-wrap:wrap; gap:var(--s-2); align-items:center; margin-left:auto; }
-.btn-pill, .queue-tools .seg button { display:inline-flex; align-items:center; gap:var(--s-2); min-height:44px; padding:0 var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:var(--fs-14); cursor:pointer; }
-.queue-tools .seg { display:flex; gap:var(--s-2); flex-wrap:wrap; padding:0; border:0; border-radius:0; background:none; }
-.queue-tools .seg [aria-pressed=true] { border:2px solid var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:700; }
+.btn-pill, .improve-bar .seg button { display:inline-flex; align-items:center; gap:var(--s-2); min-height:44px; padding:0 var(--s-3); border:1px solid var(--line-strong); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font-size:var(--fs-14); cursor:pointer; }
+.improve-bar .seg { display:flex; gap:var(--s-2); flex-wrap:wrap; padding:0; border:0; border-radius:0; background:none; }
+.improve-bar .seg [aria-pressed=true] { border:2px solid var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:700; }
 #fix-list-open { display:none; }
 
 /* ---- layout: list left, phone centre, card right; the list becomes a drawer below 1024px ---- */

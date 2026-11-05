@@ -113,25 +113,25 @@
       fail(id, message, retry) { failure = {id, message, retry}; redraw(); },
       clearFailure() { failure = null; },
       renderBar(mode, changeMode) {
-        const {done, total} = progress(), counts = Object.fromEntries(SC.FIX_STATES.map(state =>
-          [state, all().filter(entry => entry.state === state && isOpen(entry)).length]));
-        const changes = SC.myChangesOf(detail).count;
+        const {done, total} = progress(), changes = SC.myChangesOf(detail).count;
         return [h('div', {class:'fix-progress'}, SC.progressRing(done, total),
             h('p', {id:'queue-progress', 'aria-live':'polite'}, SC.progressText({done, total}))),
-          SC.fixFilters({counts, selected:filter, onPick:api.setFilter}),
           h('div', {class:'queue-tools'},
             h('button', {type:'button', id:'fix-list-open', class:'btn-pill', onclick:() => SC.openFixDrawer(api)}, SC.icon('list', {size:16}), 'Fix list'),
-            h('button', {type:'button', id:'all-screens', class:'btn-pill', onclick:() => SC.openScreens(detail, api)}, 'All screens'),
-            h('div', {class:'seg', role:'group', 'aria-label':'Preview wording'},
-              h('button', {type:'button', 'aria-pressed':String(mode === 'current'), 'data-fk':'queue-mode-current', onclick:() => changeMode('current')}, 'Original'),
-              h('button', {type:'button', 'aria-pressed':String(mode === 'fixes'), 'data-fk':'queue-mode-fixes', disabled:changes === 0,
-                'aria-describedby':changes === 0 ? 'mode-why' : null, title:changes === 0 ? 'Add a change to see it on the phone.' : null,
-                onclick:() => changeMode('fixes')}, `With my changes (${changes})`),
-              changes === 0 && h('span', {id:'mode-why', class:'sr-only'}, 'Add a change to see it on the phone.')))];
+            h('button', {type:'button', id:'all-screens', class:'btn-pill', onclick:() => SC.openScreens(detail, api)}, 'All screens')),
+          h('div', {class:'seg', role:'group', 'aria-label':'Preview wording'},
+            h('button', {type:'button', 'aria-pressed':String(mode === 'current'), 'data-fk':'queue-mode-current', onclick:() => changeMode('current')}, 'Original'),
+            h('button', {type:'button', 'aria-pressed':String(mode === 'fixes'), 'data-fk':'queue-mode-fixes', disabled:changes === 0,
+              'aria-describedby':changes === 0 ? 'mode-why' : null, title:changes === 0 ? 'Add a change to see it on the phone.' : null,
+              onclick:() => changeMode('fixes')}, `With my changes (${changes})`),
+            changes === 0 && h('span', {id:'mode-why', class:'sr-only'}, 'Add a change to see it on the phone.'))];
       },
-      renderList(onPicked = () => {}) {
+      /** The filter chips and the ordered rows: shown beside the phone from 1024px, inside the Fix list drawer below. */
+      renderList(onPicked = () => {}, onFilter = () => {}) {
+        const counts = Object.fromEntries(SC.FIX_STATES.map(state => [state, all().filter(entry => entry.state === state && isOpen(entry)).length]));
         // Close a drawer first: a modal dialog would swallow the focus the card is about to take.
-        return SC.fixList({entries:visible(), active:active || place?.id || null, isOpen, handledKind, onSelect:entry => { onPicked(); api.select(entry); }});
+        return [SC.fixFilters({counts, selected:filter, onPick:state => { api.setFilter(state); onFilter(); }}),
+          SC.fixList({entries:visible(), active:active || place?.id || null, isOpen, handledKind, onSelect:entry => { onPicked(); api.select(entry); }})];
       },
       render(ctx) {
         if (view === 'card' && api.active) return SC.renderImproveItem(resolve(api.active), {...ctx, queue:api, detail, onAdvance:api.advance, isActive:api.isActive});

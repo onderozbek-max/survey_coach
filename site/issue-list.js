@@ -48,5 +48,14 @@
     return dialog;
   };
 
-  SC.openFixDrawer = queue => drawer('fix-drawer', 'Fix list', close => queue.renderList(() => close(false)));
+  SC.openFixDrawer = queue => drawer('fix-drawer', 'Fix list', close => {
+    const box = h('div', {class:'fix-drawer-body'});
+    const draw = () => {
+      const key = document.activeElement?.dataset?.fk;
+      SC.mount(box, queue.renderList(() => close(false), draw));
+      if (key) box.querySelector(`[data-fk="${key}"]`)?.focus({preventScroll:true});
+    };
+    draw();
+    return box;
+  });
 })();
