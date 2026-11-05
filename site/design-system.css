@@ -4,6 +4,8 @@
   --text:#0F1B2D; --muted:#5B6B80; --accent:#0067A0; --accent-soft:#E6F1F8; --on-accent:#FFFFFF;
   --critical:#B42318; --critical-soft:#FEF3F2; --attention:#B54708; --attention-soft:#FFFAEB;
   --positive:#067647; --positive-soft:#ECFDF3; --mark:#FFF1B8;
+  /* Four-state language: violet for "You check"; the warm accent is reserved for success moments (completion, sign-off). */
+  --you-check:#5B3FA3; --you-check-soft:#F2EEFB; --celebrate:#8A4B00; --celebrate-soft:#FFF4D9;
   --zone-fresh:#B9D9EC; --zone-builds:#F6D28B; --zone-high:#F2A99F;
   --phone-bg:#FFFFFF; --phone-text:#1D2939; --phone-frame:#0F1B2D;
   --phone-muted:var(--muted); --phone-line:var(--line-strong); --phone-accent:var(--accent);
@@ -65,9 +67,6 @@ textarea { color:var(--text); background:var(--surface); border:1px solid var(--
 [data-tone=notice] { border:1px solid var(--line-strong); padding:14px; border-radius:12px; background:var(--surface-2); }
 [data-tone=progress] { border:1px solid var(--accent); padding:14px; border-radius:12px; background:var(--surface-2); }
 .workspace-shell { max-width:var(--content); margin:auto; padding:12px 24px 48px; }
-.workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; margin:12px 0 20px; }
-.workspace-heading h1 { font-size:clamp(24px,3vw,38px); line-height:1.15; margin-bottom:10px; }
-.workspace-heading p { color:var(--muted); }
 .workspace-shell .topbar { border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); padding:20px; }
 .workspace-shell .topbar > .brand,.workspace-shell .topbar > .pick { display:none; }
 .workspace-shell .head-text h1,.workspace-shell .head-text h2 { font-size:clamp(20px,2vw,28px); }
@@ -111,7 +110,7 @@ textarea { color:var(--text); background:var(--surface); border:1px solid var(--
   body:not(.home) > .app-header { padding:4px 12px; }
   body:not(.home) > .app-header .brand-mark { width:22px; height:22px; }
   body:not(.home) > .topbar { padding-top:5px; padding-bottom:5px; }
-  .app-header .pill { display:none; } .workspace-heading { margin-top:8px; gap:10px; }
+  .app-header .pill { display:none; }
   .workspace-shell .studio { display:flex; flex-direction:column; gap:12px; }
   .workspace-shell .rail,.workspace-shell .stage,.workspace-shell .coach { width:100%; }
   .workspace-shell .rail { position:static; max-height:130px; border-right:4px solid var(--accent); scroll-snap-type:x proximity; }
