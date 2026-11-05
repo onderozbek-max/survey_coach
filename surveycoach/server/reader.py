@@ -1,5 +1,4 @@
 """Bounded link-read jobs. Production never enables the controlled-local-fixture bypass."""
-import json
 import logging
 import os
 from uuid import uuid4
@@ -15,6 +14,7 @@ from surveycoach.reader.proxy import APPROVED_PROXY, ReaderProxyConfigurationErr
 from surveycoach.reader.transport import ReaderDNSFailure, ReaderNetworkFailure
 
 logger = logging.getLogger(__name__)
+from surveycoach.server.evidence import ERROR_SCREEN_MESSAGE, read_outcome, store_evidence, validated_captures
 from surveycoach.server.service import run_job
 
 
@@ -38,7 +38,8 @@ def router(repository, app):
         db.execute("CREATE TABLE IF NOT EXISTS reader_jobs (id TEXT PRIMARY KEY, status TEXT NOT NULL, "
                    "survey_id TEXT, version INTEGER, error TEXT)")
         columns = {row[1] for row in db.execute('PRAGMA table_info(reader_jobs)')}
-        for column, definition in [('stage','TEXT'), ('pages_captured','INTEGER DEFAULT 0'), ('deduplicated','INTEGER DEFAULT 0')]:
+        for column, definition in [('stage','TEXT'), ('pages_captured','INTEGER DEFAULT 0'), ('deduplicated','INTEGER DEFAULT 0'),
+                                  ('outcome','TEXT'), ('evidence','TEXT')]:
             if column not in columns:
                 db.execute(f'ALTER TABLE reader_jobs ADD COLUMN {column} {definition}')
         db.execute('CREATE TABLE IF NOT EXISTS reader_previews (job_id TEXT, position INTEGER, path TEXT, PRIMARY KEY(job_id,position))')
@@ -78,8 +79,6 @@ def router(repository, app):
             for kind in ("timeout", "connection"):
                 if f"Reader initial connection failed: {kind}." in captured.coverage.warnings:
                     raise ReaderNetworkFailure(kind)
-            with repository.transaction() as db:
-                db.execute("UPDATE reader_jobs SET stage='checking',pages_captured=? WHERE id=?", (len(captured.snapshot.pages),job_id))
             if not captured.snapshot.all_questions() and any(
                 "participant sign-in" in warning for warning in captured.coverage.warnings
             ):
@@ -107,26 +106,33 @@ def router(repository, app):
                 update(job_id, "failed", body.survey_id, error=message)
                 return
             if not captured.snapshot.all_questions() and all(
-                page.text.strip().lower().rstrip(". …") in {"", "loading", "please wait"}
+                captured.snapshot.page_copy(page).lower().rstrip(". …") in {"", "loading", "please wait"}
                 for page in captured.snapshot.pages
             ):
                 update(job_id, "failed", body.survey_id,
                        error="Connected to RedJade, but SurveyCoach could not load the survey questions. This survey's startup requests are not yet supported. No review was created.")
                 return
+            with repository.transaction() as db:
+                # Rendered captures only: definition wording screens are not captures.
+                db.execute("UPDATE reader_jobs SET stage='checking',pages_captured=? WHERE id=?",
+                           (len(captured.captures), job_id))
+            outcome = read_outcome(captured.snapshot, captured.coverage)
+            if outcome == "error":
+                with repository.transaction() as db:
+                    db.execute("UPDATE reader_jobs SET outcome='error' WHERE id=?", (job_id,))
+                update(job_id, "failed", body.survey_id, error=ERROR_SCREEN_MESSAGE)
+                return
+            captured.coverage.read_outcome = outcome
+            rows = validated_captures(captured)   # reject a bad manifest before anything is created
             created = repository.submit(captured.snapshot, body.ai, body.survey_id)
-            coverage = captured.coverage.model_dump(mode="json")
             with repository.transaction() as db:
-                db.execute('UPDATE reader_jobs SET deduplicated=? WHERE id=?', (int(created['deduplicated']),job_id))
-            with repository.transaction() as db:
-                db.execute("INSERT OR REPLACE INTO coverage(survey_id,version,data) VALUES (?,?,?)",
-                           (created["id"], created["version"], json.dumps(coverage)))
-            with repository.transaction() as db:
-                for position, capture in enumerate(captured.captures):
-                    path = capture.viewport_png.resolve()
-                    if not path.is_relative_to(captured.capture_dir.resolve()):
-                        raise ValueError("Capture outside reader directory")
-                    db.execute("INSERT OR REPLACE INTO captures VALUES (?,?,?,?,?)",
-                               (created["id"], created["version"], position, capture.page_id, str(path)))
+                # One unit: coverage and captures belong to the same attempt, or the old bundle stays.
+                evidence = store_evidence(db, created["id"], created["version"],
+                                          captured.coverage.model_dump(mode="json"), rows)
+                db.execute("UPDATE reader_jobs SET deduplicated=?,outcome=?,evidence=? WHERE id=?",
+                           (int(created["deduplicated"]), outcome, evidence, job_id))
+                db.executemany("INSERT OR REPLACE INTO reader_previews VALUES (?,?,?)",
+                               [(job_id, position, path) for position, _, path in rows])
             if created["scheduled"]:
                 run_job(repository, created["job_id"], app.state.provider)
             checked = repository.job(created["job_id"])

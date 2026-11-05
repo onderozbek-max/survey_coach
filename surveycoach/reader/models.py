@@ -1,5 +1,6 @@
 """Coverage lives beside, not inside, the existing reader-independent snapshot."""
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +18,8 @@ class Coverage(BaseModel):
     visual_media_verified: bool = False
     paths_verified: bool = False
     stop_reason: str = "not_started"
+    # Set by the server once the read is classified. Saved coverage without it loads as reviewable.
+    read_outcome: Literal["reviewable", "limited"] = "reviewable"
     full_branching_coverage: bool = False
     blocked_requests: int = 0
     ai_strategies: int = 0
