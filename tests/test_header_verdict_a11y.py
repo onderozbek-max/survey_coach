@@ -129,7 +129,10 @@ def test_verdict_accessibility_tree_and_keyboard_path(browser, base_url):
         - button /Start fixing \\(\\d+\\)/
         - button "Play it as a member"
     ''')
-    assert page.locator('h3').first.inner_text() == 'Member experience'          # H1 survey > H2 verdict > H3 sections
+    # H1 survey > H2 verdict > H3 sections (the setup card comes first, then the member experience): no level is skipped
+    assert 'Member experience' in page.locator('h3').all_inner_texts()
+    levels = [int(tag[1]) for tag in page.locator('h1, h2, h3, h4, h5, h6').evaluate_all('els => els.map(e => e.tagName)')]
+    assert levels[0] == 1 and all(b - a <= 1 for a, b in zip(levels, levels[1:])), levels
     page.locator('[data-tile=fix]').focus()
     page.keyboard.press('Enter')
     page.wait_for_function("SC.currentChapter() === 'improve'")

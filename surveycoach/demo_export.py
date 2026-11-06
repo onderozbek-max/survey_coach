@@ -65,10 +65,10 @@ def _server_fields(data: dict, snapshot: SurveySnapshot) -> dict:
     """The fields the server adds on top of `enrich` (one unconfirmed type guess, no reward answer, unsigned,
     the Slack post), built by the same functions so the static sample shows exactly what the real page gets.
     Samples are first versions, so there is no version delta (null, as on any v1). Nothing here is a link:
-    the page has no server, so no download route is offered either."""
+    the page has no server, so no download route is offered either. The sample itself gets no `version` field:
+    that would put a "v1 · checked ..." chip on made-up data."""
     first = dict(data, version=1)
-    return {"version": 1,
-            "survey_type_detection": dict(detect_survey_type(snapshot).model_dump(mode="json"), confirmed=False),
+    return {"survey_type_detection": dict(detect_survey_type(snapshot).model_dump(mode="json"), confirmed=False),
             "reward": read_reward(None).as_dict(),
             "version_delta": None,
             "signoff": signoff_state(first, []),

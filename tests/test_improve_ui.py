@@ -17,7 +17,7 @@ from tests.test_site_e2e import base_url, browser
 def test_queue_saves_adds_advances_and_undo_reopens(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url)
     assert page.get_by_role('tab').count() == 0                                   # one ordered list, no tabs
-    assert page.locator('#rail, .journey, #review-toolbar, .next-issue').count() == 0
+    assert page.locator('#rail, .energy-map, #review-toolbar, .next-issue').count() == 0
     assert page.locator('#coach .location').inner_text().split(' · ')[0] == page.locator('#stage .phone-bar').inner_text().split(' · ')[0]
     assert page.locator('#coach .state-chip').inner_text() == 'Fix before launch'
     assert page.locator('#coach details.more').count() == 1
