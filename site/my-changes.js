@@ -17,6 +17,16 @@
   };
   SC.myChangesOf = detail => (SC.isSample ? sampleChanges(detail) : detail.my_changes) || {items:[], count:0, copy_all_text:''};
 
+  /** The tray is fixed to the bottom of the window, so the list pads itself by the tray's own height (--tray-h): the last rows
+      can always be scrolled clear of it, whether it is closed or open. */
+  let trayObserver = null;
+  const publishHeight = tray => {
+    trayObserver?.disconnect();
+    if (!window.ResizeObserver) return;
+    trayObserver = new ResizeObserver(() => document.documentElement.style.setProperty('--tray-h', `${Math.ceil(tray.getBoundingClientRect().height)}px`));
+    trayObserver.observe(tray);
+  };
+
   SC.renderTray = detail => {
     const changes = SC.myChangesOf(detail);
     const panel = h('div', {id:'tray-panel', class:'tray-panel', hidden:!open},
@@ -27,11 +37,13 @@
             h('div', {class:'tray-text'}, h('p', {class:'tray-where'}, item.field_location), h('p', {class:'tray-after'}, item.after)),
             h('button', {type:'button', class:'btn tray-copy', 'data-fk':`tray-copy-${index}`, 'aria-label':`Copy change ${index + 1}: ${item.field_location}`,
               onclick:() => SC.copyWithToast(item.copy_text)}, SC.icon('copy', {size:16}), 'Copy'))))]);
-    return h('section', {class:`tray${open ? ' is-open' : ''}`, 'aria-label':'My changes'},
+    const tray = h('section', {class:`tray${open ? ' is-open' : ''}`, 'aria-label':'My changes'},
       h('button', {type:'button', id:'tray-toggle', class:'tray-bar', 'data-fk':'tray-toggle', 'aria-expanded':String(open), 'aria-controls':'tray-panel', onclick:event => {
         open = !open; panel.hidden = !open;
         event.currentTarget.setAttribute('aria-expanded', String(open));
         event.currentTarget.closest('.tray').classList.toggle('is-open', open);
       }}, `My changes (${changes.count})`, SC.icon('chevron-down', {size:18})), panel);
+    publishHeight(tray);
+    return tray;
   };
 })();

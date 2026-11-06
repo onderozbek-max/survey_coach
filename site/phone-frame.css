@@ -19,10 +19,13 @@
 .phone-content { display:flex; flex-direction:column; min-height:100%; }
 .phone-nextbar { position:sticky; bottom:0; margin:auto -16px 0; padding:12px 16px 16px; background:var(--phone-bg); border-top:1px solid var(--line); }
 .phone-nextbar .next { margin:0; }
+/* The cue is a fade that sits right on the Next bar (its height is measured into --next-h by phone-frame.js). It never takes
+   a click and is not a control, so the last visible answer stays readable and tappable underneath it. */
 .phone-scroll-cue {
-  position:absolute; left:50%; bottom:calc(var(--next-h) + 8px); transform:translateX(-50%); z-index:2;
-  min-height:28px; padding:4px 12px; border:0; border-radius:var(--r-pill);
-  background:var(--phone-frame); color:var(--on-accent); font-size:var(--fs-12); font-weight:700; box-shadow:var(--shadow-2); cursor:pointer;
+  position:absolute; left:0; right:0; bottom:var(--next-h); z-index:2; height:32px; padding-bottom:3px;
+  display:flex; align-items:flex-end; justify-content:center; pointer-events:none;
+  background:linear-gradient(to top, var(--phone-bg), transparent);
+  color:var(--phone-text); font-size:var(--fs-12); font-weight:700;
 }
 .phone-viewport[data-more="false"] .phone-scroll-cue { display:none; }
 .phone-home { display:flex; flex:none; align-items:center; justify-content:center; height:20px; background:var(--phone-bg); }

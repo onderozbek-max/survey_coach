@@ -372,3 +372,25 @@ def test_targets_are_44px_and_state_is_never_colour_alone(browser, flow):
     ring = page.evaluate("() => { const s = getComputedStyle(document.activeElement); return [s.outlineStyle, parseFloat(s.outlineWidth)]; }")
     assert ring[0] != 'none' and ring[1] >= 2
     context.close()
+
+
+def test_the_tray_never_hides_the_last_list_rows(browser, flow):
+    """3E: the fixed My changes tray sat on top of the bottom of the list. The list pads itself by the tray's own height."""
+    context, page, errors = open_flow(browser, flow, width=1440, height=560)       # a short window, so the list scrolls
+    tray, queue = page.locator('.my-changes'), page.locator('#fix-queue')
+    padding = "() => Math.abs(parseFloat(getComputedStyle(document.querySelector('#fix-queue .fix-rows')).paddingBottom) - document.querySelector('.my-changes').getBoundingClientRect().height) <= 1"
+
+    def last_row_clear_of_tray():
+        page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')           # the list is pinned (sticky) at the bottom of the page
+        queue.evaluate('e => { e.scrollTop = e.scrollHeight; }')
+        last, bar = page.locator('#fix-queue .fix-row').last.bounding_box(), tray.bounding_box()
+        return last['y'] + last['height'] <= bar['y'] + 1, (last, bar)
+
+    assert queue.evaluate('e => e.scrollHeight > e.clientHeight')
+    page.wait_for_function(padding)
+    assert last_row_clear_of_tray()[0], last_row_clear_of_tray()
+    page.locator('#tray-toggle').click()                                           # opening the tray makes it taller; the padding follows
+    page.wait_for_function(padding)
+    assert tray.bounding_box()['height'] > 60 and last_row_clear_of_tray()[0], last_row_clear_of_tray()
+    assert not errors
+    context.close()

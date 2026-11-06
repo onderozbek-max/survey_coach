@@ -367,8 +367,39 @@ def test_the_phone_modules_stay_small_and_token_only():
     for name in ('phone.js', 'phone-frame.js', 'phone-tools.js', 'phone-frame.css', 'phone-tools.css'):
         text = (ROOT / 'site' / name).read_text()
         assert text.count('\n') < 600, name
-        assert not re.search(r'gradient|backdrop-filter', text), name
+        assert 'backdrop-filter' not in text, name
+        gradients = re.findall(r'[\w-]*gradient\([^;]*;', text)
+        if name == 'phone-frame.css':        # 3E: the "More below" fade is the one allowed gradient, built from tokens only
+            cue_rule = re.search(r'\.phone-scroll-cue \{[^}]*\}', text).group()
+            assert len(gradients) == 1 and gradients[0] in cue_rule and gradients[0] == 'linear-gradient(to top, var(--phone-bg), transparent);', gradients
+        else:
+            assert not gradients, name
         if name.endswith('.css'):
             assert not re.search(r'#[0-9a-fA-F]{3,8}\b|rgba?\(', text.replace('rgba(0, 0, 0, 0)', '')), name
         else:
             assert 'style.color' not in text and 'style.background' not in text, name
+
+
+@pytest.mark.parametrize('width', [1440, 390])
+def test_the_more_below_cue_is_a_quiet_fade_sitting_on_the_next_bar(browser, base_url, width):
+    """3E: the cue used to float a guessed distance above Next, on top of the last visible answer, and swallowed clicks."""
+    context, page, detail, writes, errors = open_review(browser, base_url, width=width, prepare=long_list)
+    open_screen(page, screen_name(detail, 6))
+    page.wait_for_function("document.querySelector('#stage .phone-viewport').dataset.more === 'true'")
+    cue, bar = page.locator('#stage .phone-scroll-cue'), page.locator('#stage .phone-nextbar')
+    assert cue.is_visible() and 'more' in cue.inner_text().lower()
+    assert cue.evaluate('e => getComputedStyle(e).pointerEvents') == 'none'                  # never interactive
+    assert cue.evaluate('e => e.tagName') != 'BUTTON' and cue.get_attribute('tabindex') is None
+    assert 'linear-gradient' in cue.evaluate('e => getComputedStyle(e).backgroundImage')     # a fade, not a pill
+    cue.scroll_into_view_if_needed()
+    box, nxt = cue.bounding_box(), bar.bounding_box()
+    assert box['height'] <= 40
+    assert abs(box['y'] + box['height'] - nxt['y']) <= 1, (box, nxt)                         # sits right on the Next bar
+    centre = {'x': box['x'] + box['width'] / 2, 'y': box['y'] + box['height'] / 2}
+    assert page.evaluate("p => !document.elementFromPoint(p.x, p.y).closest('.phone-scroll-cue')", centre)   # clicks reach the answer
+    page.locator('#stage .phone-screen').focus()
+    page.keyboard.press('End')
+    page.wait_for_function("document.querySelector('#stage .phone-viewport').dataset.more === 'false'")
+    assert not cue.is_visible()
+    assert not errors
+    context.close()

@@ -23,14 +23,21 @@
   const hasMoreBelow = (screen) => screen.scrollHeight - screen.clientHeight > 2
     && screen.scrollTop + screen.clientHeight < screen.scrollHeight - 2;
 
-  /** Keeps the "More below" cue honest: on scroll, on resize of the region or its content, and after first layout. */
+  /** Keeps the "More below" cue honest: on scroll, on resize of the region, its content or the Next bar, and after first layout. */
   function watchOverflow(viewport, screen, content) {
-    const sync = () => { viewport.dataset.more = String(hasMoreBelow(screen)); };
+    const sync = () => {
+      viewport.dataset.more = String(hasMoreBelow(screen));
+      // The cue sits exactly on the Next bar, whatever its height is at this text size (3E).
+      const bar = content.querySelector(".phone-nextbar");
+      if (bar) viewport.style.setProperty("--next-h", `${bar.offsetHeight}px`);
+    };
     screen.addEventListener("scroll", sync, { passive: true });
     if (window.ResizeObserver) {
       const observer = new ResizeObserver(sync);
       observer.observe(screen);
       observer.observe(content);
+      const bar = content.querySelector(".phone-nextbar");
+      if (bar) observer.observe(bar);
     }
     requestAnimationFrame(sync);
   }
@@ -46,10 +53,8 @@
   SC.phoneFrame = ({ title, device, children }) => {
     const content = h("div", { class: "phone-content" }, children);
     const screen = h("div", { class: "phone-screen", tabindex: "0", role: "region", "aria-label": "Survey screen preview, scrollable" }, content);
-    const cue = h("button", {
-      type: "button", class: "phone-scroll-cue", tabindex: "-1",
-      onclick: () => screen.scrollBy({ top: screen.clientHeight * 0.8, behavior: "smooth" }),
-    }, "More below ↓");
+    // A quiet fade, not a control: the scroll region is already keyboard reachable, and a floating button hid answers.
+    const cue = h("div", { class: "phone-scroll-cue", "aria-hidden": "true" }, "More below ↓");
     const viewport = h("div", { class: "phone-viewport", "data-more": "false" }, screen, cue);
     watchOverflow(viewport, screen, content);
     return h("div", { class: "phone-wrap" },

@@ -36,7 +36,7 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 96px); }
 }
 
 /* ---- the list ---- */
-.fix-rows { list-style:none; margin:0; padding:0; display:grid; gap:var(--s-2); }
+.fix-rows { list-style:none; margin:0; padding:0 0 var(--tray-h, 0px); display:grid; gap:var(--s-2); }   /* clear of the fixed My changes tray (3E) */
 .fix-row { display:grid; grid-template-columns:24px minmax(0,1fr); gap:var(--s-3); align-items:start; width:100%; min-height:44px; padding:var(--s-3); text-align:left; border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); color:var(--text); cursor:pointer; }
 .fix-row[aria-current=true] { border:2px solid var(--accent); background:var(--accent-soft); padding:calc(var(--s-3) - 1px); }
 .fix-row .state-icon[data-state=done] { color:var(--positive); }
