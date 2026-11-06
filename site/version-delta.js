@@ -22,7 +22,7 @@
     if (!delta || !(detail.version >= 2)) return null;
     const {counts} = delta;
     return h('section', {id: 'version-delta', class: 'delta-card', 'aria-labelledby': 'delta-h'},
-      h('h3', {id: 'delta-h'}, 'Since last version'),
+      h('h3', {id: 'delta-h', tabindex: '-1'}, 'Since last version'),
       h('p', {class: 'delta-summary'}, h('strong', null, delta.summary)),
       h('p', {class: 'meta'}, delta.caveat),
       counts.uncertain > 0 && h('div', {class: 'delta-uncertain', role: 'group', 'aria-label': 'Could not compare'},

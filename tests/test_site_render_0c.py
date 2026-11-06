@@ -29,7 +29,7 @@ def test_zero_count_round_shows_no_stray_digits(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share')
     assert detail['round_changes'] == {'fixed': [], 'still': [], 'new': [], 'uncertain': []}
     assert '0000' not in page.locator('#chapter-share').inner_text()
-    assert page.locator('.round-comparison').evaluate(STRAY_DIGITS) == []
+    assert page.locator('.round-comparison').count() == 0 and page.locator('#chapter-share').evaluate(STRAY_DIGITS) == []
     assert not errors
     context.close()
 

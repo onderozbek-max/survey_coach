@@ -1,5 +1,6 @@
 /* Share: the review card, the Slack post and sign-off (share-card.js, signoff.js), then the changes the author chose.
-   Choices are explicit, never preview defaults or claims of launch readiness. */
+   Choices are explicit, never preview defaults or claims of launch readiness. This list says nothing about what is
+   open or kept: the verdict, the card and the Slack post own those facts (3E), so the list cannot contradict them. */
 (() => {
   'use strict';
   const SC = window.SC, {h, mount, $} = SC;
@@ -29,13 +30,8 @@
   SC.renderShare = (detail, copy) => {
     mount($('share-card'), SC.renderReviewCard(detail), SC.renderSlackPost(detail));
     SC.renderSignoff(detail);
-    const changes = SC.shareChanges(detail), kept = detail.review.findings.filter(f => !f.absorbed_by && SC.acceptedRisk(f, detail));
-    const handled = fp => {
-      const f = detail.review.findings.find(f => f.fingerprint === fp);
-      return f && (changes.includes(f) || SC.acceptedRisk(f, detail));
-    };
-    const open = (detail.plan?.must_fix || []).filter(item => !item.fingerprints.length || !item.fingerprints.every(handled)).length;
-    $('share-summary').textContent = `${changes.length} changes chosen · ${kept.length} kept on purpose · ${open} to fix before launch still open`;
+    const changes = SC.shareChanges(detail);
+    $('share-summary').textContent = `${SC.plural(changes.length, 'change')} chosen`;
     const groups = new Map();
     for (const f of changes) {
       const item = place(f, detail);
@@ -50,9 +46,6 @@
           : SC.renderDiff(f.current_text, SC.issueDecision(f, detail).picked_text),
         h('button', {type:'button', class:'btn btn-secondary', onclick:() => copy(SC.shareChangeText(f, detail), $('action-status'))}, 'Copy change')))))));
     if (!changes.length) mount($('change-list'), h('p', null, 'No changes chosen yet. Recommended previews are not included.'));
-    mount($('kept-reasons'), kept.length > 0 ? h('details', null, h('summary', null, `Kept on purpose (${kept.length})`),
-      h('p', null, 'These are accepted risk, not verified fixes.'), h('ul', null, kept.map(f => h('li', null,
-        `${SC.improveLocation(f, detail)} · ${f.headline}: ${SC.issueDecision(f, detail).reason}`)))) : null);
     const button = $('copy-all');
     button.textContent = `Copy all changes (${changes.length})`;
     button.disabled = !changes.length; button.hidden = !changes.length;

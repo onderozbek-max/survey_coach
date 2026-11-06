@@ -43,7 +43,8 @@
         row('Checked', SC.dateLabel(checkedAt(detail)) || 'Date unknown')),
       group('Checked by hand', facts.checked_by_hand.map(c => item('looks_good', c.title, c.where, doneNote(c))), 'Nothing ticked by hand yet.'),
       facts.still_to_check.length ? group('Still to check', facts.still_to_check.map(c => item('you_check', c.title, c.where, 'Still to check'))) : null,
-      facts.kept.length ? group('Kept on purpose', facts.kept.map(k => item('looks_good', k.headline, k.where, `Kept${k.reason ? `: ${k.reason}` : ''}`))) : null);
+      facts.kept.length ? [group('Kept on purpose', facts.kept.map(k => item('looks_good', k.headline, k.where, `Kept${k.reason ? `: ${k.reason}` : ''}`))),
+        h('p', {class: 'quiet'}, 'These are accepted risk, not verified fixes.')] : null);
   };
 
   /** Hero action: one primary button, the exact post below it, Download as the quiet second choice. */

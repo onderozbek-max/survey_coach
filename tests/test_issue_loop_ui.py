@@ -174,7 +174,7 @@ def test_keep_needs_a_reason_chip_and_mobile_finish_loop(browser, base_url):
     page.wait_for_function("document.querySelector('#review-title').textContent === 'Member experience round'")
     go_to(page, 'share')
     assert page.locator('.round-timeline a').count() == 2
-    assert 'no longer flagged' in page.locator('.round-comparison').inner_text()
+    assert page.locator('.round-comparison').count() == 0 and 'no longer flagged' not in page.locator('#chapter-share').inner_text().lower()   # the delta card owns it
     assert '/versions/2/summary?download=1' in page.locator('#download-summary').get_attribute('href')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert not errors
@@ -244,10 +244,12 @@ def test_failed_save_changes_nothing_and_round_evidence_is_readable(browser, bas
     text = page.evaluate('''() => {
       const d = SC.workspaceDetail;
       const f = d.review.findings[0];
-      return SC.renderRounds({...d, round_changes:{fixed:[{prior_finding:f,current_finding:null,screen_label:'Q1 · Screen 2',old_wording:'Old question',new_wording:'New question',resolution:'No longer flagged'}],still:[],new:[],uncertain:[]}}, 'synthetic').map(n=>n.textContent).join(' ');
+      return SC.renderVersionDelta({...d, version:2, version_delta:{from_version:1, to_version:2, counts:{fixed:1, still:0, new:0, uncertain:1}, summary:'1 fixed', caveat:'Fixed = no longer flagged by our checks.',
+        fixed:[{headline:'Reading level is high', location:'Q1 · Screen 2', before:'Old question', after:'New question', resolution:'No longer flagged', by_rewrite:false}], still:[], new:[],
+        uncertain:[{headline:'Path changed', location:'Q2 · Screen 3', resolution:'Not verified: changed context'}]}}).textContent;
     }''')
     assert 'Q1 · Screen 2' in text
-    assert 'Before: Old question' in text and 'Now: New question' in text
-    assert 'not blanket verification' in text
+    assert 'Old question' in text and 'New question' in text and 'Reading level is high' in text      # round evidence now lives in the delta card
+    assert "couldn't compare" in text and 'Fixed = no longer flagged by our checks.' in text            # never dropped, never overclaimed
     assert not errors
     context.close()

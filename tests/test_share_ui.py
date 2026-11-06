@@ -23,9 +23,9 @@ def chosen(detail):
     return picks, keep
 
 
-def test_share_explicit_grouped_changes_copy_and_kept_reasons(browser, base_url):
+def test_share_explicit_grouped_changes_and_copy(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share', prepare=chosen)
-    assert page.locator('#share-summary').inner_text() == '2 changes chosen · 1 kept on purpose · 1 to fix before launch still open'
+    assert page.locator('#share-summary').inner_text() == '2 changes chosen'               # no open or kept claim here: the verdict, card and post own those (3E)
     assert page.locator('#change-list li').count() == 2
     expected = {s['name'] for s in detail['screens'] if any(
         f.get('page_id') == s['page_id'] or any(q['id'] == f.get('question_id') for q in s['questions'])
@@ -35,9 +35,7 @@ def test_share_explicit_grouped_changes_copy_and_kept_reasons(browser, base_url)
     addition = page.locator('#change-list li').filter(has_text='Add answer option')
     assert addition.locator('del').count() == 0
     assert 'Keep question:' in addition.inner_text()
-    page.locator('#kept-reasons summary').click()
-    assert 'Required for comparability' in page.locator('#kept-reasons').inner_text()
-    assert 'accepted risk, not verified fixes' in page.locator('#kept-reasons').inner_text()
+    assert page.locator('#kept-reasons').count() == 0       # retired block; the card's Kept on purpose list replaces it (test_signoff_finish_line)
     assert page.locator('#chapter-share .btn-primary').count() == 1
     assert page.locator('#copy-all').is_visible()
     addition.get_by_role('button', name='Copy change', exact=True).click()
@@ -61,9 +59,8 @@ def test_share_zero_changes_and_honest_version_evidence(browser, base_url):
     context, page, detail, writes, errors = open_review(browser, base_url, chapter='share', width=390, prepare=prepare)
     assert page.locator('#copy-all').is_hidden()
     assert page.locator('#change-list li').count() == 0
-    assert page.get_by_role('heading', name='Since version 1', exact=True).is_visible()
-    assert '1 no longer flagged' in page.locator('#version-changes').inner_text()
-    assert 'not blanket verification' in page.locator('#version-changes').inner_text()
+    sign_off = page.locator('#chapter-share').inner_text().lower()
+    assert 'since version' not in sign_off and 'no longer flagged' not in sign_off     # retired rail; the Verdict delta card is the one comparison
     assert '#share' in page.locator('.round-timeline a').first.get_attribute('href')
     open_how_we_check(page)
     assert 'not launch approval' in page.get_by_role('dialog', name='How we check').inner_text()
