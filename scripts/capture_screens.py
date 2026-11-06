@@ -232,10 +232,9 @@ def capture(browser, base, detail, pattern, group, output, reduced_motion, clien
             snap('share', 'one synthetic decision chosen in UI; no launch verification')
             review(detail, 'overview')
             page.locator('#preview-member').click()
-            dialog = page.get_by_role('dialog', name='Preview as a member')
-            dialog.wait_for()
-            dialog.get_by_role('button', name='Pause', exact=True).click()
-            snap('preview-member', 'paused local reconstructed walkthrough, not RedJade')
+            dialog = page.get_by_role('dialog', name='Play it as a member')
+            dialog.wait_for()      # steps with Back/Next, nothing plays by itself, so there is nothing to pause
+            snap('preview-member', 'stepped local reconstructed walkthrough, not RedJade')
             diagnostics.append({'device': device, 'page_errors': errors,
                                 'blocked_external_requests': blocked})
             if errors or blocked:

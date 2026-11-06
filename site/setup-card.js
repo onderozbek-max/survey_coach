@@ -71,7 +71,7 @@
         : h('p', {class: 'setup-question'}, 'Looks like a ', h('strong', null, noun(found.type)),
           h('span', {class: 'setup-chip'}, `${capital(found.label)} confidence`)),
       h('div', {class: 'setup-actions'},
-        !confirmed && h('button', {type: 'button', id: 'setup-confirm', class: 'btn btn-primary', disabled: ui.busy, onclick: () => saveType(found.type)}, 'Confirm'),
+        !confirmed && h('button', {type: 'button', id: 'setup-confirm', class: 'btn btn-secondary', disabled: ui.busy, onclick: () => saveType(found.type)}, 'Confirm'),
         !ui.changingType && h('button', {type: 'button', id: 'setup-type-change', class: 'btn btn-secondary', disabled: ui.busy,
           onclick: () => { ui.changingType = true; redraw('setup-type-change'); }}, 'Change')),
       ui.changingType && typeOptions(state),
@@ -94,7 +94,7 @@
         h('label', {for: 'reward-text'}, 'What is it? (optional, up to 120 characters)'),
         h('input', {type: 'text', id: 'reward-text', maxlength: String(MAX_REWARD), value: text, autocomplete: 'off',
           oninput: event => { ui.rewardText = event.target.value; }}),
-        h('button', {type: 'button', id: 'reward-save', class: 'btn btn-primary',
+        h('button', {type: 'button', id: 'reward-save', class: 'btn btn-secondary',
           onclick: () => saveReward({has_reward: true, text: ui.rewardText ?? text})}, 'Save reward')),
       error && failure(error));
   }

@@ -123,9 +123,9 @@ def test_long_history_projects_two_rounds_for_detail_and_one_for_save(monkeypatc
         original = module.project_review
         calls = []
 
-        def counted(snap, review):
+        def counted(snap, review, *context):      # the reward answer rides along as a third argument
             calls.append(snap["title"])
-            return original(snap, review)
+            return original(snap, review, *context)
 
         monkeypatch.setattr(module, "project_review", counted)
         current = repo.detail(submitted["id"])

@@ -144,8 +144,20 @@ def test_when_both_are_answered_the_card_starts_collapsed(browser, base_url):
 
 
 def test_without_the_setup_fields_there_is_no_card(browser, base_url):
-    context, page, detail, writes, errors = open_verdict(browser, base_url)
+    """The sample data now carries the fields, so "the server did not send them" is made explicit here."""
+    context, page, detail, writes, errors = open_verdict(
+        browser, base_url, prepare=lambda d: [d.pop(field, None) for field in ('survey_type_detection', 'reward')])
     assert page.locator(CARD).count() == 0
+    context.close()
+
+
+def test_the_verdict_keeps_one_primary_button_whatever_the_setup_card_is_asking(browser, base_url):
+    """Start fixing is the one primary action (board-redesign contract). The setup card's Confirm and Save are quiet."""
+    context, page, detail, writes, errors, _ = open_setup(browser, base_url)
+    page.get_by_label('Yes', exact=True).click()
+    assert page.locator('#reward-save').is_visible() and page.locator('#setup-confirm').is_visible()
+    primaries = page.locator('#chapter-overview .btn-primary')
+    assert primaries.count() == 1 and primaries.first.get_attribute('id') == 'start-improving'
     context.close()
 
 
