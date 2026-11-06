@@ -3,16 +3,7 @@
    linked only when it is a plain https URL; otherwise the banner says how to get access and never offers a dead link. */
 (() => {
   'use strict';
-  const {h} = window.SC;
-
-  /** The configured team address as a safe absolute https URL, or null. */
-  const teamAddress = value => {
-    if (typeof value !== 'string') return null;
-    try {
-      const url = new URL(value.trim());
-      return url.protocol === 'https:' && url.hostname ? url.href : null;
-    } catch { return null; }
-  };
+  const {h, teamAddress} = window.SC;
 
   const banner = () => {
     const team = teamAddress(window.SURVEYCOACH_TEAM_URL);

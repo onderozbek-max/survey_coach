@@ -1,0 +1,7 @@
+/* The public landing page: one clear way in, then plain notes. Tokens only. */
+.welcome-cta { margin-top: var(--s-5); }
+.welcome-cta .btn { text-decoration: none; padding-inline: var(--s-5); }
+.welcome-cta .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#sample-note { margin-top: var(--s-3); }
+#own-survey { margin-top: var(--s-2); }
+#own-survey a { font-weight: 700; display: inline-block; min-height: 24px; padding-block: var(--s-1); }

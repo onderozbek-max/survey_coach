@@ -4,6 +4,7 @@ The server-only pages (local.html, review.html) call /api, which does not exist 
 them for redirects back to the sample. Only the site/ folder is ever copied: no docs, reports or fixtures.
 """
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -68,3 +69,19 @@ def test_the_workflow_publishes_the_built_bundle_not_the_raw_site_folder():
     assert 'path: _site' in workflow and 'path: site\n' not in workflow
     assert 'needs: test' not in workflow                  # publishing the static sample does not wait on the suite
     assert workflow.count('pytest -q') == 1               # ...but the suite still runs, so a red run stays visible
+
+
+def test_the_landing_is_the_front_door_and_the_review_moves_to_sample_html(tmp_path):
+    out = build(tmp_path)
+    landing, sample = (out / 'index.html').read_text(), (out / 'sample.html').read_text()
+    assert 'id="how-steps"' in landing and 'id="chapter-overview"' not in landing   # index.html is the landing
+    assert 'id="chapter-overview"' in sample and 'id="how-steps"' not in sample     # the review is sample.html
+    assert 'href="sample.html"' in landing and 'data-sample-link' not in landing    # the CTA is rewritten for the bundle
+    assert not (out / 'welcome.html').exists()                                      # no duplicate landing page
+
+
+def test_every_page_in_the_bundle_links_only_to_files_that_exist(tmp_path):
+    out = build(tmp_path)
+    for page in out.glob('*.html'):
+        for href in re.findall(r'(?:href|src)="([^"#:?]+)"', page.read_text()):
+            assert (out / href).exists(), f'{page.name} links to missing {href}'

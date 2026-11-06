@@ -8,8 +8,10 @@ Build plan: `docs/superpowers/plans/2026-11-02-roadmap.md`.
 
 https://onderozbek-max.github.io/survey_coach/
 
-A static page with a saved review of a made-up sample survey, shown with a phone preview, the verdict, the fix
-flow, the journey strip and the Sign off step. A banner on the page says it is a sample. It reads no real surveys
+The front door is a short landing page (what SurveyCoach is, how it works, an interactive example). Its button opens
+`sample.html`: a saved review of a made-up sample survey, shown with a phone preview, the verdict, the fix flow, the
+journey strip and the Sign off step. A banner on the review says it is a sample. In the source tree the landing page is
+`site/welcome.html` and the review is `site/index.html`; `scripts/build_pages.py` swaps them for the published bundle. It reads no real surveys
 and changes nothing in RedJade. Open it locally with `open site/index.html` (or `cd site && python3 -m http.server`).
 
 GitHub Pages can only serve static files, so it cannot check real surveys. Real reviews need the Python server
