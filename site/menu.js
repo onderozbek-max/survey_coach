@@ -34,7 +34,10 @@
       const list = items(), at = list.indexOf(document.activeElement);
       list[absolute ? (offset < 0 ? list.length - 1 : 0) : (at + offset + list.length) % list.length]?.focus();
     };
-    const disclosure = SC.disclosure(button, menu, {onToggle: open => { if (open) requestAnimationFrame(() => move(0, true)); }});
+    // Opening lands on the first item, unless focus already went into the menu this frame (the user's move wins).
+    const disclosure = SC.disclosure(button, menu, {onToggle: open => {
+      if (open) requestAnimationFrame(() => { if (!menu.contains(document.activeElement)) move(0, true); });
+    }});
     button.addEventListener('keydown', event => {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); disclosure.open(); }
     });

@@ -1,5 +1,6 @@
 """Chapter routing on intercepted synthetic reviews only; no saved data touched."""
 import pytest
+from playwright.sync_api import expect
 
 from tests.test_enrich_contract import CHECKED_WITH_ABSENT_AI_BLOCKERS
 from tests.test_issue_loop_ui import open_review, open_overview, focus
@@ -146,8 +147,8 @@ def test_about_is_consistent_keyboard_modal_in_every_chapter(browser, base_url, 
         assert trigger.evaluate('(el) => el.closest("header").id') == 'app-header'
         trigger.focus()
         page.keyboard.press('Enter')
-        assert dialog.is_visible()
-        assert page.locator('dialog[open]').count() == 1
+        expect(dialog).to_be_visible()                       # waits for the dialog; nothing here may assume it is already open
+        expect(page.locator('dialog[open]')).to_have_count(1)
         for title in ('What we checked', "What we didn't check", 'Reconstructed preview', 'AI suggestions', 'Your data'):
             assert dialog.get_by_role('heading', name=title, exact=True).is_visible()
         assert 'verify' in dialog.inner_text().lower() and 'RedJade' in dialog.inner_text()
@@ -157,16 +158,16 @@ def test_about_is_consistent_keyboard_modal_in_every_chapter(browser, base_url, 
         assert 'sent to' in dialog.inner_text()  # Local storage is not a no-transmission claim.
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         close = dialog.get_by_role('button', name='Close', exact=True)
-        assert close.evaluate('(el) => el === document.activeElement')
+        expect(close).to_be_focused()
         page.keyboard.press('Shift+Tab')
         technical = dialog.locator('summary')
-        assert technical.evaluate('(el) => el === document.activeElement')
+        expect(technical).to_be_focused()
         page.keyboard.press('Enter')
-        assert technical.evaluate('(el) => el.parentElement.open')
+        expect(dialog.locator('details')).to_have_attribute('open', '')
         page.keyboard.press('Tab')
-        assert dialog.evaluate('(el) => el.contains(document.activeElement)')
+        page.wait_for_function("document.querySelector('#about-review-dialog').contains(document.activeElement)")
         page.keyboard.press('Escape')
-        assert not dialog.is_visible()
+        expect(dialog).to_be_hidden()
         page.wait_for_function("document.activeElement.id === 'header-menu-button'")   # the item left with its menu
         open_how_we_check(page)
         close.click()

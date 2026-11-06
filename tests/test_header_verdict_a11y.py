@@ -168,3 +168,21 @@ def test_verdict_has_no_score_or_tiny_phone_and_tiles_open_the_fix_flow(browser,
     page.locator('#start-improving').click()
     page.wait_for_function("SC.currentChapter() === 'improve'")
     context.close()
+
+
+def test_opening_the_menu_never_steals_focus_the_user_already_moved(browser, base_url):
+    """The menu moves focus to its first item on the next frame. If the user (or a fast assistive tool) has already
+    moved to another item inside that frame, the late move must not undo it (it once sent Enter to 'My surveys'). My surveys is the menu's first item on a phone."""
+    context, page, detail, writes, errors = open_review(browser, base_url, width=390, chapter='overview')
+    focused = page.evaluate('''async () => {
+        document.querySelector('#header-menu-button').click();
+        document.querySelector('#about-review').focus();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return document.activeElement.id;
+    }''')
+    assert focused == 'about-review'
+    page.keyboard.press('Escape')
+    page.locator('#header-menu-button').click()                     # a plain open still lands on the first item
+    page.wait_for_function("document.activeElement.classList.contains('menu-mysurveys')")
+    assert not errors
+    context.close()
