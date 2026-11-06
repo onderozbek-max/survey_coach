@@ -31,6 +31,7 @@ def detail(**over):
     base = {"title": "Quesadilla Tray concept test", "version": 2, "id": "abc",
             "snapshot": {"source_url": LINK},
             "overview": {"verdict": {"kind": "ready_for_signoff", "headline": "Ready for sign-off",
+                                     "tiles": {"fix": 0, "improve": 0, "you_check": 0},
                                      "time": {"minutes": 6.0, "path_uncertain": False}},
                          "items": [kept_item("List length", "Q4 · Screen 5", "k1"),
                                    checked_item("Images load on a phone", "c1"),

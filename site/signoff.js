@@ -90,7 +90,7 @@
     const open = openCount(detail), focusedId = host.contains(document.activeElement) ? document.activeElement.id : '';
     mount(host, h('section', {class: 'signoff-card', 'data-signed': String(state.signed), 'aria-labelledby': 'signoff-h'},
       h('h3', {id: 'signoff-h', tabindex: '-1'}, 'Sign off'),
-      h('p', {id: 'signoff-open', class: 'signoff-open'}, open ? `Open now: ${SC.openSummary(detail.overview.verdict.tiles)}` : 'Nothing is open.'),
+      h('p', {id: 'signoff-open', class: 'signoff-open'}, open ? `Open now: ${detail.share?.facts?.open.text}` : 'Nothing is open.'),
       state.signed ? signedState(detail, state)
         : [h('p', {class: 'quiet'}, state.history?.length ? `Version ${detail.version} has not been signed off yet.` : 'Not signed off yet.'), form(detail)],
       history(detail, state)));

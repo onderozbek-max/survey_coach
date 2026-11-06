@@ -1,13 +1,15 @@
 """The "Review summary" card at the top of the downloadable summary (brief 4.7): the audit trail in one place.
 
-Survey, link, version, verdict, what was open, time, when it was checked, who signed off, and the completed
-You check list with who and when. Everything is escaped and nothing is fetched: inline text only. The link is
+Survey, link, version, verdict, what was open, time, when it was checked, who signed off, what was checked by hand,
+what is still to check and what was kept on purpose. All of it is laid out from `review_facts` (the same facts the
+Sign off card and the Slack post use). Everything is escaped and nothing is fetched: inline text only. The link is
 shown as plain text, origin and path only.
 """
 from __future__ import annotations
 
 from html import escape
 
+from surveycoach.server.review_facts import review_facts
 from surveycoach.server.signoff import utc_iso
 from surveycoach.server.slack import public_link
 
@@ -26,43 +28,40 @@ def _signoff_line(state: dict) -> str:
     return line + (". Changed since." if state["changed_since"] else ".")
 
 
-def _checks(detail: dict) -> list[str]:
-    state = detail.get("signoff") or {}
-    listed = (state.get("record") or {}).get("you_check")
-    if listed is None:
-        # Not signed yet: the same list, read live (nobody has vouched for it, so no name).
-        by_id = {i["id"]: i for i in (detail.get("overview") or {}).get("items", [])}
-        listed = [{"title": c["title"], "where": c["where"], "who": None, "at": None,
-                   "status": {"done": "done", "keep": "kept"}.get((by_id.get(c["fingerprint"]) or {}).get("handled_kind"), "open")}
-                  for c in (detail.get("overview") or {}).get("you_check", [])]
-    if not listed:
-        return []
-    rows = []
-    for check in listed:
-        who = f" · {_text(check['who'])}" if check.get("who") else ""
-        when = f" · {_text(check['at'])}" if check.get("at") else ""
-        rows.append(f"<li><strong>{_text(check['title'])}</strong> ({_text(check['where'])}) · "
-                    f"{_text(check['status'].capitalize())}{who}{when}</li>")
-    return ["<h3>Checked by hand</h3><ul>", *rows, "</ul>"]
+def _list(heading: str, rows: list[str]) -> list[str]:
+    return [f"<h3>{heading}</h3><ul>", *(f"<li>{row}</li>" for row in rows), "</ul>"] if rows else []
+
+
+def _checked(row: dict) -> str:
+    who = f" · {_text(row['who'])}" if row.get("who") else ""
+    when = f" · {_text(row['at'])}" if row.get("at") else ""
+    return f"<strong>{_text(row['title'])}</strong> ({_text(row['where'])}) · Done{who}{when}"
+
+
+def _lists(facts: dict) -> list[str]:
+    fixed = facts["fixed"]
+    return [*_list("Checked by hand", [_checked(r) for r in facts["checked_by_hand"]]),
+            *_list("Still to check", [f"<strong>{_text(r['title'])}</strong> ({_text(r['where'])})" for r in facts["still_to_check"]]),
+            *_list("Kept on purpose", [f"<strong>{_text(k['headline'])}</strong> ({_text(k['where'])})"
+                                       + (f" · {_text(k['reason'])}" if k["reason"] else "") for k in facts["kept"]]),
+            *(_list(f"Fixed since v{_text(fixed['from_version'])}",
+                    [f"{_text(f['where'])}: {_text(f['headline'])}" for f in fixed["items"]]) if fixed else [])]
 
 
 def review_card(detail: dict) -> list[str]:
     """HTML lines for the card; empty when there is no finished review to summarise."""
-    verdict = (detail.get("overview") or {}).get("verdict")
-    if not verdict:
+    facts = review_facts(detail)
+    if not facts:
         return []
-    tiles = verdict["tiles"]
+    verdict = detail["overview"]["verdict"]
     link = public_link((detail.get("snapshot") or {}).get("source_url"))
     finished = utc_iso(((detail.get("job") or {}).get("finished_at")))
-    rows = [("Survey", detail["title"]), ("Version", f"Version {detail['version']}"),
-            *([("Link", link)] if link else []), ("Verdict", verdict["headline"]),
-            ("Open", f"Fix {tiles['fix']} · Improve {tiles['improve']} · You check {tiles['you_check']}"),
-            ("Time", verdict["time"]["label"]), *([("Checked", finished)] if finished else [])]
-    lines = ["<section><h2>Review summary</h2><dl>",
-             *(f"<dt>{_text(name)}</dt><dd>{_text(value)}</dd>" for name, value in rows),
-             f"<dt>Sign-off</dt><dd>{_signoff_line(detail.get('signoff'))}</dd></dl>", *_checks(detail)]
-    delta = detail.get("version_delta")
-    if delta and delta["fixed"]:
-        lines += [f"<h3>Fixed since v{_text(delta['from_version'])}</h3><ul>",
-                  *(f"<li>{_text(f['location'])}: {_text(f['headline'])}</li>" for f in delta["fixed"]), "</ul>"]
-    return [*lines, "</section>"]
+    opened = facts["open"]
+    handled = f" · {opened['handled']} of {opened['total']} handled" if opened["total"] else ""
+    rows = [("Survey", facts["name"]), ("Version", f"Version {facts['version']}"),
+            *([("Link", link)] if link else []), ("Verdict", facts["verdict"]["headline"]),
+            ("Open", opened["text"] + handled), ("Time", verdict["time"]["label"]),
+            *([("Checked", finished)] if finished else [])]
+    return ["<section><h2>Review summary</h2><dl>",
+            *(f"<dt>{_text(name)}</dt><dd>{_text(value)}</dd>" for name, value in rows),
+            f"<dt>Sign-off</dt><dd>{_signoff_line(detail.get('signoff'))}</dd></dl>", *_lists(facts), "</section>"]

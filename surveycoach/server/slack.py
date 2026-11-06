@@ -16,7 +16,7 @@ import re
 from urllib.parse import quote, urlsplit
 
 from surveycoach.safe_text import one_line
-from surveycoach.status import keep_text
+from surveycoach.server.review_facts import review_facts
 from surveycoach.verdict import minutes_text
 
 LIST_MAX = 3
@@ -60,31 +60,23 @@ def _listed(entries: list[str]) -> str:
     return "; ".join(entries[:LIST_MAX]) + (f"; +{more} more" if more > 0 else "")
 
 
-def _fixed(detail: dict) -> str | None:
-    delta = detail.get("version_delta")
-    fixed = (delta or {}).get("fixed") or []
+def _fixed(facts: dict) -> str | None:
+    fixed = facts["fixed"]
     if not fixed:
         return None
-    names = [f"{slack_escape(_short(f['location']))}: {slack_escape(f['headline'])}" for f in fixed]
-    return f"Fixed since v{delta['from_version']}: {len(fixed)} ({_listed(names)})"
+    names = [f"{slack_escape(_short(f['where']))}: {slack_escape(f['headline'])}" for f in fixed["items"]]
+    return f"Fixed since v{fixed['from_version']}: {len(names)} ({_listed(names)})"
 
 
-def _kept(detail: dict) -> str | None:
-    items = [i for i in detail["overview"]["items"] if i.get("handled_kind") == "keep"]
-    if not items:
-        return None
-    names = []
-    for item in items:
-        reason = keep_text((detail.get("decisions") or {}).get(item["fingerprints"][0]) or {})
-        names.append(f"{slack_escape(_short(item['location']))}: {slack_escape(item['headline'])}"
-                     + (f" – {slack_escape(reason)}" if reason else ""))
-    return f"Kept on purpose: {len(items)} ({_listed(names)})"
+def _kept(facts: dict) -> str | None:
+    names = [f"{slack_escape(_short(k['where']))}: {slack_escape(k['headline'])}"
+             + (f" – {slack_escape(k['reason'])}" if k["reason"] else "") for k in facts["kept"]]
+    return f"Kept on purpose: {len(names)} ({_listed(names)})" if names else None
 
 
-def _checked(detail: dict) -> str | None:
-    done = [i["headline"] for i in detail["overview"]["items"]
-            if i["kind"] == "you_check" and i.get("handled_kind") == "done"]
-    return "Checked by hand: " + ", ".join(slack_escape(t) for t in done) if done else None
+def _checked(facts: dict) -> str | None:
+    done = facts["checked_by_hand"]
+    return "Checked by hand: " + ", ".join(slack_escape(c["title"]) for c in done) if done else None
 
 
 def _time(verdict: dict) -> str:
@@ -93,21 +85,22 @@ def _time(verdict: dict) -> str:
     return f"~{text}" + (" (varies by route)" if time.get("path_uncertain") else "")
 
 
-def slack_post(detail: dict) -> str | None:
+def slack_post(detail: dict, facts: dict | None = None) -> str | None:
     """The post for this version, or None before a check has finished (there is nothing to say yet)."""
-    verdict = (detail.get("overview") or {}).get("verdict")
-    if not verdict:
+    facts = facts or review_facts(detail)
+    if not facts:
         return None
     link = public_link((detail.get("snapshot") or {}).get("source_url"))
-    middle = " · ".join(part for part in (_fixed(detail), _kept(detail)) if part)
-    lines = [f"Survey review: {slack_escape(detail['title'])} (v{detail['version']})",
-             f"Verdict: {slack_escape(verdict['headline'])} · {_time(verdict)}",
-             middle, _checked(detail) or "", f"Link: {link}" if link else ""]
+    middle = " · ".join(part for part in (_fixed(facts), _kept(facts)) if part)
+    lines = [f"Survey review: {slack_escape(facts['name'])} (v{facts['version']})",
+             f"Verdict: {slack_escape(facts['verdict']['headline'])} · {_time(detail['overview']['verdict'])}",
+             middle, _checked(facts) or "", f"Link: {link}" if link else ""]
     return "\n".join(line for line in lines if line)
 
 
 def share_payload(detail: dict) -> dict:
     """What the Sign off page needs besides the sign-off itself: the post, the safe link, the download route."""
-    return {"slack_post": slack_post(detail),
+    facts = review_facts(detail)
+    return {"slack_post": slack_post(detail, facts), "facts": facts,
             "link": public_link((detail.get("snapshot") or {}).get("source_url")),
             "summary_url": f"/api/surveys/{detail['id']}/versions/{detail['version']}/summary?download=true"}

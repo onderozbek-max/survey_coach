@@ -5,7 +5,7 @@ import re
 import pytest
 from playwright.sync_api import expect
 
-from tests.signoff_helpers import LINK, SLACK, earlier, open_signoff
+from tests.signoff_helpers import earlier, open_signoff
 from tests.test_site_e2e import base_url, browser
 
 
@@ -20,12 +20,13 @@ def test_summary_card_has_the_facts_and_never_the_survey_address(browser, base_u
     card = page.locator('#review-card')
     facts = card.locator('dl').inner_text()
     assert detail['title'] in facts and 'v2' in facts and 'About 3½ minutes' in facts and 'Nov 5, 2026' in facts
-    assert card.locator('.test-link').inner_text() == LINK and card.locator('a').count() == 0     # plain text, never a live link
+    assert card.locator('.test-link').inner_text() == detail['share']['link'] == 'https://tests.redjade.net/preview/synthetic'
+    assert card.locator('a').count() == 0     # plain text, never a live link
     assert 'Ready for sign-off' in card.locator('.state-chip').inner_text()
     assert 'Nothing open' in facts
     titles = [check['title'] for check in detail['overview']['you_check']]
     assert titles and all(title in card.inner_text() for title in titles)
-    assert card.locator('.you-check-list li[data-status=open]').count() == 0 and 'Done' in card.inner_text()
+    assert card.get_by_role('heading', name='Still to check', exact=False).count() == 0 and 'Done' in card.inner_text()   # ready: nothing left to check
     for text in (page.locator('body').inner_text(), page.locator('#chapter-share').inner_html()):
         assert 'SECRET' not in text and 'token=' not in text
     assert not posts and not errors
@@ -34,11 +35,11 @@ def test_summary_card_has_the_facts_and_never_the_survey_address(browser, base_u
 
 def test_slack_post_copies_exactly_and_announces_once(browser, base_url):
     context, page, detail, posts, errors = open_signoff(browser, base_url, source_url='https://tests.redjade.net/p?token=SECRET123')
-    assert page.locator('#slack-post').inner_text() == SLACK
+    assert page.locator('#slack-post').inner_text() == detail['share']['slack_post']
     assert page.locator('#chapter-share .btn-primary').all_inner_texts() == ['Copy Slack post']       # the one hero action
     page.get_by_role('button', name='Copy Slack post', exact=True).click()
     expect(page.locator('#toast')).to_have_text(re.compile('Copied'))
-    assert page.evaluate('navigator.clipboard.readText()') == SLACK
+    assert page.evaluate('navigator.clipboard.readText()') == detail['share']['slack_post']
     assert 'SECRET' not in page.evaluate('navigator.clipboard.readText()')
     assert page.locator('[role=status], [aria-live]').filter(has_text='Copied').count() == 1
     assert page.locator('#download-summary').get_attribute('href') == '/api/surveys/synthetic/versions/2/summary?download=true'
@@ -61,7 +62,7 @@ def test_slack_copy_falls_back_to_a_textarea_when_the_clipboard_api_fails(browse
     }""")
     page.get_by_role('button', name='Copy Slack post', exact=True).click()
     expect(page.locator('#toast')).to_have_text(re.compile('Copied'))
-    assert page.evaluate('window.__copied') == [SLACK]
+    assert page.evaluate('window.__copied') == [detail['share']['slack_post']]
     context.close()
 
 
@@ -78,7 +79,7 @@ def test_a_ready_survey_signs_off_in_one_step_and_stays_calm(browser, base_url):
     assert page.locator('canvas, .confetti, [class*=confetti]').count() == 0
     assert page.locator('#status').inner_text() == 'Signed off by Priya N.'               # one announcement
     page.get_by_role('button', name='Copy Slack post again').click()
-    assert page.evaluate('navigator.clipboard.readText()') == SLACK
+    assert page.evaluate('navigator.clipboard.readText()') == detail['share']['slack_post']
     reopen(page)                                                                         # the record, not the form, after a reload
     expect(page.locator('.signed-line')).to_have_text('Signed off by Priya N · Nov 5, 2026')
     assert not errors

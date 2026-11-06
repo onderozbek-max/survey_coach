@@ -5,6 +5,7 @@ from math import floor
 import re
 
 from surveycoach.server.review_card import review_card
+from surveycoach.server.review_facts import survey_name
 from surveycoach.server.rounds import change_sheet, presentation, valid_decisions
 from surveycoach.signals import SIGNALS
 from surveycoach.status import NOT_CHECKED_LABEL, is_decided
@@ -61,7 +62,7 @@ def summary_packet(detail, *, download=False):
              "details{border-top:1px solid #bbb;margin-top:2rem;padding-top:1rem}"
              "@media print{body{font-size:11pt;margin:0}details{break-before:page}}",
              "</style><body><main><p>SurveyCoach · Share with stakeholders · not launch approval</p>",
-             f"<h1>{text(detail['title'])}</h1><p>Version {detail['version']}</p>",
+             f"<h1>{text(survey_name(detail['title']))}</h1><p>Version {detail['version']}</p>",
              *verdict_lines(detail), *review_card(detail),
              f"<p><strong>What we checked:</strong> {text(summary['scope']['summary'])}</p>"]
     parts.extend(f"<p>{text(line)}</p>" for line in summary["scope"]["unchecked_paths"])
@@ -189,7 +190,7 @@ def stakeholder_packet(detail):
              "<title>SurveyCoach stakeholder summary</title>",
              f"<style>{_LIGHT_CSS}</style></head><body><main>",
              "<p class='meta'>SurveyCoach · Share with stakeholders · not launch approval</p>",
-             f"<h1>{_text(detail['title'])}</h1><p>Version {_text(detail['version'])}</p>",
+             f"<h1>{_text(survey_name(detail['title']))}</h1><p>Version {_text(detail['version'])}</p>",
              "<section>", *verdict_lines(detail), "</section>", *review_card(detail),
              "<section><h2>Member experience</h2><table>",
              "<thead><tr><th>Signal</th><th>State</th><th>What we know</th></tr></thead><tbody>"]

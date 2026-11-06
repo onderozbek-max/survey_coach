@@ -2,12 +2,10 @@
 (`.superpowers/sdd/impl-3a-backend.md` sections 3 and 4); the server itself is covered by test_signoff / test_slack_post."""
 import json
 
+from surveycoach.server.slack import share_payload
 from tests.test_issue_loop_ui import open_review
 
 LINK = 'https://app.redjade.net/s/sunrise'
-SLACK = ('Survey review: Sunrise Skillet Concept Test (v2)\nVerdict: Almost ready: 1 quick improvement and 2 things to check yourself · ~3½ min\n'
-         'Kept on purpose: 1 (Screens 5, 7 and 9: Questions that follow an earlier answer – Owner decided: Checked on my phone)\n'
-         f'Checked by hand: Images load on a phone\nLink: {LINK}')
 STAMP = '2026-11-05T19:48:26Z'
 OPEN_TILES = {'fix': 1, 'improve': 1, 'you_check': 1}
 
@@ -48,16 +46,17 @@ def open_signoff(browser, base_url, ready=True, width=1280, signed=False, histor
     /signoff are recorded in `posts` and answered by `page.signoff_reply` (a callable returning (status, body))."""
     def prepare(detail):
         detail.update(version=version, versions=[{'version': n, 'created_at': '2026-11-05 18:00:00'} for n in range(1, version + 1)],
-                      share={'slack_post': SLACK, 'link': LINK, 'summary_url': f"/api/surveys/synthetic/versions/{version}/summary?download=true"},
                       signoff=state(ready, signed, history, version=version))
         detail['overview']['verdict'] = verdict(ready)
         if ready:                                       # a ready verdict means every item is handled
             for item in detail['overview']['items']:
                 item.update(open=False, handled_kind='done')
-        if source_url:
-            detail['snapshot']['source_url'] = source_url
+        detail['snapshot']['source_url'] = source_url or LINK
         if extra:
             extra(detail)
+        # The post, the facts and the link are written by the server's own code from this very detail, never typed in
+        # by hand: a hand-typed post once named another survey and another verdict than the card beside it (3E).
+        detail['share'] = share_payload(detail)
 
     context, page, detail, writes, errors = open_review(browser, base_url, width=width, chapter='share', prepare=prepare, derived=False)
     posts = []
