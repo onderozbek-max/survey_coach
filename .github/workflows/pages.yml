@@ -27,7 +27,8 @@ jobs:
       - run: python -m pytest -q
 
   deploy:
-    needs: test
+    # Publishing the static sample does not wait on the suite: the bundle is built from site/ only, and the suite
+    # still runs above, so a failure stays visible as a red run.
     runs-on: ubuntu-latest
     environment:
       name: github-pages

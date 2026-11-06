@@ -66,4 +66,5 @@ def test_the_workflow_publishes_the_built_bundle_not_the_raw_site_folder():
     workflow = (ROOT / '.github' / 'workflows' / 'pages.yml').read_text()
     assert 'python3 scripts/build_pages.py _site' in workflow
     assert 'path: _site' in workflow and 'path: site\n' not in workflow
-    assert 'needs: test' in workflow                      # publishing stays gated on the suite
+    assert 'needs: test' not in workflow                  # publishing the static sample does not wait on the suite
+    assert workflow.count('pytest -q') == 1               # ...but the suite still runs, so a red run stays visible
