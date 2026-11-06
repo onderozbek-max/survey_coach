@@ -75,9 +75,15 @@ def test_colour_lives_only_in_tokens():
             assert not re.search(r"#[0-9A-Fa-f]{3,8}\b|rgba?\(|hsla?\(", css.read_text()), css.name
 
 
+# The one gradient we allow (3E): the phone's "More below" fade sitting on the Next bar. It is functional (it says there is more
+# to scroll to without a floating control hiding an answer), token-only, and pinned to that one file and rule by test_phone_fidelity.
+PHONE_FADE = "linear-gradient(to top, var(--phone-bg), transparent)"
+
+
 def test_no_decorative_gradients_or_glass():
     for css in SITE.glob("*.css"):
-        assert not re.search(r"(?:radial|linear)-gradient|backdrop-filter", css.read_text()), css.name
+        text = css.read_text().replace(PHONE_FADE, "") if css.name == "phone-frame.css" else css.read_text()
+        assert not re.search(r"(?:radial|linear)-gradient|backdrop-filter", text), css.name
 
 
 def test_all_css_token_references_resolve():

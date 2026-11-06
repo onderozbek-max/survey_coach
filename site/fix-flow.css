@@ -1,6 +1,7 @@
 /* The fix flow: toolbar, list, card, My changes tray, drawers and the two end states. Colour comes from tokens only. */
 @property --p { syntax:'<number>'; inherits:false; initial-value:0; }
 html { scroll-padding-top:calc(var(--header-h,69px) + 96px); }
+:root { --tray-h:0px; }   /* the My changes tray's height, set by my-changes.js */
 
 /* ---- toolbar: one progress indicator, three filter chips, the tools ---- */
 .improve-bar { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s-3) var(--s-5); margin:var(--s-4) 0 var(--s-5); padding:var(--s-2) var(--s-3); background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r-md); }
@@ -36,7 +37,7 @@ html { scroll-padding-top:calc(var(--header-h,69px) + 96px); }
 }
 
 /* ---- the list ---- */
-.fix-rows { list-style:none; margin:0; padding:0 0 var(--tray-h, 0px); display:grid; gap:var(--s-2); }   /* clear of the fixed My changes tray (3E) */
+.fix-rows { list-style:none; margin:0; padding:0 0 var(--tray-h); display:grid; gap:var(--s-2); }   /* clear of the fixed My changes tray (3E) */
 .fix-row { display:grid; grid-template-columns:24px minmax(0,1fr); gap:var(--s-3); align-items:start; width:100%; min-height:44px; padding:var(--s-3); text-align:left; border:1px solid var(--line-strong); border-radius:var(--r-md); background:var(--surface); color:var(--text); cursor:pointer; }
 .fix-row[aria-current=true] { border:2px solid var(--accent); background:var(--accent-soft); padding:calc(var(--s-3) - 1px); }
 .fix-row .state-icon[data-state=done] { color:var(--positive); }
