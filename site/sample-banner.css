@@ -1,0 +1,5 @@
+/* The sample banner: quiet, informational, above the header. Tokens only. */
+.sample-banner { background:var(--accent-soft); color:var(--text); border-bottom:1px solid var(--line-strong);
+  padding:var(--s-2) var(--s-4); font-size:var(--fs-14); text-align:center; }
+.sample-banner p { margin:0 auto; max-width:var(--content); }
+.sample-banner-link { display:inline-block; min-height:24px; padding:var(--s-1) 0; font-weight:700; }

@@ -10,3 +10,6 @@ __pycache__/
 /browser-profile/
 .DS_Store
 screen*.png
+
+# GitHub Pages build output
+_site/

@@ -6,11 +6,17 @@ Build plan: `docs/superpowers/plans/2026-11-02-roadmap.md`.
 
 ## Live demo
 
-https://onderozbek-max.github.io/adminai/
+https://onderozbek-max.github.io/survey_coach/
 
-A static page with saved reviews of two made-up sample surveys, shown with a phone preview.
-It reads no real surveys and changes nothing in RedJade. Open it locally with
-`open site/index.html` (or `cd site && python3 -m http.server`).
+A static page with a saved review of a made-up sample survey, shown with a phone preview, the verdict, the fix
+flow, the journey strip and the Sign off step. A banner on the page says it is a sample. It reads no real surveys
+and changes nothing in RedJade. Open it locally with `open site/index.html` (or `cd site && python3 -m http.server`).
+
+GitHub Pages can only serve static files, so it cannot check real surveys. Real reviews need the Python server
+(see "Test the private local workspace"), which has no sign-in and must stay on a loopback address. The Pages build
+(`python scripts/build_pages.py`) turns the server-only pages (`local.html`, `review.html`) into redirects back to
+the sample. To point the sample's banner at a team tool once one exists, set `window.SURVEYCOACH_TEAM_URL` (plain
+https only) in `site/environment.js` and re-publish; until then the banner says to ask the owner.
 
 The review data in `site/data.js` is produced by the Python engine, never hand-edited:
 `.venv/bin/python -m surveycoach.demo_export` regenerates it, and a test fails if it goes stale.
