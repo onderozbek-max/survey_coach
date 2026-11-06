@@ -58,7 +58,8 @@ def test_legacy_phone_link_and_keyboard_issue_navigation(browser, studio):
     assert not any('fingerprint' in text or 'q-' in text for text in headings)
     go_to(page, 'share')
     assert page.locator('#download-summary').inner_text() == 'Download summary'
-    assert page.locator('#download-summary').get_attribute('href').endswith('/summary?download=1')
+    href = page.locator('#download-summary').get_attribute('href')           # the server's own route (detail.share.summary_url)
+    assert href == page.evaluate('SC.workspaceDetail.share.summary_url') and href.endswith('/summary?download=true')
     assert page.locator('details.studio-tools').count() == 0
     page.close()
 

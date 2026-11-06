@@ -20,7 +20,9 @@ def test_saved_review_opens_phone_and_shared_system(browser, studio):
     assert page.locator('#stage .phone-screen').is_visible()
     go_to(page, 'share')
     download = page.get_by_role('link', name='Download summary', exact=True)
-    assert '/versions/1/summary?download=1' in download.get_attribute('href')
+    # the server names the download route (detail.share.summary_url); the page links to exactly that
+    assert download.get_attribute('href') == page.evaluate('SC.workspaceDetail.share.summary_url')
+    assert '/versions/1/summary?download=true' in download.get_attribute('href')
     assert download.is_visible()
     assert page.locator('#copy-all').is_hidden()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
